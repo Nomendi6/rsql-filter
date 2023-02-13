@@ -1,0 +1,59 @@
+enum StandardRecordStatus {
+    NOT_ACTIVE,
+    ACTIVE
+}
+
+enum AppObjectType {
+    FUNCTIONAL_MODULE,
+    FORM,
+    REPORT,
+    ENTITY
+}
+
+entity AppObject {
+    code String required,
+    name String required,
+    description TextBlob,
+    objectType AppObjectType,
+    lastChange Instant,
+    seq Long,
+    status StandardRecordStatus,
+    quantity Double,
+    validFrom Instant,
+    validUntil Instant,
+    isValid Boolean,
+    creationDate LocalDate,
+}
+relationship ManyToOne { AppObject {parent(name)} to AppObject}
+
+
+entity ProductType {
+    code String required,
+    name String required,
+    description TextBlob,
+    seq Long,
+    status StandardRecordStatus,
+    validFrom Instant,
+    validUntil Instant
+
+}
+
+entity Product {
+    code String required,
+    name String required,
+    description TextBlob,
+    seq Long,
+    status StandardRecordStatus,
+    validFrom Instant,
+    validUntil Instant,
+}
+
+relationship ManyToOne { Product {tproduct(name)} to ProductType}
+relationship ManyToOne { Product {parent(name)} to Product}
+
+
+filter all
+paginate all with pagination
+service all with serviceClass
+dto all with mapstruct
+// microservice * with backend

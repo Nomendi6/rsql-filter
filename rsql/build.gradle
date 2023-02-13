@@ -1,0 +1,125 @@
+plugins {
+    // Apply the java-library plugin for API and implementation separation.
+    id "java"
+    id 'java-library'
+    id 'java-library-distribution'
+    id 'maven-publish'
+    id 'signing'
+//    id 'org.springframework.boot' version "${springBootVersion}" apply false
+}
+
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+group = 'com.nomendi6'
+version = '0.1.0'
+sourceCompatibility = '11'
+repositories {
+    // Use Maven Central for resolving dependencies.
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots/"
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
+    maven {
+        url = uri("https://maven.pkg.github.com/Nomendi6/rsql-filter")
+        credentials {
+            username = githubUsername
+            password = githubPassword
+        }
+    }
+}
+
+
+dependencies {
+    annotationProcessor(group: 'org.antlr', name: 'antlr4', version: '4.11.1')
+    api group: 'org.antlr', name: 'antlr4-runtime', version: '4.11.1'
+//    api "org.springframework.boot:spring-boot-starter:${springBootVersion}"
+    api "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"
+    api "org.hibernate:hibernate-core:${hibernateVersion}"
+    api "org.mapstruct:mapstruct:${mapstructVersion}"
+//    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+testing {
+    suites {
+        // Configure the built-in test suite
+        test {
+            // Use JUnit Jupiter test framework
+            useJUnitJupiter('5.9.1')
+        }
+    }
+}
+
+tasks.named('jar') {
+    manifest {
+        attributes(
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': 'Nomendi 6 d.o.o.'
+        )
+    }
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+distributions {
+    main {
+        distributionBaseName = 'rsql-filter'
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = "com.nomendi6"
+            artifactId = "rsql-filter"
+            version = "0.1.1"
+            from components.java
+            pom {
+                name = 'rsql-filter'
+                description = 'RSQL filter for Spring Data JPA'
+                url = 'https://github.com/Nomendi6/rsql-filter'
+                licenses {
+                    license {
+                        name = 'The Apache Software License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        distribution = 'repo'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'Nomendi6'
+                        name = 'Nomendi 6 d.o.o.'
+                        email = 'ivan.vrbovcan@nomendi6.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/Nomendi6/rsql-filter.git'
+                    developerConnection = 'scm:git:ssh://github.com/Nomendi6/rsql-filter.git'
+                    url = 'https://github.com/Nomendi6/rsql-filter'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url = uri("https://maven.pkg.github.com/Nomendi6/rsql-filter")
+            credentials {
+                username = githubUsername
+                password = githubPassword
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
+}
+

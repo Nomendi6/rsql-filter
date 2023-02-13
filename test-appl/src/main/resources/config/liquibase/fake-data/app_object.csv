@@ -1,0 +1,11 @@
+id;code;name;description;object_type;last_change;seq;status;quantity;valid_from;valid_until;is_valid;creation_date
+1;Fresh Bedfordshire Games;Coordinator;../fake-data/blob/hipster.txt;FUNCTIONAL_MODULE;2023-02-07T09:09:09;48045;ACTIVE;12907;2023-02-07T01:37:19;2023-02-07T00:43:59;true;2023-02-07
+2;Investor neural;e-tailers Corporate;../fake-data/blob/hipster.txt;ENTITY;2023-02-06T21:21:31;79542;NOT_ACTIVE;78214;2023-02-07T00:48:51;2023-02-07T12:11:52;false;2023-02-07
+3;Saint Credit;wireless;../fake-data/blob/hipster.txt;FUNCTIONAL_MODULE;2023-02-07T09:46:02;96965;NOT_ACTIVE;19016;2023-02-07T06:11:36;2023-02-06T17:37:44;false;2023-02-07
+4;Pennsylvania encoding;out-of-the-box target Garden;../fake-data/blob/hipster.txt;FUNCTIONAL_MODULE;2023-02-07T01:13:36;9921;NOT_ACTIVE;21078;2023-02-07T07:08:51;2023-02-07T05:07:02;true;2023-02-06
+5;transmitter New;optical;../fake-data/blob/hipster.txt;FUNCTIONAL_MODULE;2023-02-06T20:56:46;44784;ACTIVE;43680;2023-02-07T08:13:10;2023-02-06T23:53:46;true;2023-02-06
+6;Pants;Supervisor database;../fake-data/blob/hipster.txt;REPORT;2023-02-06T13:27:17;30184;NOT_ACTIVE;96324;2023-02-06T23:38:19;2023-02-06T23:39:05;true;2023-02-07
+7;copy;Market primary;../fake-data/blob/hipster.txt;REPORT;2023-02-07T00:42:01;78616;ACTIVE;26402;2023-02-07T03:45:33;2023-02-06T15:33:14;false;2023-02-06
+8;Cotton;turquoise envisioneer;../fake-data/blob/hipster.txt;FUNCTIONAL_MODULE;2023-02-06T21:26:00;61116;ACTIVE;37666;2023-02-07T10:35:58;2023-02-07T00:13:07;false;2023-02-06
+9;Glens USB;Borders optimize;../fake-data/blob/hipster.txt;ENTITY;2023-02-06T17:28:58;66071;NOT_ACTIVE;7810;2023-02-06T21:51:14;2023-02-07T06:09:10;false;2023-02-06
+10;Shirt Rhode;bleeding-edge enterprise;../fake-data/blob/hipster.txt;REPORT;2023-02-07T12:24:07;14371;NOT_ACTIVE;42188;2023-02-07T12:11:06;2023-02-07T00:18:40;true;2023-02-07
