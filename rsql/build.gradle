@@ -24,13 +24,6 @@ repositories {
             snapshotsOnly()
         }
     }
-    maven {
-        url = uri("https://maven.pkg.github.com/Nomendi6/rsql-filter")
-        credentials {
-            username = githubUsername
-            password = githubPassword
-        }
-    }
 }
 
 
@@ -110,10 +103,10 @@ publishing {
     }
     repositories {
         maven {
-            url = uri("https://maven.pkg.github.com/Nomendi6/rsql-filter")
+            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
             credentials {
-                username = githubUsername
-                password = githubPassword
+                username = ossrhUsername
+                password = ossrhPassword
             }
         }
     }
