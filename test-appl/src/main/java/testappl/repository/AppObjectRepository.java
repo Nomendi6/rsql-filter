@@ -27,12 +27,12 @@ public interface AppObjectRepository extends JpaRepository<AppObject, Long>, Jpa
     }
 
     @Query(
-        value = "select distinct appObject from AppObject appObject left join fetch appObject.parent",
-        countQuery = "select count(distinct appObject) from AppObject appObject"
+        value = "select appObject from AppObject appObject left join fetch appObject.parent",
+        countQuery = "select count(appObject) from AppObject appObject"
     )
     Page<AppObject> findAllWithToOneRelationships(Pageable pageable);
 
-    @Query("select distinct appObject from AppObject appObject left join fetch appObject.parent")
+    @Query("select appObject from AppObject appObject left join fetch appObject.parent")
     List<AppObject> findAllWithToOneRelationships();
 
     @Query("select appObject from AppObject appObject left join fetch appObject.parent where appObject.id =:id")

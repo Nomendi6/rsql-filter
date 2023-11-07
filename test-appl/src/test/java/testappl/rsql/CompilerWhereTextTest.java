@@ -17,8 +17,8 @@ import testappl.repository.AppObjectRepository;
 import testappl.repository.ProductRepository;
 import testappl.repository.ProductTypeRepository;
 
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
 
 import static java.time.temporal.ChronoUnit.DAYS;

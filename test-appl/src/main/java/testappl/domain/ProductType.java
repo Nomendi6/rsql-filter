@@ -1,12 +1,11 @@
 package testappl.domain;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
-import javax.persistence.*;
-import javax.validation.constraints.*;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
-import org.hibernate.annotations.Type;
 import testappl.domain.enumeration.StandardRecordStatus;
 
 /**
@@ -35,7 +34,6 @@ public class ProductType implements Serializable {
     private String name;
 
     @Lob
-    @Type(type = "org.hibernate.type.TextType")
     @Column(name = "description")
     private String description;
 
@@ -168,7 +166,7 @@ public class ProductType implements Serializable {
         if (!(o instanceof ProductType)) {
             return false;
         }
-        return id != null && id.equals(((ProductType) o).id);
+        return getId() != null && getId().equals(((ProductType) o).getId());
     }
 
     @Override

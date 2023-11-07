@@ -1,6 +1,6 @@
 package rsql.where;
 
-import javax.persistence.criteria.Path;
+import jakarta.persistence.criteria.Path;
 
 public class RsqlJoin {
 

@@ -122,6 +122,12 @@ public interface ProductTypeRepository extends JpaRepository<ProductType, Long>,
 
 Complete example application can be found [here](./test-appl).
 
+## Spring Boot integration
+
+This library is designed to work with Spring Boot JPA applications. It provides a convenient way to transfer filter parameters in REST GET requests. The library makes it easy to build RESTful APIs that allow clients to filter data based on specific criteria.
+
+This specific version is working with Spring Boot 3 (3.1.5) and Hibernate version 6 (6.2.13).   
+
 ## **References**
 
 This work is based on the following projects:

@@ -2,18 +2,18 @@ package rsql.where;
 
 import rsql.antlr.where.RsqlWhereBaseVisitor;
 import rsql.antlr.where.RsqlWhereParser;
-import org.hibernate.query.criteria.internal.path.SingularAttributePath;
+// import org.hibernate.query.criteria.internal.path.SingularAttributePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.jpa.domain.Specification;
+// import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import rsql.exceptions.SyntaxErrorException;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.From;
-import javax.persistence.criteria.Path;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.Metamodel;
+// import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.Metamodel;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -62,8 +62,16 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         return "a" + aliasCounter;
     }
 
+//    private static String getFieldFromPathOld(Path<?> path) {
+//       return path.getAlias() + "." + ((SingularAttributePath<?>) path).getAttribute().getName();
+//    }
+
+    // This is a replacement for getFieldFromPathOld(Path<?> path) above.
+    // For a given Path<?> path, getFieldFromPath(Path<?> path) returns the path as a string.
+    // the result consists of the alias of the path, followed by the path's attribute/field name.
     private static String getFieldFromPath(Path<?> path) {
-        return path.getAlias() + "." + ((SingularAttributePath<?>) path).getAttribute().getName();
+        String fieldName = path.getModel().toString();
+        return path.getAlias() + "." + fieldName;
     }
 
     private Object getInListElement(RsqlWhereParser.InListElementContext ctx) {

@@ -6,18 +6,20 @@
     <!--
         Added the constraints for entity Product.
     -->
-    <changeSet id="20230207132621-2" author="jhipster">
+    <changeSet id="20230205152549-2" author="jhipster">
 
         <addForeignKeyConstraint baseColumnNames="tproduct_id"
                                  baseTableName="product"
                                  constraintName="fk_product__tproduct_id"
                                  referencedColumnNames="id"
-                                 referencedTableName="product_type"/>
+                                 referencedTableName="product_type"
+                                 />
 
         <addForeignKeyConstraint baseColumnNames="parent_id"
                                  baseTableName="product"
                                  constraintName="fk_product__parent_id"
                                  referencedColumnNames="id"
-                                 referencedTableName="product"/>
+                                 referencedTableName="product"
+                                 />
     </changeSet>
 </databaseChangeLog>

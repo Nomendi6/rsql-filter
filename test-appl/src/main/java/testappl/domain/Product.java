@@ -1,13 +1,12 @@
 package testappl.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
-import javax.persistence.*;
-import javax.validation.constraints.*;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
-import org.hibernate.annotations.Type;
 import testappl.domain.enumeration.StandardRecordStatus;
 
 /**
@@ -36,7 +35,6 @@ public class Product implements Serializable {
     private String name;
 
     @Lob
-    @Type(type = "org.hibernate.type.TextType")
     @Column(name = "description")
     private String description;
 
@@ -53,10 +51,10 @@ public class Product implements Serializable {
     @Column(name = "valid_until")
     private Instant validUntil;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private ProductType tproduct;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "tproduct", "parent" }, allowSetters = true)
     private Product parent;
 
@@ -202,7 +200,7 @@ public class Product implements Serializable {
         if (!(o instanceof Product)) {
             return false;
         }
-        return id != null && id.equals(((Product) o).id);
+        return getId() != null && getId().equals(((Product) o).getId());
     }
 
     @Override

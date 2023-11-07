@@ -22,11 +22,11 @@ import testappl.repository.UserRepository;
 import testappl.web.rest.vm.LoginVM;
 
 /**
- * Integration tests for the {@link UserJWTController} REST controller.
+ * Integration tests for the {@link AuthenticateController} REST controller.
  */
 @AutoConfigureMockMvc
 @IntegrationTest
-class UserJWTControllerIT {
+class AuthenticateControllerIT {
 
     @Autowired
     private UserRepository userRepository;

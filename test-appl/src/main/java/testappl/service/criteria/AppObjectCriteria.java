@@ -2,7 +2,7 @@ package testappl.service.criteria;
 
 import java.io.Serializable;
 import java.util.Objects;
-import org.springdoc.api.annotations.ParameterObject;
+import org.springdoc.core.annotations.ParameterObject;
 import tech.jhipster.service.Criteria;
 import tech.jhipster.service.filter.*;
 import testappl.domain.enumeration.AppObjectType;

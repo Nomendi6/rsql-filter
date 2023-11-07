@@ -1,4 +1,4 @@
 /**
- * View Models used by Spring MVC REST controllers.
+ * Rest layer visual models.
  */
 package testappl.web.rest.vm;

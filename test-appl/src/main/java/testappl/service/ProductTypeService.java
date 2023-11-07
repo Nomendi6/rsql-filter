@@ -13,7 +13,7 @@ import testappl.service.dto.ProductTypeDTO;
 import testappl.service.mapper.ProductTypeMapper;
 
 /**
- * Service Implementation for managing {@link ProductType}.
+ * Service Implementation for managing {@link testappl.domain.ProductType}.
  */
 @Service
 @Transactional

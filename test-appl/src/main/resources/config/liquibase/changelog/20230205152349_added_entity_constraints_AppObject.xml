@@ -6,12 +6,13 @@
     <!--
         Added the constraints for entity AppObject.
     -->
-    <changeSet id="20230207132619-2" author="jhipster">
+    <changeSet id="20230205152349-2" author="jhipster">
 
         <addForeignKeyConstraint baseColumnNames="parent_id"
                                  baseTableName="app_object"
                                  constraintName="fk_app_object__parent_id"
                                  referencedColumnNames="id"
-                                 referencedTableName="app_object"/>
+                                 referencedTableName="app_object"
+                                 />
     </changeSet>
 </databaseChangeLog>
