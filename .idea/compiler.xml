@@ -13,7 +13,7 @@
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.glassfish/javax.json/1.1.4/943f240a509d3c70b448a55c6735591ecbd37c88/javax.json-1.1.4.jar" />
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.ibm.icu/icu4j/71.1/9e7d3304c23f9ba5cb71915f7cce23231a57a445/icu4j-71.1.jar" />
         </processorPath>
-        <module name="rsql-filter.rsql.main" />
+        <module name="com.nomendi6.rsql-filter.rsql.main" />
       </profile>
       <profile name="Gradle Imported" enabled="true">
         <outputRelativeToContentRoot value="true" />
@@ -30,7 +30,7 @@
           <entry name="$MAVEN_REPOSITORY$/org/jvnet/staxex/stax-ex/1.8/stax-ex-1.8.jar" />
           <entry name="$MAVEN_REPOSITORY$/com/sun/xml/fastinfoset/FastInfoset/1.2.15/FastInfoset-1.2.15.jar" />
         </processorPath>
-        <module name="rsql-filter.test-appl.main" />
+        <module name="testappl.rsql-filter.test-appl.main" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="11" />
