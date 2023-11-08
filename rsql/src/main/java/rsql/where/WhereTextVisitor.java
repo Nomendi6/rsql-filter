@@ -1,5 +1,6 @@
 package rsql.where;
 
+import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath;
 import rsql.antlr.where.RsqlWhereBaseVisitor;
 import rsql.antlr.where.RsqlWhereParser;
 // import org.hibernate.query.criteria.internal.path.SingularAttributePath;
@@ -62,17 +63,19 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         return "a" + aliasCounter;
     }
 
-//    private static String getFieldFromPathOld(Path<?> path) {
-//       return path.getAlias() + "." + ((SingularAttributePath<?>) path).getAttribute().getName();
-//    }
-
-    // This is a replacement for getFieldFromPathOld(Path<?> path) above.
-    // For a given Path<?> path, getFieldFromPath(Path<?> path) returns the path as a string.
-    // the result consists of the alias of the path, followed by the path's attribute/field name.
     private static String getFieldFromPath(Path<?> path) {
-        String fieldName = path.getModel().toString();
-        return path.getAlias() + "." + fieldName;
+        String alias = path.getAlias();
+        String fieldName;
+
+        if (path instanceof SqmBasicValuedSimplePath) {
+            fieldName = ((SqmBasicValuedSimplePath<?>) path).getNavigablePath().getLocalName();
+        } else {
+            throw new IllegalArgumentException("Path is not an instance of SqmBasicValuedSimplePath");
+        }
+
+        return alias + "." + fieldName;
     }
+
 
     private Object getInListElement(RsqlWhereParser.InListElementContext ctx) {
         if (ctx.field() != null) {
