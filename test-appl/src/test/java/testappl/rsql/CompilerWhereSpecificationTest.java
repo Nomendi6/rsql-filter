@@ -28,7 +28,6 @@ import testappl.repository.ProductRepository;
 import testappl.repository.ProductTypeRepository;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -142,43 +141,8 @@ public class CompilerWhereSpecificationTest {
         }
     }
 
-    private String getSqlText(Specification<AppObject> specification) {
-        // get sql text from specification in hibernate dialect
-
-        final TypedQuery<AppObject> query = entityManager.createQuery(
-            rsqlContext.criteriaQuery
-                .select(rsqlContext.root)
-                .where(specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder)));
-//        org.hibernate.Query hq = query.unwrap(org.hibernate.Query.class);
-//        String sql = hq.getQueryString();
-//        CriteriaQueryTypeQueryAdapter queryAdapter = (CriteriaQueryTypeQueryAdapter)query.unwrap(Query.class);
-//        String sql = queryAdapter.getQueryString();
-//
-//        // from sql string get text after 'where'
-//        String whereClause = sql.substring(sql.indexOf("where") + 5).trim();
-//        return whereClause;
-        return "TEST";
-    }
-
-    private String getSqlTextForProduct(Specification<Product> specification) {
-        // get sql text from specification in hibernate dialect
-/*
-        final TypedQuery<Product> query = entityManager.createQuery(
-            rsqlContextProduct.criteriaQuery
-                .select(rsqlContextProduct.root)
-                .where(specification.toPredicate(rsqlContextProduct.root, rsqlContextProduct.criteriaQuery, rsqlContextProduct.criteriaBuilder)));
-        org.hibernate.query.Query hq = query.unwrap(org.hibernate.query.Query.class);
-        String sql = hq.getQueryString();
-        // from sql string get text after 'where'
-        String whereClause = sql.substring(sql.indexOf("where") + 5).trim();
-        return whereClause;
-*/
-        return "TEST";
-    }
-
-    private String compileToSpecificationAndGetWhere(String rsql) {
+    private void compileToSpecificationAndGetWhere(String rsql) {
         final Specification<AppObject> specification = compiler.compileToSpecification(rsql, rsqlContext);
-        return getSqlText(specification);
     }
 
     private Specification<AppObject> compileToSpecification(String rsql) {
@@ -191,12 +155,7 @@ public class CompilerWhereSpecificationTest {
         return specification;
     }
 
-    private String compileToSpecificationAndGetWhereForProduct(String rsql) {
-        final Specification<Product> specification = compilerForProduct.compileToSpecification(rsql, rsqlContextProduct);
-        return getSqlTextForProduct(specification);
-    }
 
-    // Helper class to represent expected conditions for clarity
     private static class ExpectedCondition {
         public String fieldName;
         public ComparisonOperator operator;
@@ -227,186 +186,138 @@ public class CompilerWhereSpecificationTest {
         }
     }
 
-    private void testFieldWithOperator(String condition, ComparisonOperator expectedOperator, Long expectedValue) {
+    private <T> void testFieldWithOperator(
+        String fieldName, String condition, ComparisonOperator expectedOperator, T expectedValue, Class<T> valueType) {
         Specification<AppObject> specification = compileToSpecification(condition);
         assertThat(specification).isNotNull();
 
         Predicate predicate = specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         assertThat(predicate).isNotNull();
 
-        // operator
+        // Assert the operator
         ComparisonOperator sqmOperator = ((SqmComparisonPredicate) predicate).getSqmOperator();
         assertThat(sqmOperator).isNotNull();
         assertThat(sqmOperator).isEqualTo(expectedOperator);
 
-        // left path
+        // Assert the left path
         SqmComparisonPredicate comparisonPredicate = (SqmComparisonPredicate) predicate;
         SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
         String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-        assertThat(leftPathAttributeName).isEqualTo("seq");
+        assertThat(leftPathAttributeName).isEqualTo(fieldName);
 
-        // right literal
-        SqmParameter<?> rightParameter = (SqmParameter<?>) comparisonPredicate.getRightHandExpression();
-        Long rightValue = (Long) ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
+        // Assert the right literal or parameter value
+        SqmExpression<?> rightHandExpression = comparisonPredicate.getRightHandExpression();
+    T rightValue = getRightValue(rightHandExpression, valueType);
         assertThat(rightValue).isEqualTo(expectedValue);
+    }
+
+    private <T> T getRightValue(SqmExpression<?> rightHandExpression, Class<T> expectedType) {
+        if (rightHandExpression instanceof SqmParameter) {
+            SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
+            Object value = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
+        if (value != null && expectedType.isInstance(value)) {
+            return expectedType.cast(value);
+        } else {
+            throw new AssertionError("Value is not of the expected type: " + expectedType);
+        }
+        } else if (rightHandExpression instanceof SqmLiteral) {
+            SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
+            Object value = rightLiteral.getLiteralValue();
+        if (expectedType.isInstance(value)) {
+            return expectedType.cast(value);
+        } else {
+            throw new AssertionError("Value is not of the expected type: " + expectedType);
+        }
+        }
+        throw new AssertionError("Unexpected expression type: " + rightHandExpression.getClass());
+    }
+
+    private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, Long expectedValue) {
+        testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, Long.class);
     }
 
     private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, String expectedValue) {
-        Specification<AppObject> specification = compileToSpecification(condition);
-        assertThat(specification).isNotNull();
-
-        Predicate predicate = specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
-        assertThat(predicate).isNotNull();
-
-        ComparisonOperator sqmOperator = ((SqmComparisonPredicate) predicate).getSqmOperator();
-        assertThat(sqmOperator).isNotNull();
-        assertThat(sqmOperator).isEqualTo(expectedOperator);
-
-        // left path
-        SqmComparisonPredicate comparisonPredicate = (SqmComparisonPredicate) predicate;
-        SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
-        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-        assertThat(leftPathAttributeName).isEqualTo(fieldName);
-
-        // right literal
-        SqmParameter<?> rightParameter = (SqmParameter<?>) comparisonPredicate.getRightHandExpression();
-        String rightValue = (String) ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-        assertThat(rightValue).isEqualTo(expectedValue);
-    }
-
-    private void testFieldWithLIkeOperator(String fieldName, String condition, ComparisonOperator expectedOperator, String expectedValue) {
-        Specification<AppObject> specification = compileToSpecification(condition);
-        assertThat(specification).isNotNull();
-
-        Predicate predicate = specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
-        assertThat(predicate).isNotNull();
-        assertThat(predicate).isInstanceOf(SqmLikePredicate.class);
-
-        // left path
-        SqmLikePredicate likePredicate = (SqmLikePredicate) predicate;
-
-        // Provjera da li je izraz koji se podudara funkcija ili putanja
-        SqmExpression<?> matchExpression = likePredicate.getMatchExpression();
-        if (matchExpression instanceof SelfRenderingSqmFunction) {
-            SelfRenderingSqmFunction<?> function = (SelfRenderingSqmFunction<?>) matchExpression;
-            String functionName = function.getFunctionName();
-            assertThat(functionName).isEqualToIgnoringCase(fieldName); // ili neka druga logika provjere
-        } else if (matchExpression instanceof SqmPath) {
-            SqmPath<?> leftPath = (SqmPath<?>) matchExpression;
-            String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-            assertThat(leftPathAttributeName).isEqualTo(fieldName);
-        }
-
-        // Right path
-        SqmExpression<?> rightExpression = likePredicate.getPattern();
-        if (rightExpression instanceof SqmLiteral) {
-            SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightExpression;
-            Object rightLiteralValue = rightLiteral.getLiteralValue();
-            assertThat(rightLiteralValue).isEqualTo(expectedValue);
-        } else if (rightExpression instanceof SqmParameter) {
-            SqmParameter<?> rightParameter = (SqmParameter<?>) rightExpression;
-            String rightValue = (String) ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-            assertThat(rightValue).isEqualTo(expectedValue);
-        } else {
-            assertThat(false).isTrue();
-        }
+        testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, String.class);
     }
 
     private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, Double expectedValue) {
-        Specification<AppObject> specification = compileToSpecification(condition);
-        assertThat(specification).isNotNull();
-
-        Predicate predicate = specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
-        assertThat(predicate).isNotNull();
-
-        // operator
-        ComparisonOperator sqmOperator = ((SqmComparisonPredicate) predicate).getSqmOperator();
-        assertThat(sqmOperator).isNotNull();
-        assertThat(sqmOperator).isEqualTo(expectedOperator);
-
-
-        // left path
-        SqmComparisonPredicate comparisonPredicate = (SqmComparisonPredicate) predicate;
-        SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
-        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-        assertThat(leftPathAttributeName).isEqualTo(fieldName);
-
-        // right literal
-        SqmParameter<?> rightParameter = (SqmParameter<?>) comparisonPredicate.getRightHandExpression();
-        Double rightValue = (Double) ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-        assertThat(rightValue).isEqualTo(expectedValue);
+        testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, Double.class);
     }
 
     private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, Instant expectedValue) {
-        Specification<AppObject> specification = compileToSpecification(condition);
-        assertThat(specification).isNotNull();
-
-        Predicate predicate = specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
-        assertThat(predicate).isNotNull();
-
-        // operator
-        ComparisonOperator sqmOperator = ((SqmComparisonPredicate) predicate).getSqmOperator();
-        assertThat(sqmOperator).isNotNull();
-        assertThat(sqmOperator).isEqualTo(expectedOperator);
-
-        // left path
-        SqmComparisonPredicate comparisonPredicate = (SqmComparisonPredicate) predicate;
-        SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
-        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-        assertThat(leftPathAttributeName).isEqualTo(fieldName);
-
-        // right literal
-        SqmParameter<?> rightParameter = (SqmParameter<?>) comparisonPredicate.getRightHandExpression();
-        Instant rightValue = (Instant) ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-        assertThat(rightValue).isEqualTo(expectedValue);
+        testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, Instant.class);
     }
 
     private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, LocalDate expectedValue) {
-        Specification<AppObject> specification = compileToSpecification(condition);
-        assertThat(specification).isNotNull();
-
-        Predicate predicate = specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
-        assertThat(predicate).isNotNull();
-
-        // operator
-        ComparisonOperator sqmOperator = ((SqmComparisonPredicate) predicate).getSqmOperator();
-        assertThat(sqmOperator).isNotNull();
-        assertThat(sqmOperator).isEqualTo(expectedOperator);
-
-        // left path
-        SqmComparisonPredicate comparisonPredicate = (SqmComparisonPredicate) predicate;
-        SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
-        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-        assertThat(leftPathAttributeName).isEqualTo(fieldName);
-
-        // right literal
-        SqmParameter<?> rightParameter = (SqmParameter<?>) comparisonPredicate.getRightHandExpression();
-        LocalDate rightValue = (LocalDate) ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-        assertThat(rightValue).isEqualTo(expectedValue);
+        testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, LocalDate.class);
     }
 
     private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, Boolean expectedValue) {
+        testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, Boolean.class);
+    }
+
+    private void testFieldWithLikeOperator(String fieldName, String condition, ComparisonOperator expectedOperator, String expectedValue) {
         Specification<AppObject> specification = compileToSpecification(condition);
-        assertThat(specification).isNotNull();
+        assertSpecificationNotNull(specification);
 
         Predicate predicate = specification.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
-        assertThat(predicate).isNotNull();
-
-        // operator
-        ComparisonOperator sqmOperator = ((SqmComparisonPredicate) predicate).getSqmOperator();
-        assertThat(sqmOperator).isNotNull();
-        assertThat(sqmOperator).isEqualTo(expectedOperator);
+        assertPredicateNotNullAndSpecificType(predicate, SqmLikePredicate.class);
 
         // left path
-        SqmComparisonPredicate comparisonPredicate = (SqmComparisonPredicate) predicate;
-        SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
-        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-        assertThat(leftPathAttributeName).isEqualTo(fieldName);
+        SqmLikePredicate likePredicate = (SqmLikePredicate) predicate;
+        assertMatchExpression(fieldName, likePredicate.getMatchExpression());
 
-        // right literal
-        SqmParameter<?> rightParameter = (SqmParameter<?>) comparisonPredicate.getRightHandExpression();
-        Boolean rightValue = (Boolean) ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-        assertThat(rightValue).isEqualTo(expectedValue);
+        // Right path
+        assertPatternExpression(expectedValue, likePredicate.getPattern());
+    }
+
+    private void assertSpecificationNotNull(Specification<AppObject> specification) {
+        assertThat(specification).isNotNull();
+    }
+
+    private void assertPredicateNotNullAndSpecificType(Predicate predicate, Class<?> predicateType) {
+        assertThat(predicate).isNotNull();
+        assertThat(predicate).isInstanceOf(predicateType);
+    }
+
+    private void assertMatchExpression(String fieldName, SqmExpression<?> matchExpression) {
+        if (matchExpression instanceof SelfRenderingSqmFunction) {
+            assertFunctionMatch(fieldName, (SelfRenderingSqmFunction<?>) matchExpression);
+        } else if (matchExpression instanceof SqmPath) {
+            assertPathMatch(fieldName, (SqmPath<?>) matchExpression);
+        } else {
+            assertThat(false).isTrue(); // This is equivalent to fail("Unexpected match expression type.");
+        }
+    }
+
+    private void assertFunctionMatch(String fieldName, SelfRenderingSqmFunction<?> function) {
+        String functionName = function.getFunctionName();
+        assertThat(functionName).isEqualToIgnoringCase(fieldName);
+    }
+
+    private void assertPathMatch(String fieldName, SqmPath<?> path) {
+        String pathAttributeName = path.getNavigablePath().getLocalName();
+        assertThat(pathAttributeName).isEqualTo(fieldName);
+    }
+
+    private void assertPatternExpression(String expectedValue, SqmExpression<?> patternExpression) {
+        if (patternExpression instanceof SqmLiteral) {
+            assertLiteralMatch(expectedValue, (SqmLiteral<?>) patternExpression);
+        } else if (patternExpression instanceof SqmParameter) {
+            assertParameterMatch(expectedValue, (SqmParameter<?>) patternExpression);
+        } else {
+            assertThat(false).isTrue(); // This is equivalent to fail("Unexpected pattern expression type.");
+        }
+    }
+
+    private void assertLiteralMatch(String expectedValue, SqmLiteral<?> literal) {
+        Object literalValue = literal.getLiteralValue();
+        assertThat(literalValue).isEqualTo(expectedValue);
+    }
+
+    private void assertParameterMatch(String expectedValue, SqmParameter<?> parameter) {
+        String parameterValue = (String) ((ValueBindJpaCriteriaParameter) parameter).getValue();
+        assertThat(parameterValue).isEqualTo(expectedValue);
     }
 
     private void testSingleCondition(
@@ -416,31 +327,45 @@ public class CompilerWhereSpecificationTest {
         Object expectedValue,
         Object expectedParameterName) {
 
-        // Provjera operatora
+        assertOperatorEquals(predicate, expectedOperator);
+        assertLeftPathEquals(predicate, expectedFieldName);
+        assertRightHandExpression(predicate, expectedValue, expectedParameterName);
+    }
+
+    private void assertOperatorEquals(SqmComparisonPredicate predicate, ComparisonOperator expectedOperator) {
         ComparisonOperator sqmOperator = predicate.getSqmOperator();
         assertThat(sqmOperator).isNotNull();
         assertThat(sqmOperator).isEqualTo(expectedOperator);
+    }
 
-        // Provjera lijevog puta
+    private void assertLeftPathEquals(SqmComparisonPredicate predicate, String expectedFieldName) {
         SqmPath<?> leftPath = (SqmPath<?>) predicate.getLeftHandExpression();
         String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
         assertThat(leftPathAttributeName).isEqualTo(expectedFieldName);
+    }
 
-        // Provjera desnog literala ili parametra
+    private void assertRightHandExpression(SqmComparisonPredicate predicate, Object expectedValue, Object expectedParameterName) {
         SqmExpression<?> rightHandExpression = predicate.getRightHandExpression();
         if (rightHandExpression instanceof SqmLiteral) {
-            SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
-            Object rightLiteralValue = rightLiteral.getLiteralValue();
-            assertThat(rightLiteralValue).isEqualTo(expectedValue);
+            assertRightLiteralEquals(rightHandExpression, expectedValue);
         } else if (rightHandExpression instanceof SqmParameter) {
-            SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
-            if (expectedParameterName != null) {
-                assertThat(rightParameter.getName()).isEqualTo(expectedParameterName);
-            }
-            if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
-                Object rightValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-                assertThat(rightValue).isEqualTo(expectedValue);
-            }
+            assertRightParameterEquals(rightHandExpression, expectedValue, expectedParameterName);
+        }
+    }
+
+    private void assertRightLiteralEquals(SqmExpression<?> rightHandExpression, Object expectedValue) {
+        Object rightLiteralValue = ((SqmLiteral<?>) rightHandExpression).getLiteralValue();
+        assertThat(rightLiteralValue).isEqualTo(expectedValue);
+    }
+
+    private void assertRightParameterEquals(SqmExpression<?> rightHandExpression, Object expectedValue, Object expectedParameterName) {
+        SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
+        if (expectedParameterName != null) {
+            assertThat(rightParameter.getName()).isEqualTo(expectedParameterName);
+        }
+        if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
+            Object rightValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
+            assertThat(rightValue).isEqualTo(expectedValue);
         }
     }
 
@@ -450,36 +375,52 @@ public class CompilerWhereSpecificationTest {
     }
 
     private void testInListCondition(SqmInListPredicate predicate, ExpectedCondition expectedCondition) {
-        // Provjera lijevog puta
+        assertLeftPath(predicate, expectedCondition);
+        assertListValues(predicate, expectedCondition);
+    }
+
+    private void assertLeftPath(SqmInListPredicate predicate, ExpectedCondition expectedCondition) {
         SqmPath<?> leftPath = (SqmPath<?>) predicate.getTestExpression();
         String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
         assertThat(leftPathAttributeName).isEqualTo(expectedCondition.fieldName);
+    }
 
+    private void assertListValues(SqmInListPredicate predicate, ExpectedCondition expectedCondition) {
         Object expectedValues = expectedCondition.value;
-        // Provjeri da je expectedValues lista
         assertThat(expectedValues).isInstanceOf(List.class);
-        int listIndex = 0;
 
-        // Provjera desnog literala ili parametra
-        for (Object rightHandExpression : predicate.getListExpressions()) {
-            Object expectedValue = ((List<?>) expectedValues).get(listIndex++);
+        List<?> expectedValuesList = (List<?>) expectedValues;
+        List<SqmExpression<?>> listExpressions = predicate.getListExpressions();
 
-            if (rightHandExpression instanceof SqmLiteral) {
-                SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
-                Object rightLiteralValue = rightLiteral.getLiteralValue();
-                assertThat(rightLiteralValue).isEqualTo(expectedCondition.value);
-            } else if (rightHandExpression instanceof SqmParameter) {
-                SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
-                if (expectedCondition.parameter != null) {
-                    assertThat(rightParameter.getName()).isEqualTo(expectedCondition.parameter);
-                }
-                if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
-                    Object rightValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-                    assertThat(rightValue).isEqualTo(expectedValue);
-                }
-            }
+        for (int i = 0; i < listExpressions.size(); i++) {
+            SqmExpression<?> rightHandExpression = listExpressions.get(i);
+            Object expectedValue = expectedValuesList.get(i);
+            assertRightHandExpression(rightHandExpression, expectedValue, expectedCondition.parameter);
         }
+    }
 
+    private void assertRightHandExpression(SqmExpression<?> rightHandExpression, Object expectedValue, Object expectedParameterName) {
+        if (rightHandExpression instanceof SqmLiteral) {
+            assertLiteralValue(rightHandExpression, expectedValue);
+        } else if (rightHandExpression instanceof SqmParameter) {
+            assertParameterValue(rightHandExpression, expectedValue, expectedParameterName);
+        }
+    }
+
+    private void assertLiteralValue(SqmExpression<?> rightHandExpression, Object expectedValue) {
+        Object rightLiteralValue = ((SqmLiteral<?>) rightHandExpression).getLiteralValue();
+        assertThat(rightLiteralValue).isEqualTo(expectedValue);
+    }
+
+    private void assertParameterValue(SqmExpression<?> rightHandExpression, Object expectedValue, Object expectedParameterName) {
+        SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
+        if (expectedParameterName != null) {
+            assertThat(rightParameter.getName()).isEqualTo(expectedParameterName);
+        }
+        if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
+            Object rightParameterValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
+            assertThat(rightParameterValue).isEqualTo(expectedValue);
+        }
     }
 
     private void testNestedConditions(String condition, List<ExpectedCondition> expectedConditions) {
@@ -505,127 +446,137 @@ public class CompilerWhereSpecificationTest {
 
     private int testPredicateRecursively(Predicate predicate, List<ExpectedCondition> expectedConditions, int index, LogicalOperator parentLogicalOperator) {
         if (predicate instanceof SqmJunctionPredicate) {
-            SqmJunctionPredicate junctionPredicate = (SqmJunctionPredicate) predicate;
-            Predicate.BooleanOperator junctionPredicateOperator = junctionPredicate.getOperator();
-            LogicalOperator currentLogicalOperator = junctionPredicateOperator == Predicate.BooleanOperator.AND ? LogicalOperator.AND : LogicalOperator.OR;
-
-            for (SqmPredicate subPredicate : junctionPredicate.getPredicates()) {
-            index = testPredicateRecursively(subPredicate, expectedConditions, index, currentLogicalOperator);
-            }
+            index = testJunctionPredicate((SqmJunctionPredicate) predicate, expectedConditions, index);
         } else if (predicate instanceof SqmComparisonPredicate) {
-            SqmComparisonPredicate comparisonPredicate = (SqmComparisonPredicate) predicate;
-            ExpectedCondition expectedCondition = expectedConditions.get(index);
-
-            // Provjeravamo da li logički operator roditelja odgovara očekivanom
-            assertThat(expectedCondition.logicalOperator).isEqualTo(parentLogicalOperator);
-
-            // Test the comparison predicate against the expected condition
-            testSingleCondition(comparisonPredicate, expectedCondition);
-
-            index++;
+            index = testComparisonPredicate((SqmComparisonPredicate) predicate, expectedConditions, index, parentLogicalOperator);
         } else if (predicate instanceof SqmInListPredicate) {
-            SqmInListPredicate inListPredicate = (SqmInListPredicate) predicate;
-
-
-            testInListCondition(inListPredicate, expectedConditions.get(index));
-            index++;
+            index = testInListPredicate((SqmInListPredicate) predicate, expectedConditions, index);
         } else if (predicate instanceof SqmBetweenPredicate) {
-            SqmBetweenPredicate betweenPredicate = (SqmBetweenPredicate) predicate;
-            ExpectedCondition expectedCondition = expectedConditions.get(index);
-
-            // Provjeravamo da li logički operator roditelja odgovara očekivanom
-            assertThat(expectedCondition.logicalOperator).isEqualTo(parentLogicalOperator);
-
-            // Provjera lijevog puta
-            SqmPath<?> leftPath = (SqmPath<?>) betweenPredicate.getExpression();
-            String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-            assertThat(leftPathAttributeName).isEqualTo(expectedCondition.fieldName);
-
-            // expectedCondition.value je lista koja se sastoji od dva elementa.  Prvi element je donja granica, a drugi gornja granica
-            Object lowerBound = null;
-            Object upperBound = null;
-            Object expectedValues = expectedCondition.value;
-            if (expectedValues instanceof List) {
-                lowerBound = ((List<?>) expectedValues).get(0);
-                upperBound = ((List<?>) expectedValues).get(1);
-            }
-            Object lowerParameter = null;
-            Object upperParameter = null;
-            Object expectedParameters = expectedCondition.parameter;
-            if (expectedParameters instanceof List) {
-                lowerParameter = ((List<?>) expectedParameters).get(0);
-                upperParameter = ((List<?>) expectedParameters).get(1);
-            }
-
-            // napravi provjeru vrijednosti za lowerBound, a zatim za upperBound. Ove vrijednosti usporedi sa vrijednostima iz betweenPredicate.
-            // Provjera desnog literala ili parametra
-            SqmExpression<?> rightHandExpression = betweenPredicate.getLowerBound();
-            if (rightHandExpression instanceof SqmLiteral) {
-                SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
-                Object rightLiteralValue = rightLiteral.getLiteralValue();
-                assertThat(lowerBound).isNotNull();
-                assertThat(rightLiteralValue).isEqualTo(lowerBound);
-            } else if (rightHandExpression instanceof SqmParameter) {
-                SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
-                if (lowerParameter != null) {
-                    assertThat(rightParameter.getName()).isEqualTo(lowerParameter);
-                }
-                if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
-                    Object rightValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-                    assertThat(rightValue).isEqualTo(lowerBound);
-                }
-            } else if (rightHandExpression instanceof SqmBasicValuedSimplePath<?>){
-                SqmBasicValuedSimplePath<?> rightPath = (SqmBasicValuedSimplePath<?>) rightHandExpression;
-                String rightPathAttributeName = rightPath.getNavigablePath().getLocalName();
-                assertThat(rightPathAttributeName).isEqualTo(lowerBound);
-            } else {
-                assertThat(false).isEqualTo(true);
-            }
-
-            rightHandExpression = betweenPredicate.getUpperBound();
-            if (rightHandExpression instanceof SqmLiteral) {
-                SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
-                Object rightLiteralValue = rightLiteral.getLiteralValue();
-                assertThat(upperBound).isNotNull();
-                assertThat(rightLiteralValue).isEqualTo(upperBound);
-            } else if (rightHandExpression instanceof SqmParameter) {
-                SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
-                if (upperParameter != null) {
-                    assertThat(rightParameter.getName()).isEqualTo(upperParameter);
-                }
-                if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
-                    Object rightValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-                    assertThat(rightValue).isEqualTo(upperBound);
-                }
-            } else if (rightHandExpression instanceof SqmBasicValuedSimplePath<?>){
-                SqmBasicValuedSimplePath<?> rightPath = (SqmBasicValuedSimplePath<?>) rightHandExpression;
-                String rightPathAttributeName = rightPath.getNavigablePath().getLocalName();
-                assertThat(rightPathAttributeName).isEqualTo(upperBound);
-            } else {
-                assertThat(false).isEqualTo(true);
-            }
+            testBetweenPredicate((SqmBetweenPredicate) predicate, expectedConditions, index, parentLogicalOperator);
 
         } else if (predicate instanceof SqmNullnessPredicate) {
-            SqmNullnessPredicate nullnessPredicate = (SqmNullnessPredicate) predicate;
-            ExpectedCondition expectedCondition = expectedConditions.get(index);
-
-            // Provjeravamo da li logički operator roditelja odgovara očekivanom
-            assertThat(expectedCondition.logicalOperator).isEqualTo(parentLogicalOperator);
-
-            // Provjera lijevog puta
-            SqmPath<?> leftPath = (SqmPath<?>) nullnessPredicate.getExpression();
-            String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
-            assertThat(leftPathAttributeName).isEqualTo(expectedCondition.fieldName);
-
-            // Provjera operatora da li je nullnessPredicate u skladu sa očekivanim
-
-            // provjeri da je expectedCondition.value boolean
-            assertThat(expectedCondition.value).isInstanceOf(Boolean.class);
-            assertThat(nullnessPredicate.isNegated()).isEqualTo(!((Boolean) expectedCondition.value));
+            testNullnessPredicate((SqmNullnessPredicate) predicate, expectedConditions, index, parentLogicalOperator);
         } else {
             assertThat(false).isEqualTo(true);
         }
         return index;
+    }
+
+    private int testJunctionPredicate(SqmJunctionPredicate predicate, List<ExpectedCondition> expectedConditions, int index) {
+        SqmJunctionPredicate junctionPredicate = predicate;
+        Predicate.BooleanOperator junctionPredicateOperator = junctionPredicate.getOperator();
+        LogicalOperator currentLogicalOperator = junctionPredicateOperator == Predicate.BooleanOperator.AND ? LogicalOperator.AND : LogicalOperator.OR;
+
+        for (SqmPredicate subPredicate : junctionPredicate.getPredicates()) {
+            index = testPredicateRecursively(subPredicate, expectedConditions, index, currentLogicalOperator);
+        }
+        return index;
+    }
+
+    private int testComparisonPredicate(SqmComparisonPredicate predicate, List<ExpectedCondition> expectedConditions, int index, LogicalOperator parentLogicalOperator) {
+        SqmComparisonPredicate comparisonPredicate = predicate;
+        ExpectedCondition expectedCondition = expectedConditions.get(index);
+
+        assertThat(expectedCondition.logicalOperator).isEqualTo(parentLogicalOperator);
+
+        testSingleCondition(comparisonPredicate, expectedCondition);
+
+        index++;
+        return index;
+    }
+
+    private int testInListPredicate(SqmInListPredicate predicate, List<ExpectedCondition> expectedConditions, int index) {
+        SqmInListPredicate inListPredicate = predicate;
+
+        testInListCondition(inListPredicate, expectedConditions.get(index));
+        index++;
+        return index;
+    }
+
+    private static void testBetweenPredicate(SqmBetweenPredicate predicate, List<ExpectedCondition> expectedConditions, int index, LogicalOperator parentLogicalOperator) {
+        SqmBetweenPredicate betweenPredicate = predicate;
+        ExpectedCondition expectedCondition = expectedConditions.get(index);
+
+        assertThat(expectedCondition.logicalOperator).isEqualTo(parentLogicalOperator);
+
+        SqmPath<?> leftPath = (SqmPath<?>) betweenPredicate.getExpression();
+        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
+        assertThat(leftPathAttributeName).isEqualTo(expectedCondition.fieldName);
+
+        Object lowerBound = null;
+        Object upperBound = null;
+        Object expectedValues = expectedCondition.value;
+        if (expectedValues instanceof List) {
+            lowerBound = ((List<?>) expectedValues).get(0);
+            upperBound = ((List<?>) expectedValues).get(1);
+        }
+        Object lowerParameter = null;
+        Object upperParameter = null;
+        Object expectedParameters = expectedCondition.parameter;
+        if (expectedParameters instanceof List) {
+            lowerParameter = ((List<?>) expectedParameters).get(0);
+            upperParameter = ((List<?>) expectedParameters).get(1);
+        }
+
+        SqmExpression<?> rightHandExpression = betweenPredicate.getLowerBound();
+        if (rightHandExpression instanceof SqmLiteral) {
+            SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
+            Object rightLiteralValue = rightLiteral.getLiteralValue();
+            assertThat(lowerBound).isNotNull();
+            assertThat(rightLiteralValue).isEqualTo(lowerBound);
+        } else if (rightHandExpression instanceof SqmParameter) {
+            SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
+            if (lowerParameter != null) {
+                assertThat(rightParameter.getName()).isEqualTo(lowerParameter);
+            }
+            if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
+                Object rightValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
+                assertThat(rightValue).isEqualTo(lowerBound);
+            }
+        } else if (rightHandExpression instanceof SqmBasicValuedSimplePath<?>){
+            SqmBasicValuedSimplePath<?> rightPath = (SqmBasicValuedSimplePath<?>) rightHandExpression;
+            String rightPathAttributeName = rightPath.getNavigablePath().getLocalName();
+            assertThat(rightPathAttributeName).isEqualTo(lowerBound);
+        } else {
+            assertThat(false).isEqualTo(true);
+        }
+
+        rightHandExpression = betweenPredicate.getUpperBound();
+        if (rightHandExpression instanceof SqmLiteral) {
+            SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
+            Object rightLiteralValue = rightLiteral.getLiteralValue();
+            assertThat(upperBound).isNotNull();
+            assertThat(rightLiteralValue).isEqualTo(upperBound);
+        } else if (rightHandExpression instanceof SqmParameter) {
+            SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
+            if (upperParameter != null) {
+                assertThat(rightParameter.getName()).isEqualTo(upperParameter);
+            }
+            if (rightParameter instanceof ValueBindJpaCriteriaParameter) {
+                Object rightValue = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
+                assertThat(rightValue).isEqualTo(upperBound);
+            }
+        } else if (rightHandExpression instanceof SqmBasicValuedSimplePath<?>){
+            SqmBasicValuedSimplePath<?> rightPath = (SqmBasicValuedSimplePath<?>) rightHandExpression;
+            String rightPathAttributeName = rightPath.getNavigablePath().getLocalName();
+            assertThat(rightPathAttributeName).isEqualTo(upperBound);
+        } else {
+            assertThat(false).isEqualTo(true);
+        }
+    }
+
+    private static void testNullnessPredicate(SqmNullnessPredicate predicate, List<ExpectedCondition> expectedConditions, int index, LogicalOperator parentLogicalOperator) {
+        SqmNullnessPredicate nullnessPredicate = predicate;
+        ExpectedCondition expectedCondition = expectedConditions.get(index);
+
+        assertThat(expectedCondition.logicalOperator).isEqualTo(parentLogicalOperator);
+
+        SqmPath<?> leftPath = (SqmPath<?>) nullnessPredicate.getExpression();
+        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
+        assertThat(leftPathAttributeName).isEqualTo(expectedCondition.fieldName);
+
+        assertThat(expectedCondition.value).isInstanceOf(Boolean.class);
+        assertThat(nullnessPredicate.isNegated()).isEqualTo(!((Boolean) expectedCondition.value));
     }
 
     private void testFieldToFieldComparison(String condition, ExpectedCondition expectedCondition) {
@@ -685,41 +636,41 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldEqNum() {
-        testFieldWithOperator("seq==10", ComparisonOperator.EQUAL, 10L);
+        testFieldWithOperator("seq", "seq==10", ComparisonOperator.EQUAL, 10L);
     }
 
     @Test
     void fieldEqNegNum() {
-        testFieldWithOperator("seq==-10", ComparisonOperator.EQUAL, -10L);
+        testFieldWithOperator("seq", "seq==-10", ComparisonOperator.EQUAL, -10L);
     }
 
     @Test
     void fieldNotEqNum() {
-        testFieldWithOperator("seq!=10", ComparisonOperator.NOT_EQUAL, 10L);
+        testFieldWithOperator("seq", "seq!=10", ComparisonOperator.NOT_EQUAL, 10L);
     }
 
     @Test
     void fieldNotEqNegNum() {
-        testFieldWithOperator("seq!=-10", ComparisonOperator.NOT_EQUAL, -10L);
+        testFieldWithOperator("seq", "seq!=-10", ComparisonOperator.NOT_EQUAL, -10L);
     }
     @Test
     void fieldGtNum() {
-        testFieldWithOperator("seq=gt=10", ComparisonOperator.GREATER_THAN, 10L);
+        testFieldWithOperator("seq", "seq=gt=10", ComparisonOperator.GREATER_THAN, 10L);
     }
 
     @Test
     void fieldGeNum() {
-        testFieldWithOperator("seq=ge=10", ComparisonOperator.GREATER_THAN_OR_EQUAL, 10L);
+        testFieldWithOperator("seq", "seq=ge=10", ComparisonOperator.GREATER_THAN_OR_EQUAL, 10L);
     }
 
     @Test
     void fieldLtNum() {
-        testFieldWithOperator("seq=lt=10", ComparisonOperator.LESS_THAN, 10L);
+        testFieldWithOperator("seq", "seq=lt=10", ComparisonOperator.LESS_THAN, 10L);
     }
 
     @Test
     void fieldLeNum() {
-        testFieldWithOperator("seq=le=10", ComparisonOperator.LESS_THAN_OR_EQUAL, 10L);
+        testFieldWithOperator("seq", "seq=le=10", ComparisonOperator.LESS_THAN_OR_EQUAL, 10L);
     }
 
     @Test
@@ -733,7 +684,7 @@ public class CompilerWhereSpecificationTest {
     @Test
     void errorMissingOpeningParenthesis() {
         SyntaxErrorException thrown = assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("seq==10 or seq==11)");
+            compileToSpecificationAndGetWhere("seq==10 or seq==11)");
         });
         assertTrue(thrown.getMessage().contains("Missing opening parenthesis"));
     }
@@ -741,13 +692,13 @@ public class CompilerWhereSpecificationTest {
     @Test
     void errorMissingQuote1() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("name=='text");
+            compileToSpecificationAndGetWhere("name=='text");
         });
     }
 
     @Test
     void seqNotEq() {
-        testFieldWithOperator("seq!=10", ComparisonOperator.NOT_EQUAL, 10L);
+        testFieldWithOperator("seq", "seq!=10", ComparisonOperator.NOT_EQUAL, 10L);
     }
 
     @Test
@@ -871,7 +822,7 @@ public class CompilerWhereSpecificationTest {
     @Test
     void errorDateMissingHash() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("validFrom==#2023-01-01T14:01:01Z");
+            compileToSpecificationAndGetWhere("validFrom==#2023-01-01T14:01:01Z");
         });
     }
 
@@ -917,8 +868,6 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldsAnd5() {
-//        String whereClause = compileToSpecificationAndGetWhere("(((name=='text') and (code=='code')) and (description=='a'))");
-//        assertThat(whereClause).isEqualTo("( ( generatedAlias0.name=:param0 ) and ( generatedAlias0.code=:param1 ) ) and ( generatedAlias0.description=:param2 )");
         List<ExpectedCondition> expectedConditions = new ArrayList<>();
         expectedConditions.add(new ExpectedCondition("name", ComparisonOperator.EQUAL, "text", LogicalOperator.AND));
         expectedConditions.add(new ExpectedCondition("code", ComparisonOperator.EQUAL, "code", LogicalOperator.AND));
@@ -980,8 +929,6 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldWithDotsEqField() {
-//        String whereClause = compileToSpecificationAndGetWhereForProduct("tproduct.code==name");
-//        assertThat(whereClause).isEqualTo("generatedAlias2.code=generatedAlias0.name");
         testFieldToFieldComparisonOnProduct("tproduct.code==name", new ExpectedCondition("tproduct.code", ComparisonOperator.EQUAL, "name"));
     }
 
@@ -1007,72 +954,62 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldIsNull() {
-//        String whereClause = compileToSpecificationAndGetWhere("name==NULL");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.name is null");
         testCondition("name==NULL", new ExpectedCondition("name", ComparisonOperator.EQUAL, true, null, null));
     }
 
     @Test
     void fieldIsNotNull() {
-//        String whereClause = compileToSpecificationAndGetWhere("name!=NULL");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.name is not null");
         testCondition("name!=NULL", new ExpectedCondition("name", ComparisonOperator.EQUAL, false, null, null));
     }
 
     @Test
     void fieldEqEnum() {
-//        String whereClause = compileToSpecificationAndGetWhere("status==#ACTIVE#");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.status=:param0");
         testCondition("status==#ACTIVE#", new ExpectedCondition("status", ComparisonOperator.EQUAL, StandardRecordStatus.ACTIVE, null, null));
 
     }
 
     @Test
     void fieldNotEqEnum() {
-//        String whereClause = compileToSpecificationAndGetWhere("status!=#ACTIVE#");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.status<>:param0");
         testCondition("status!=#ACTIVE#", new ExpectedCondition("status", ComparisonOperator.NOT_EQUAL, StandardRecordStatus.ACTIVE, null, null));
     }
 
     @Test
     void errorEnumMissingHash1() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("status==ACTIVE#");
+            compileToSpecificationAndGetWhere("status==ACTIVE#");
         });
     }
 
     @Test
     void errorEnumMissingHash2() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("status==#ACTIVE");
+            compileToSpecificationAndGetWhere("status==#ACTIVE");
         });
     }
 
     @Test
     void fieldEqTrue() {
-//        String whereClause = compileToSpecificationAndGetWhere("isValid==true");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.isValid=:param0");
         testCondition("isValid==true", new ExpectedCondition("isValid", ComparisonOperator.EQUAL, Boolean.TRUE, null, null));
     }
 
     @Test
     void errorGtTrue() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("isValid=gt=true");
+            compileToSpecificationAndGetWhere("isValid=gt=true");
         });
     }
 
     @Test
     void errorGtNull() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("isValid=gt=null");
+            compileToSpecificationAndGetWhere("isValid=gt=null");
         });
     }
 
     @Test
     void errorGtEnum() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("status=gt=#ACTIVE#");
+            compileToSpecificationAndGetWhere("status=gt=#ACTIVE#");
         });
     }
 
@@ -1170,25 +1107,18 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldBetweenDec() {
-//        String whereClause = compileToSpecificationAndGetWhere("seq=bt=(1,2)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.seq between 1L and 2L");
-
         List<Object> expectedValues = Arrays.asList(1L, 2L);
         testCondition("seq=bt=(1,2)", new ExpectedCondition("seq", ComparisonOperator.EQUAL, expectedValues, null, null));
     }
 
     @Test
     void fieldBetweenReal() {
-//        String whereClause = compileToSpecificationAndGetWhere("quantity=bt=(1.0,2.0)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.quantity between 1.0BD and 2.0BD");
         List<Object> expectedValues = Arrays.asList(1.0, 2.0);
         testCondition("quantity=bt=(1.0,2.0)", new ExpectedCondition("quantity", ComparisonOperator.EQUAL, expectedValues, null, null));
     }
 
     @Test
     void fieldBetweenString() {
-//        String whereClause = compileToSpecificationAndGetWhere("name=bt=('A','B')");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.name between :param0 and :param1");
         List<Object> expectedValues = Arrays.asList("A", "B");
         testCondition("name=bt=('A','B')", new ExpectedCondition("name", ComparisonOperator.EQUAL, expectedValues, null, null));
 
@@ -1196,8 +1126,6 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldBetweenDatetime() {
-//        String whereClause = compileToSpecificationAndGetWhere("validFrom=bt=(#2023-01-01T12:00:00Z#,#2023-01-02T12:00:00Z#)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.validFrom between :param0 and :param1");
         List<Object> expectedValues = Arrays.asList(Instant.parse("2023-01-01T12:00:00Z"), Instant.parse("2023-01-02T12:00:00Z"));
         testCondition("validFrom=bt=(#2023-01-01T12:00:00Z#,#2023-01-02T12:00:00Z#)", new ExpectedCondition("validFrom", ComparisonOperator.EQUAL, expectedValues, null, null));
 
@@ -1205,24 +1133,18 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldBetweenDate() {
-//        String whereClause = compileToSpecificationAndGetWhere("creationDate=bt=(#2023-01-01#,#2023-01-02#)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.creationDate between :param0 and :param1");
         List<Object> expectedValues = Arrays.asList(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-01-02"));
         testCondition("creationDate=bt=(#2023-01-01#,#2023-01-02#)", new ExpectedCondition("creationDate", ComparisonOperator.EQUAL, expectedValues, null, null));
     }
 
     @Test
     void fieldBetweenFields() {
-//        String whereClause = compileToSpecificationAndGetWhere("name=bt=(code,description)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.name between generatedAlias0.code and generatedAlias0.description");
         List<Object> expectedValues = Arrays.asList("code", "description");
         testCondition("name=bt=(code,description)", new ExpectedCondition("name", ComparisonOperator.EQUAL, expectedValues, null, null));
     }
 
     @Test
     void fieldBetweenParams() {
-//        String whereClause = compileToSpecificationAndGetWhere("name=bt=(:param1,:param2)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.name between :param1 and :param2");
         List<String> expectedParams = Arrays.asList("param1", "param2");
         testCondition("name=bt=(:param1,:param2)", new ExpectedCondition("name", ComparisonOperator.EQUAL, null, expectedParams, null));
     }
@@ -1230,21 +1152,19 @@ public class CompilerWhereSpecificationTest {
     @Test
     void errorBtClauseMissingParentheses1() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("seq=bt=(1,2");
+            compileToSpecificationAndGetWhere("seq=bt=(1,2");
         });
     }
 
     @Test
     void errorBtClauseMissingParentheses2() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("seq=bt=1,2)");
+            compileToSpecificationAndGetWhere("seq=bt=1,2)");
         });
     }
 
     @Test
     void fieldInNumbers() {
-//        String whereClause = compileToSpecificationAndGetWhere("seq=in=(1,2,3)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.seq in (1L, 2L, 3L)");
         List<Object> expectedValues = Arrays.asList(1L, 2L, 3L);
         testCondition("seq=in=(1,2,3)",
             new ExpectedCondition("seq", ComparisonOperator.EQUAL, expectedValues, null, null));
@@ -1253,8 +1173,6 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldInReal() {
-//        String whereClause = compileToSpecificationAndGetWhere("quantity=in=(1.0,2.0,3.0)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.quantity in (1.0BD, 2.0BD, 3.0BD)");
         List<Object> expectedValues = Arrays.asList(1.0,2.0,3.0);
         testCondition("quantity=in=(1.0,2.0,3.0)",
             new ExpectedCondition("quantity", ComparisonOperator.EQUAL, expectedValues, null, null));
@@ -1263,8 +1181,6 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldInString() {
-//        String whereClause = compileToSpecificationAndGetWhere("code=in=('A','B','C')");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.code in (:param0, :param1, :param2)");
         List<Object> expectedValues = Arrays.asList("A","B","C");
         testCondition("code=in=('A','B','C')",
             new ExpectedCondition("code", ComparisonOperator.EQUAL, expectedValues, null, null));
@@ -1273,8 +1189,6 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldInEnum() {
-//        String whereClause = compileToSpecificationAndGetWhere("status=in=('ACTIVE','NOT_ACTIVE')");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.status in (:param0, :param1)");
         List<Object> expectedValues = Arrays.asList(StandardRecordStatus.ACTIVE, StandardRecordStatus.NOT_ACTIVE);
         testCondition("status=in=('ACTIVE','NOT_ACTIVE')",
             new ExpectedCondition("status", ComparisonOperator.EQUAL, expectedValues, null, null));
@@ -1283,21 +1197,19 @@ public class CompilerWhereSpecificationTest {
     @Test
     void errorInClauseMissingParentheses1() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("seq=in=(1,2,3");
+            compileToSpecificationAndGetWhere("seq=in=(1,2,3");
         });
     }
 
     @Test
     void errorInClauseMissingParentheses2() {
         assertThrows(SyntaxErrorException.class, () -> {
-            String whereClause = compileToSpecificationAndGetWhere("seq=in=1,2,3)");
+            compileToSpecificationAndGetWhere("seq=in=1,2,3)");
         });
     }
 
     @Test
     void fieldNotInNumbers() {
-//        String whereClause = compileToSpecificationAndGetWhere("seq=nin=(1,2,3)");
-//        assertThat(whereClause).isEqualTo("generatedAlias0.seq not in (1L, 2L, 3L)");
         List<Object> expectedValues = Arrays.asList(1L, 2L, 3L);
         testCondition("seq=in=(1,2,3)",
             new ExpectedCondition("seq", ComparisonOperator.EQUAL, expectedValues, null, null));
@@ -1306,17 +1218,13 @@ public class CompilerWhereSpecificationTest {
 
     @Test
     void fieldLikeString1() {
-//        String whereClause = compileToSpecificationAndGetWhere("name=*'A*'");
-//        assertThat(whereClause).isEqualTo("lower(generatedAlias0.name) like :param0");
-        testFieldWithLIkeOperator("lower", "name=*'A*'", ComparisonOperator.EQUAL, "a%");
+        testFieldWithLikeOperator("lower", "name=*'A*'", ComparisonOperator.EQUAL, "a%");
 
     }
 
     @Test
     void fieldLikeString2() {
-//        String whereClause = compileToSpecificationAndGetWhere("name=like='A*'");
-//        assertThat(whereClause).isEqualTo("lower(generatedAlias0.name) like :param0");
-        testFieldWithLIkeOperator("lower", "name=like='A*'", ComparisonOperator.EQUAL, "a%");
+        testFieldWithLikeOperator("lower", "name=like='A*'", ComparisonOperator.EQUAL, "a%");
     }
 
 }
