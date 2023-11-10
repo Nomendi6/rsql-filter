@@ -1,5 +1,6 @@
 package rsql.helper;
 
+import org.springframework.data.support.PageableExecutionUtils;
 import rsql.RsqlCompiler;
 import rsql.where.RsqlContext;
 import org.springframework.data.domain.Page;
@@ -10,14 +11,13 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.query.QueryUtils;
-import org.springframework.data.repository.support.PageableExecutionUtils;
 import org.springframework.util.Assert;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.*;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.Metamodel;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.*;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.Metamodel;
 import java.util.*;
 
 import static rsql.where.RsqlWhereHelper.*;

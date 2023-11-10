@@ -5,12 +5,12 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,12 +19,10 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.Base64Utils;
 import testappl.IntegrationTest;
 import testappl.domain.ProductType;
 import testappl.domain.enumeration.StandardRecordStatus;
 import testappl.repository.ProductTypeRepository;
-import testappl.service.criteria.ProductTypeCriteria;
 import testappl.service.dto.ProductTypeDTO;
 import testappl.service.mapper.ProductTypeMapper;
 
@@ -62,7 +60,7 @@ class ProductTypeResourceIT {
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
     private static Random random = new Random();
-    private static AtomicLong count = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
+    private static AtomicLong longCount = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
 
     @Autowired
     private ProductTypeRepository productTypeRepository;
@@ -663,7 +661,7 @@ class ProductTypeResourceIT {
         int databaseSizeBeforeUpdate = productTypeRepository.findAll().size();
 
         // Update the productType
-        ProductType updatedProductType = productTypeRepository.findById(productType.getId()).get();
+        ProductType updatedProductType = productTypeRepository.findById(productType.getId()).orElseThrow();
         // Disconnect from session so that the updates on updatedProductType are not directly saved in db
         em.detach(updatedProductType);
         updatedProductType
@@ -701,7 +699,7 @@ class ProductTypeResourceIT {
     @Transactional
     void putNonExistingProductType() throws Exception {
         int databaseSizeBeforeUpdate = productTypeRepository.findAll().size();
-        productType.setId(count.incrementAndGet());
+        productType.setId(longCount.incrementAndGet());
 
         // Create the ProductType
         ProductTypeDTO productTypeDTO = productTypeMapper.toDto(productType);
@@ -724,7 +722,7 @@ class ProductTypeResourceIT {
     @Transactional
     void putWithIdMismatchProductType() throws Exception {
         int databaseSizeBeforeUpdate = productTypeRepository.findAll().size();
-        productType.setId(count.incrementAndGet());
+        productType.setId(longCount.incrementAndGet());
 
         // Create the ProductType
         ProductTypeDTO productTypeDTO = productTypeMapper.toDto(productType);
@@ -732,7 +730,7 @@ class ProductTypeResourceIT {
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProductTypeMockMvc
             .perform(
-                put(ENTITY_API_URL_ID, count.incrementAndGet())
+                put(ENTITY_API_URL_ID, longCount.incrementAndGet())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(TestUtil.convertObjectToJsonBytes(productTypeDTO))
             )
@@ -747,7 +745,7 @@ class ProductTypeResourceIT {
     @Transactional
     void putWithMissingIdPathParamProductType() throws Exception {
         int databaseSizeBeforeUpdate = productTypeRepository.findAll().size();
-        productType.setId(count.incrementAndGet());
+        productType.setId(longCount.incrementAndGet());
 
         // Create the ProductType
         ProductTypeDTO productTypeDTO = productTypeMapper.toDto(productType);
@@ -774,7 +772,7 @@ class ProductTypeResourceIT {
         ProductType partialUpdatedProductType = new ProductType();
         partialUpdatedProductType.setId(productType.getId());
 
-        partialUpdatedProductType.code(UPDATED_CODE).seq(UPDATED_SEQ).status(UPDATED_STATUS);
+        partialUpdatedProductType.code(UPDATED_CODE).name(UPDATED_NAME);
 
         restProductTypeMockMvc
             .perform(
@@ -789,10 +787,10 @@ class ProductTypeResourceIT {
         assertThat(productTypeList).hasSize(databaseSizeBeforeUpdate);
         ProductType testProductType = productTypeList.get(productTypeList.size() - 1);
         assertThat(testProductType.getCode()).isEqualTo(UPDATED_CODE);
-        assertThat(testProductType.getName()).isEqualTo(DEFAULT_NAME);
+        assertThat(testProductType.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testProductType.getDescription()).isEqualTo(DEFAULT_DESCRIPTION);
-        assertThat(testProductType.getSeq()).isEqualTo(UPDATED_SEQ);
-        assertThat(testProductType.getStatus()).isEqualTo(UPDATED_STATUS);
+        assertThat(testProductType.getSeq()).isEqualTo(DEFAULT_SEQ);
+        assertThat(testProductType.getStatus()).isEqualTo(DEFAULT_STATUS);
         assertThat(testProductType.getValidFrom()).isEqualTo(DEFAULT_VALID_FROM);
         assertThat(testProductType.getValidUntil()).isEqualTo(DEFAULT_VALID_UNTIL);
     }
@@ -843,7 +841,7 @@ class ProductTypeResourceIT {
     @Transactional
     void patchNonExistingProductType() throws Exception {
         int databaseSizeBeforeUpdate = productTypeRepository.findAll().size();
-        productType.setId(count.incrementAndGet());
+        productType.setId(longCount.incrementAndGet());
 
         // Create the ProductType
         ProductTypeDTO productTypeDTO = productTypeMapper.toDto(productType);
@@ -866,7 +864,7 @@ class ProductTypeResourceIT {
     @Transactional
     void patchWithIdMismatchProductType() throws Exception {
         int databaseSizeBeforeUpdate = productTypeRepository.findAll().size();
-        productType.setId(count.incrementAndGet());
+        productType.setId(longCount.incrementAndGet());
 
         // Create the ProductType
         ProductTypeDTO productTypeDTO = productTypeMapper.toDto(productType);
@@ -874,7 +872,7 @@ class ProductTypeResourceIT {
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProductTypeMockMvc
             .perform(
-                patch(ENTITY_API_URL_ID, count.incrementAndGet())
+                patch(ENTITY_API_URL_ID, longCount.incrementAndGet())
                     .contentType("application/merge-patch+json")
                     .content(TestUtil.convertObjectToJsonBytes(productTypeDTO))
             )
@@ -889,7 +887,7 @@ class ProductTypeResourceIT {
     @Transactional
     void patchWithMissingIdPathParamProductType() throws Exception {
         int databaseSizeBeforeUpdate = productTypeRepository.findAll().size();
-        productType.setId(count.incrementAndGet());
+        productType.setId(longCount.incrementAndGet());
 
         // Create the ProductType
         ProductTypeDTO productTypeDTO = productTypeMapper.toDto(productType);

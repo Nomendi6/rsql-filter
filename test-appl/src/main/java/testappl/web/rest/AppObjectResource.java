@@ -1,12 +1,12 @@
 package testappl.web.rest;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,7 +30,7 @@ import testappl.web.rest.errors.BadRequestAlertException;
  * REST controller for managing {@link testappl.domain.AppObject}.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/app-objects")
 public class AppObjectResource {
 
     private final Logger log = LoggerFactory.getLogger(AppObjectResource.class);
@@ -63,7 +63,7 @@ public class AppObjectResource {
      * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new appObjectDTO, or with status {@code 400 (Bad Request)} if the appObject has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
-    @PostMapping("/app-objects")
+    @PostMapping("")
     public ResponseEntity<AppObjectDTO> createAppObject(@Valid @RequestBody AppObjectDTO appObjectDTO) throws URISyntaxException {
         log.debug("REST request to save AppObject : {}", appObjectDTO);
         if (appObjectDTO.getId() != null) {
@@ -86,7 +86,7 @@ public class AppObjectResource {
      * or with status {@code 500 (Internal Server Error)} if the appObjectDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
-    @PutMapping("/app-objects/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<AppObjectDTO> updateAppObject(
         @PathVariable(value = "id", required = false) final Long id,
         @Valid @RequestBody AppObjectDTO appObjectDTO
@@ -121,7 +121,7 @@ public class AppObjectResource {
      * or with status {@code 500 (Internal Server Error)} if the appObjectDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
-    @PatchMapping(value = "/app-objects/{id}", consumes = { "application/json", "application/merge-patch+json" })
+    @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<AppObjectDTO> partialUpdateAppObject(
         @PathVariable(value = "id", required = false) final Long id,
         @NotNull @RequestBody AppObjectDTO appObjectDTO
@@ -153,12 +153,13 @@ public class AppObjectResource {
      * @param criteria the criteria which the requested entities should match.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of appObjects in body.
      */
-    @GetMapping("/app-objects")
+    @GetMapping("")
     public ResponseEntity<List<AppObjectDTO>> getAllAppObjects(
         AppObjectCriteria criteria,
-        @org.springdoc.api.annotations.ParameterObject Pageable pageable
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable
     ) {
         log.debug("REST request to get AppObjects by criteria: {}", criteria);
+
         Page<AppObjectDTO> page = appObjectQueryService.findByCriteria(criteria, pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
@@ -170,7 +171,7 @@ public class AppObjectResource {
      * @param criteria the criteria which the requested entities should match.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count in body.
      */
-    @GetMapping("/app-objects/count")
+    @GetMapping("/count")
     public ResponseEntity<Long> countAppObjects(AppObjectCriteria criteria) {
         log.debug("REST request to count AppObjects by criteria: {}", criteria);
         return ResponseEntity.ok().body(appObjectQueryService.countByCriteria(criteria));
@@ -182,7 +183,7 @@ public class AppObjectResource {
      * @param id the id of the appObjectDTO to retrieve.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the appObjectDTO, or with status {@code 404 (Not Found)}.
      */
-    @GetMapping("/app-objects/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<AppObjectDTO> getAppObject(@PathVariable Long id) {
         log.debug("REST request to get AppObject : {}", id);
         Optional<AppObjectDTO> appObjectDTO = appObjectService.findOne(id);
@@ -195,7 +196,7 @@ public class AppObjectResource {
      * @param id the id of the appObjectDTO to delete.
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
-    @DeleteMapping("/app-objects/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAppObject(@PathVariable Long id) {
         log.debug("REST request to delete AppObject : {}", id);
         appObjectService.delete(id);

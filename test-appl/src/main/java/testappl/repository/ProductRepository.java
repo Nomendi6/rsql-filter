@@ -27,12 +27,12 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     }
 
     @Query(
-        value = "select distinct product from Product product left join fetch product.tproduct left join fetch product.parent",
-        countQuery = "select count(distinct product) from Product product"
+        value = "select product from Product product left join fetch product.tproduct left join fetch product.parent",
+        countQuery = "select count(product) from Product product"
     )
     Page<Product> findAllWithToOneRelationships(Pageable pageable);
 
-    @Query("select distinct product from Product product left join fetch product.tproduct left join fetch product.parent")
+    @Query("select product from Product product left join fetch product.tproduct left join fetch product.parent")
     List<Product> findAllWithToOneRelationships();
 
     @Query("select product from Product product left join fetch product.tproduct left join fetch product.parent where product.id =:id")

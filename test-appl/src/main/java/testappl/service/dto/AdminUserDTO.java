@@ -1,10 +1,10 @@
 package testappl.service.dto;
 
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.validation.constraints.*;
 import testappl.config.Constants;
 import testappl.domain.Authority;
 import testappl.domain.User;

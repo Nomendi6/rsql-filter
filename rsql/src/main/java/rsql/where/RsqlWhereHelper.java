@@ -3,10 +3,10 @@ package rsql.where;
 import rsql.antlr.where.RsqlWhereParser;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import javax.persistence.criteria.Path;
-import javax.persistence.metamodel.Attribute;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.PluralAttribute;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.PluralAttribute;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

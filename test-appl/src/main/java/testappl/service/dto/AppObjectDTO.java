@@ -1,11 +1,11 @@
 package testappl.service.dto;
 
+import jakarta.persistence.Lob;
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
-import javax.persistence.Lob;
-import javax.validation.constraints.*;
 import testappl.domain.enumeration.AppObjectType;
 import testappl.domain.enumeration.StandardRecordStatus;
 

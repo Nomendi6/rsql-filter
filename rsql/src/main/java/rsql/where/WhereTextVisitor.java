@@ -1,19 +1,20 @@
 package rsql.where;
 
+import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath;
 import rsql.antlr.where.RsqlWhereBaseVisitor;
 import rsql.antlr.where.RsqlWhereParser;
-import org.hibernate.query.criteria.internal.path.SingularAttributePath;
+// import org.hibernate.query.criteria.internal.path.SingularAttributePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.jpa.domain.Specification;
+// import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import rsql.exceptions.SyntaxErrorException;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.From;
-import javax.persistence.criteria.Path;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.Metamodel;
+// import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.Metamodel;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -63,8 +64,18 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
     }
 
     private static String getFieldFromPath(Path<?> path) {
-        return path.getAlias() + "." + ((SingularAttributePath<?>) path).getAttribute().getName();
+        String alias = path.getAlias();
+        String fieldName;
+
+        if (path instanceof SqmBasicValuedSimplePath) {
+            fieldName = ((SqmBasicValuedSimplePath<?>) path).getNavigablePath().getLocalName();
+        } else {
+            throw new IllegalArgumentException("Path is not an instance of SqmBasicValuedSimplePath");
+        }
+
+        return alias + "." + fieldName;
     }
+
 
     private Object getInListElement(RsqlWhereParser.InListElementContext ctx) {
         if (ctx.field() != null) {

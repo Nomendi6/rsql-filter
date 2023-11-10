@@ -13,7 +13,7 @@ import testappl.service.dto.AppObjectDTO;
 import testappl.service.mapper.AppObjectMapper;
 
 /**
- * Service Implementation for managing {@link AppObject}.
+ * Service Implementation for managing {@link testappl.domain.AppObject}.
  */
 @Service
 @Transactional

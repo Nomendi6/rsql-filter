@@ -1,12 +1,12 @@
 package testappl.web.rest;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,7 +30,7 @@ import testappl.web.rest.errors.BadRequestAlertException;
  * REST controller for managing {@link testappl.domain.ProductType}.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/product-types")
 public class ProductTypeResource {
 
     private final Logger log = LoggerFactory.getLogger(ProductTypeResource.class);
@@ -63,7 +63,7 @@ public class ProductTypeResource {
      * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new productTypeDTO, or with status {@code 400 (Bad Request)} if the productType has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
-    @PostMapping("/product-types")
+    @PostMapping("")
     public ResponseEntity<ProductTypeDTO> createProductType(@Valid @RequestBody ProductTypeDTO productTypeDTO) throws URISyntaxException {
         log.debug("REST request to save ProductType : {}", productTypeDTO);
         if (productTypeDTO.getId() != null) {
@@ -86,7 +86,7 @@ public class ProductTypeResource {
      * or with status {@code 500 (Internal Server Error)} if the productTypeDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
-    @PutMapping("/product-types/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<ProductTypeDTO> updateProductType(
         @PathVariable(value = "id", required = false) final Long id,
         @Valid @RequestBody ProductTypeDTO productTypeDTO
@@ -121,7 +121,7 @@ public class ProductTypeResource {
      * or with status {@code 500 (Internal Server Error)} if the productTypeDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
-    @PatchMapping(value = "/product-types/{id}", consumes = { "application/json", "application/merge-patch+json" })
+    @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<ProductTypeDTO> partialUpdateProductType(
         @PathVariable(value = "id", required = false) final Long id,
         @NotNull @RequestBody ProductTypeDTO productTypeDTO
@@ -153,12 +153,13 @@ public class ProductTypeResource {
      * @param criteria the criteria which the requested entities should match.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of productTypes in body.
      */
-    @GetMapping("/product-types")
+    @GetMapping("")
     public ResponseEntity<List<ProductTypeDTO>> getAllProductTypes(
         ProductTypeCriteria criteria,
-        @org.springdoc.api.annotations.ParameterObject Pageable pageable
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable
     ) {
         log.debug("REST request to get ProductTypes by criteria: {}", criteria);
+
         Page<ProductTypeDTO> page = productTypeQueryService.findByCriteria(criteria, pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
@@ -170,7 +171,7 @@ public class ProductTypeResource {
      * @param criteria the criteria which the requested entities should match.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the count in body.
      */
-    @GetMapping("/product-types/count")
+    @GetMapping("/count")
     public ResponseEntity<Long> countProductTypes(ProductTypeCriteria criteria) {
         log.debug("REST request to count ProductTypes by criteria: {}", criteria);
         return ResponseEntity.ok().body(productTypeQueryService.countByCriteria(criteria));
@@ -182,7 +183,7 @@ public class ProductTypeResource {
      * @param id the id of the productTypeDTO to retrieve.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the productTypeDTO, or with status {@code 404 (Not Found)}.
      */
-    @GetMapping("/product-types/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<ProductTypeDTO> getProductType(@PathVariable Long id) {
         log.debug("REST request to get ProductType : {}", id);
         Optional<ProductTypeDTO> productTypeDTO = productTypeService.findOne(id);
@@ -195,7 +196,7 @@ public class ProductTypeResource {
      * @param id the id of the productTypeDTO to delete.
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
-    @DeleteMapping("/product-types/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProductType(@PathVariable Long id) {
         log.debug("REST request to delete ProductType : {}", id);
         productTypeService.delete(id);

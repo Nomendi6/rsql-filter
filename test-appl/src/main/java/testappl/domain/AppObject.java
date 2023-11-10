@@ -1,14 +1,13 @@
 package testappl.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalDate;
-import javax.persistence.*;
-import javax.validation.constraints.*;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
-import org.hibernate.annotations.Type;
 import testappl.domain.enumeration.AppObjectType;
 import testappl.domain.enumeration.StandardRecordStatus;
 
@@ -38,7 +37,6 @@ public class AppObject implements Serializable {
     private String name;
 
     @Lob
-    @Type(type = "org.hibernate.type.TextType")
     @Column(name = "description")
     private String description;
 
@@ -71,7 +69,7 @@ public class AppObject implements Serializable {
     @Column(name = "creation_date")
     private LocalDate creationDate;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties(value = { "parent" }, allowSetters = true)
     private AppObject parent;
 
@@ -269,7 +267,7 @@ public class AppObject implements Serializable {
         if (!(o instanceof AppObject)) {
             return false;
         }
-        return id != null && id.equals(((AppObject) o).id);
+        return getId() != null && getId().equals(((AppObject) o).getId());
     }
 
     @Override

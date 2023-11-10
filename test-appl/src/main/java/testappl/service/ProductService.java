@@ -13,7 +13,7 @@ import testappl.service.dto.ProductDTO;
 import testappl.service.mapper.ProductMapper;
 
 /**
- * Service Implementation for managing {@link Product}.
+ * Service Implementation for managing {@link testappl.domain.Product}.
  */
 @Service
 @Transactional
