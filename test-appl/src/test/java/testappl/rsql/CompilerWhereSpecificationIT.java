@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 @IntegrationTest
-public class CompilerWhereSpecificationTest {
+public class CompilerWhereSpecificationIT {
 
     @Autowired
     private EntityManager entityManager;
@@ -207,7 +207,7 @@ public class CompilerWhereSpecificationTest {
 
         // Assert the right literal or parameter value
         SqmExpression<?> rightHandExpression = comparisonPredicate.getRightHandExpression();
-    T rightValue = getRightValue(rightHandExpression, valueType);
+        T rightValue = getRightValue(rightHandExpression, valueType);
         assertThat(rightValue).isEqualTo(expectedValue);
     }
 
@@ -215,19 +215,19 @@ public class CompilerWhereSpecificationTest {
         if (rightHandExpression instanceof SqmParameter) {
             SqmParameter<?> rightParameter = (SqmParameter<?>) rightHandExpression;
             Object value = ((ValueBindJpaCriteriaParameter) rightParameter).getValue();
-        if (value != null && expectedType.isInstance(value)) {
-            return expectedType.cast(value);
-        } else {
-            throw new AssertionError("Value is not of the expected type: " + expectedType);
-        }
+            if (value != null && expectedType.isInstance(value)) {
+                return expectedType.cast(value);
+            } else {
+                throw new AssertionError("Value is not of the expected type: " + expectedType);
+            }
         } else if (rightHandExpression instanceof SqmLiteral) {
             SqmLiteral<?> rightLiteral = (SqmLiteral<?>) rightHandExpression;
             Object value = rightLiteral.getLiteralValue();
-        if (expectedType.isInstance(value)) {
-            return expectedType.cast(value);
-        } else {
-            throw new AssertionError("Value is not of the expected type: " + expectedType);
-        }
+            if (expectedType.isInstance(value)) {
+                return expectedType.cast(value);
+            } else {
+                throw new AssertionError("Value is not of the expected type: " + expectedType);
+            }
         }
         throw new AssertionError("Unexpected expression type: " + rightHandExpression.getClass());
     }
