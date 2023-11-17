@@ -160,7 +160,9 @@ public class ProductTypeResource {
     ) {
         log.debug("REST request to get ProductTypes by criteria: {}", criteria);
 
-        Page<ProductTypeDTO> page = productTypeQueryService.findByCriteria(criteria, pageable);
+        // Page<ProductTypeDTO> page = productTypeQueryService.findByCriteria(criteria, pageable);
+        Page<ProductTypeDTO> page = productTypeService.getQueryService().findByFilter("name=*'a*'", pageable);
+        productTypeService.testRsql();
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }

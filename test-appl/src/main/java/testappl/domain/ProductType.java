@@ -52,6 +52,22 @@ public class ProductType implements Serializable {
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
+
+    public ProductType() {
+    }
+
+    public ProductType(
+        Long id,
+        String code,
+        String name,
+        String description
+    ) {
+        this.id = id;
+        this.code = code;
+        this.name = name;
+        this.description = description;
+    }
+
     public Long getId() {
         return this.id;
     }

@@ -12,6 +12,8 @@ import org.springframework.data.jpa.domain.Specification;
 
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
+
+import java.util.Map;
 import java.util.Objects;
 
 public class RsqlCompiler<T> {
@@ -145,5 +147,23 @@ public class RsqlCompiler<T> {
     public static void fixIdsForNativeQuery(RsqlQuery query) {
         query.where = query.where.replace("Id", "_id");
         query.where = query.where.replace(".id", "_id");
+    }
+
+    public static String normalizeAliasesInWhere(RsqlQuery query) {
+        Map<String, RsqlJoin> joins = query.joins;
+        String where = query.where;
+
+        // for each element in joins, process the where clause
+        for (Map.Entry<String, RsqlJoin> entry : joins.entrySet()) {
+            String key = entry.getKey();
+            RsqlJoin join = entry.getValue();
+
+            where = where.replace(join.alias + ".", join.parentAlias + "." + join.path + ".");
+            // replace _id by .id
+
+        }
+
+        return where;
+
     }
 }

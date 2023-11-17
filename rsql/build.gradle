@@ -76,7 +76,7 @@ publishing {
         mavenJava(MavenPublication) {
             groupId = "com.nomendi6"
             artifactId = "rsql-filter"
-            version = "3.0.0"
+            version = "3.0.1"
             from components.java
             pom {
                 name = 'rsql-filter'
