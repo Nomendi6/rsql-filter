@@ -1,12 +1,9 @@
 package rsql;
 
-import rsql.antlr.where.RsqlWhereLexer;
-import rsql.antlr.where.RsqlWhereParser;
 import rsql.exceptions.SyntaxErrorException;
 import rsql.where.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -149,21 +146,65 @@ public class RsqlCompiler<T> {
         query.where = query.where.replace(".id", "_id");
     }
 
+    /**
+     * Normalize aliases in the where condition of a RsqlQuery.
+     * @param query - RsqlQuery object containing the where condition and joins
+     * @return the normalized where condition
+     */
     public static String normalizeAliasesInWhere(RsqlQuery query) {
         Map<String, RsqlJoin> joins = query.joins;
         String where = query.where;
+        resolveAliasFullPath(query);
 
         // for each element in joins, process the where clause
         for (Map.Entry<String, RsqlJoin> entry : joins.entrySet()) {
             String key = entry.getKey();
             RsqlJoin join = entry.getValue();
 
-            where = where.replace(join.alias + ".", join.parentAlias + "." + join.path + ".");
+            where = where.replace(join.alias + ".", join.fullPath + ".");
             // replace _id by .id
 
         }
 
         return where;
+    }
 
+    public static void resolveAliasFullPath(RsqlQuery query) {
+        // for each element in joins, set the full path if not already set
+        // the full path is calculated as the full path from parent entity + '.' + attribute
+        // the parent full path is found from the parentAlias -> found the join with this alias -> get the parent full path
+        // if the parentAlias is 'a0', then the parent full path is 'a0'
+        Map<String, RsqlJoin> joins = query.joins;
+        for (Map.Entry<String, RsqlJoin> entry : joins.entrySet()) {
+            String key = entry.getKey();
+            RsqlJoin join = entry.getValue();
+            if (join.fullPath == null) {
+                if (join.parentAlias.equals("a0")) {
+                    join.fullPath = "a0" + "." + join.attribute;
+                } else {
+                    RsqlJoin parentJoin = findJoinByAlias(query, join.parentAlias);
+                    if (parentJoin != null) {
+                        if (parentJoin.fullPath != null) {
+                            join.fullPath = parentJoin.fullPath + "." + join.attribute;
+                        } else {
+                            throw new RuntimeException("Parent join fullPath is null");
+                        }
+
+                    }
+                }
+            }
+        }
+    }
+
+    public static RsqlJoin findJoinByAlias(RsqlQuery query, String alias) {
+        Map<String, RsqlJoin> joins = query.joins;
+        for (Map.Entry<String, RsqlJoin> entry : joins.entrySet()) {
+            String key = entry.getKey();
+            RsqlJoin join = entry.getValue();
+            if (join.alias.equals(alias)) {
+                return join;
+            }
+        }
+        return null;
     }
 }

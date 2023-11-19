@@ -656,5 +656,12 @@ public class CompilerWhereTextIT {
         assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) like :p1");
     }
 
+    @Test
+    void fieldAliases1() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("seq==1 and parent.seq==2 and parent.parent.seq==3", rsqlContext);
+        RsqlCompiler.normalizeAliasesInWhere(rsqlQuery);
+
+        assertThat(rsqlQuery.where).isEqualTo("a0.seq=1 and a0.parent.seq=2 and a0.parent.parent.seq=3");
+    }
 
 }

@@ -11,6 +11,7 @@ public class RsqlJoin {
     public String parentAlias;
     public Path root;
     public String joinType;
+    public String fullPath;
 
     public RsqlJoin(String entity, String joinType) {
         this.entity = entity;
