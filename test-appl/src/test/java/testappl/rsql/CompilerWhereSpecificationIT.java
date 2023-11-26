@@ -11,6 +11,7 @@ import org.hibernate.query.sqm.tree.expression.SqmLiteral;
 import org.hibernate.query.sqm.tree.expression.SqmParameter;
 import org.hibernate.query.sqm.tree.expression.ValueBindJpaCriteriaParameter;
 import org.hibernate.query.sqm.tree.predicate.*;
+import org.hibernate.spi.NavigablePath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -591,7 +592,8 @@ public class CompilerWhereSpecificationIT {
 
         // Test the left-hand side of the comparison
         SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
-        String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
+        // String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
+        String leftPathAttributeName = getFullPath(leftPath.getNavigablePath());
         assertThat(leftPathAttributeName).isEqualTo(expectedCondition.fieldName);
 
         // Test the right-hand side of the comparison
@@ -619,7 +621,8 @@ public class CompilerWhereSpecificationIT {
         SqmPath<?> leftPath = (SqmPath<?>) comparisonPredicate.getLeftHandExpression();
         // String leftPathAttributeName = leftPath.getNavigablePath().getLocalName();
 
-        String leftPathAttributeName = leftPath.getNavigablePath().getIdentifierForTableGroup().toString().replace("testappl.domain.Product.", "");
+        // String leftPathAttributeName = leftPath.getNavigablePath().getIdentifierForTableGroup().toString().replace("testappl.domain.Product.", "");
+        String leftPathAttributeName = getFullPath(leftPath.getNavigablePath());
 
         assertThat(leftPathAttributeName).isEqualTo(expectedCondition.fieldName);
 
@@ -632,6 +635,23 @@ public class CompilerWhereSpecificationIT {
         ComparisonOperator sqmOperator = comparisonPredicate.getSqmOperator();
         assertThat(sqmOperator).isNotNull();
         assertThat(sqmOperator).isEqualTo(expectedCondition.operator);
+    }
+
+    private String getFullPath(NavigablePath navigablePath) {
+        String rootPath = getRootPath(navigablePath);
+        // uzmi duljinu rootPath
+        int rootPathLength = rootPath.length();
+        // NavigablePath.getIdentifierForTableGroup().toString() uzmi nakon rootPathLength
+        String fullPath = navigablePath.getIdentifierForTableGroup().toString().substring(rootPathLength+1);
+        return fullPath;
+    }
+
+    private String getRootPath(NavigablePath navigablePath) {
+        if (navigablePath.getParent() == null) {
+            return navigablePath.getIdentifierForTableGroup().toString();
+        } else {
+            return getRootPath(navigablePath.getParent());
+        }
     }
 
     @Test
@@ -1227,4 +1247,10 @@ public class CompilerWhereSpecificationIT {
         testFieldWithLikeOperator("lower", "name=like='A*'", ComparisonOperator.EQUAL, "a%");
     }
 
+    @Test
+    void relations1() {
+        testFieldToFieldComparison("product.code==name", new ExpectedCondition("product.code", ComparisonOperator.EQUAL, "name"));
+        testFieldToFieldComparison("parent.code==name", new ExpectedCondition("parent.code", ComparisonOperator.EQUAL, "name"));
+        testFieldToFieldComparison("parent.parent.code==name", new ExpectedCondition("parent.parent.code", ComparisonOperator.EQUAL, "name"));
+    }
 }

@@ -14,5 +14,26 @@
                                  referencedColumnNames="id"
                                  referencedTableName="app_object"
                                  />
+
+        <addForeignKeyConstraint baseColumnNames="product_id"
+                                 baseTableName="app_object"
+                                 constraintName="fk_app_object__product_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="product"
+                                 />
+
+        <addForeignKeyConstraint baseColumnNames="product2_id"
+                                 baseTableName="app_object"
+                                 constraintName="fk_app_object__product2_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="product"
+                                 />
+
+        <addForeignKeyConstraint baseColumnNames="product3_id"
+                                 baseTableName="app_object"
+                                 constraintName="fk_app_object__product3_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="product"
+                                 />
     </changeSet>
 </databaseChangeLog>

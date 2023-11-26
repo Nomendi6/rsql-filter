@@ -172,16 +172,6 @@ public class RsqlWhereHelper {
         return Enum.valueOf(klass, text);
     }
 
-    public static String createPathFromGraph(String[] graph, int index) {
-        StringBuilder path = new StringBuilder(graph[0]);
-        if (index >= 1) {
-            for (int i = 1; i <= index; i++) {
-                path.append(".").append(graph[i]);
-            }
-        }
-        return path.toString();
-    }
-
     public static String getFromClause(RsqlQuery query, String rootEntity, String rootEntityAlias) {
         String from = rootEntity + " " + rootEntityAlias;
 

@@ -53,6 +53,15 @@
             <column name="parent_id" type="bigint">
                 <constraints nullable="true" />
             </column>
+            <column name="product_id" type="bigint">
+                <constraints nullable="true" />
+            </column>
+            <column name="product2_id" type="bigint">
+                <constraints nullable="true" />
+            </column>
+            <column name="product3_id" type="bigint">
+                <constraints nullable="true" />
+            </column>
             <!-- jhipster-needle-liquibase-add-column - JHipster will add columns here -->
         </createTable>
         <dropDefaultValue tableName="app_object" columnName="last_change" columnDataType="${datetimeType}"/>

@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import testappl.IntegrationTest;
 import testappl.domain.AppObject;
 import testappl.domain.AppObject;
+import testappl.domain.Product;
 import testappl.domain.enumeration.AppObjectType;
 import testappl.domain.enumeration.StandardRecordStatus;
 import testappl.repository.AppObjectRepository;
@@ -990,6 +991,72 @@ class AppObjectResourceIT {
 
         // Get all the appObjectList where parent equals to (parentId + 1)
         defaultAppObjectShouldNotBeFound("parentId.equals=" + (parentId + 1));
+    }
+
+    @Test
+    @Transactional
+    void getAllAppObjectsByProductIsEqualToSomething() throws Exception {
+        Product product;
+        if (TestUtil.findAll(em, Product.class).isEmpty()) {
+            appObjectRepository.saveAndFlush(appObject);
+            product = ProductResourceIT.createEntity(em);
+        } else {
+            product = TestUtil.findAll(em, Product.class).get(0);
+        }
+        em.persist(product);
+        em.flush();
+        appObject.setProduct(product);
+        appObjectRepository.saveAndFlush(appObject);
+        Long productId = product.getId();
+        // Get all the appObjectList where product equals to productId
+        defaultAppObjectShouldBeFound("productId.equals=" + productId);
+
+        // Get all the appObjectList where product equals to (productId + 1)
+        defaultAppObjectShouldNotBeFound("productId.equals=" + (productId + 1));
+    }
+
+    @Test
+    @Transactional
+    void getAllAppObjectsByProduct2IsEqualToSomething() throws Exception {
+        Product product2;
+        if (TestUtil.findAll(em, Product.class).isEmpty()) {
+            appObjectRepository.saveAndFlush(appObject);
+            product2 = ProductResourceIT.createEntity(em);
+        } else {
+            product2 = TestUtil.findAll(em, Product.class).get(0);
+        }
+        em.persist(product2);
+        em.flush();
+        appObject.setProduct2(product2);
+        appObjectRepository.saveAndFlush(appObject);
+        Long product2Id = product2.getId();
+        // Get all the appObjectList where product2 equals to product2Id
+        defaultAppObjectShouldBeFound("product2Id.equals=" + product2Id);
+
+        // Get all the appObjectList where product2 equals to (product2Id + 1)
+        defaultAppObjectShouldNotBeFound("product2Id.equals=" + (product2Id + 1));
+    }
+
+    @Test
+    @Transactional
+    void getAllAppObjectsByProduct3IsEqualToSomething() throws Exception {
+        Product product3;
+        if (TestUtil.findAll(em, Product.class).isEmpty()) {
+            appObjectRepository.saveAndFlush(appObject);
+            product3 = ProductResourceIT.createEntity(em);
+        } else {
+            product3 = TestUtil.findAll(em, Product.class).get(0);
+        }
+        em.persist(product3);
+        em.flush();
+        appObject.setProduct3(product3);
+        appObjectRepository.saveAndFlush(appObject);
+        Long product3Id = product3.getId();
+        // Get all the appObjectList where product3 equals to product3Id
+        defaultAppObjectShouldBeFound("product3Id.equals=" + product3Id);
+
+        // Get all the appObjectList where product3 equals to (product3Id + 1)
+        defaultAppObjectShouldNotBeFound("product3Id.equals=" + (product3Id + 1));
     }
 
     /**

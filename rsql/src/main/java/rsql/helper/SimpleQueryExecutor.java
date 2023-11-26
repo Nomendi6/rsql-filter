@@ -96,13 +96,7 @@ public class SimpleQueryExecutor {
         RsqlQuery rsqlQuery = createWhereClause(filter, rsqlContext, compiler);
 
         if (rsqlQuery != null) {
-            if (!Objects.equals(alias, "a0")) {
-                RsqlCompiler.replaceAlias(rsqlQuery, "a0", alias);
-            }
-
-            String where = RsqlCompiler.normalizeAliasesInWhere(rsqlQuery);
-            checkWhereClause(where);
-            jpqlQueryString = jpqlQueryString.concat(" where ").concat(where);
+            jpqlQueryString = jpqlQueryString.concat(" where ").concat(rsqlQuery.where);
         }
 
         jpqlQueryString = jpqlQueryString.concat(getOrderByWithAlias(sort, alias));
@@ -150,16 +144,8 @@ public class SimpleQueryExecutor {
         RsqlQuery rsqlQuery = createWhereClause(filter, rsqlContext, compiler);
 
         if (rsqlQuery != null) {
-            if (!Objects.equals(selectAlias, "a0")) {
-                RsqlCompiler.replaceAlias(rsqlQuery, "a0", selectAlias);
-            }
-            String where = RsqlCompiler.normalizeAliasesInWhere(rsqlQuery);
-            checkWhereClause(where);
-            jpqlQueryString = jpqlQueryString.concat(" where ").concat(where);
-            if (!Objects.equals(countAlias, selectAlias)) {
-                RsqlCompiler.replaceAlias(rsqlQuery, selectAlias, countAlias);
-            }
-            countQueryString = countQueryString.concat(" where ").concat(where);
+            jpqlQueryString = jpqlQueryString.concat(" where ").concat(rsqlQuery.where);
+            countQueryString = countQueryString.concat(" where ").concat(rsqlQuery.where);
         }
 
         jpqlQueryString = jpqlQueryString.concat(getOrderByWithAlias(sort, selectAlias));
@@ -203,13 +189,6 @@ public class SimpleQueryExecutor {
 
     }
 
-    private static void checkWhereClause(String where) {
-        // check if string where contains string 'a1.'
-        if (where.contains("a1.")) {
-            throw new RuntimeException("Error in where clause: " + where);
-        }
-    }
-
     public static <ENTITY> Long getJpqlQueryCount(
             Class<ENTITY> entityClass,
             String countQueryString,
@@ -224,9 +203,7 @@ public class SimpleQueryExecutor {
             if (!Objects.equals(countAlias, "a0")) {
                 RsqlCompiler.replaceAlias(rsqlQuery, "a0", countAlias);
             }
-            String where = RsqlCompiler.normalizeAliasesInWhere(rsqlQuery);
-            checkWhereClause(where);
-            countQueryString = countQueryString.concat(" where ").concat(where);
+            countQueryString = countQueryString.concat(" where ").concat(rsqlQuery.where);
         }
         TypedQuery<Long> countQuery = rsqlContext.entityManager.createQuery(countQueryString, Long.class);
         if (rsqlQuery != null) {

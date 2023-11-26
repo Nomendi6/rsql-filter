@@ -46,6 +46,12 @@ public class AppObjectDTO implements Serializable {
 
     private AppObjectDTO parent;
 
+    private ProductDTO product;
+
+    private ProductDTO product2;
+
+    private ProductDTO product3;
+
     public Long getId() {
         return id;
     }
@@ -158,6 +164,30 @@ public class AppObjectDTO implements Serializable {
         this.parent = parent;
     }
 
+    public ProductDTO getProduct() {
+        return product;
+    }
+
+    public void setProduct(ProductDTO product) {
+        this.product = product;
+    }
+
+    public ProductDTO getProduct2() {
+        return product2;
+    }
+
+    public void setProduct2(ProductDTO product2) {
+        this.product2 = product2;
+    }
+
+    public ProductDTO getProduct3() {
+        return product3;
+    }
+
+    public void setProduct3(ProductDTO product3) {
+        this.product3 = product3;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -197,6 +227,9 @@ public class AppObjectDTO implements Serializable {
             ", isValid='" + getIsValid() + "'" +
             ", creationDate='" + getCreationDate() + "'" +
             ", parent=" + getParent() +
+            ", product=" + getProduct() +
+            ", product2=" + getProduct2() +
+            ", product3=" + getProduct3() +
             "}";
     }
 }

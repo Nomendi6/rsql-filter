@@ -38,6 +38,8 @@ public class RsqlQueryService<
     MAPPER extends EntityMapper<ENTITY_DTO, ENTITY>
 > {
 
+    private static final String DEFAULT_ALIAS_FOR_STARTROOT = "a0";
+
     private final Logger log = LoggerFactory.getLogger(RsqlQueryService.class);
 
     private final REPOS appObjectRepository;
@@ -54,10 +56,10 @@ public class RsqlQueryService<
 
     private String jpqlSelectAllFromEntity;
 
-    private String selectAlias = "a0";
+    private String selectAlias = DEFAULT_ALIAS_FOR_STARTROOT;
     private String jpqlSelectCountFromEntity;
 
-    private String countAlias = "a0";
+    private String countAlias = DEFAULT_ALIAS_FOR_STARTROOT;
 
     private boolean useJpqlSelect = false;
 
@@ -67,6 +69,7 @@ public class RsqlQueryService<
         this.entityManager = entityManager;
         this.rsqlContext = new RsqlContext<>(entityClass).defineEntityManager(entityManager);
         this.entityClass = entityClass;
+        this.rsqlContext.root.alias(this.selectAlias);
     }
 
     public RsqlQueryService(REPOS appObjectRepository, MAPPER appObjectMapper, EntityManager entityManager, Class<ENTITY> entityClass, String jpqlSelectAllFromEntity, String jpqlSelectCountFromEntity) {
@@ -78,11 +81,8 @@ public class RsqlQueryService<
 
         this.jpqlSelectAllFromEntity = jpqlSelectAllFromEntity;
         this.jpqlSelectCountFromEntity = jpqlSelectCountFromEntity;
+        this.rsqlContext.root.alias(this.selectAlias);
         this.useJpqlSelect = true;
-
-        // define select and count aliases:
-        this.selectAlias = findAliasFromJpqlSelectString(jpqlSelectAllFromEntity);
-        this.countAlias = findAliasFromJpqlSelectString(jpqlSelectCountFromEntity);
     }
 
     public RsqlCompiler<ENTITY> getRsqlCompiler() {
@@ -118,6 +118,7 @@ public class RsqlQueryService<
 
     public void setSelectAlias(String selectAlias) {
         this.selectAlias = selectAlias;
+        this.rsqlContext.root.alias(this.selectAlias);
     }
 
     public String getSelectAlias() {

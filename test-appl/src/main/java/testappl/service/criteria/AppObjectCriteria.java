@@ -83,6 +83,12 @@ public class AppObjectCriteria implements Serializable, Criteria {
 
     private LongFilter parentId;
 
+    private LongFilter productId;
+
+    private LongFilter product2Id;
+
+    private LongFilter product3Id;
+
     private Boolean distinct;
 
     public AppObjectCriteria() {}
@@ -101,6 +107,9 @@ public class AppObjectCriteria implements Serializable, Criteria {
         this.isValid = other.isValid == null ? null : other.isValid.copy();
         this.creationDate = other.creationDate == null ? null : other.creationDate.copy();
         this.parentId = other.parentId == null ? null : other.parentId.copy();
+        this.productId = other.productId == null ? null : other.productId.copy();
+        this.product2Id = other.product2Id == null ? null : other.product2Id.copy();
+        this.product3Id = other.product3Id == null ? null : other.product3Id.copy();
         this.distinct = other.distinct;
     }
 
@@ -304,6 +313,51 @@ public class AppObjectCriteria implements Serializable, Criteria {
         this.parentId = parentId;
     }
 
+    public LongFilter getProductId() {
+        return productId;
+    }
+
+    public LongFilter productId() {
+        if (productId == null) {
+            productId = new LongFilter();
+        }
+        return productId;
+    }
+
+    public void setProductId(LongFilter productId) {
+        this.productId = productId;
+    }
+
+    public LongFilter getProduct2Id() {
+        return product2Id;
+    }
+
+    public LongFilter product2Id() {
+        if (product2Id == null) {
+            product2Id = new LongFilter();
+        }
+        return product2Id;
+    }
+
+    public void setProduct2Id(LongFilter product2Id) {
+        this.product2Id = product2Id;
+    }
+
+    public LongFilter getProduct3Id() {
+        return product3Id;
+    }
+
+    public LongFilter product3Id() {
+        if (product3Id == null) {
+            product3Id = new LongFilter();
+        }
+        return product3Id;
+    }
+
+    public void setProduct3Id(LongFilter product3Id) {
+        this.product3Id = product3Id;
+    }
+
     public Boolean getDistinct() {
         return distinct;
     }
@@ -335,6 +389,9 @@ public class AppObjectCriteria implements Serializable, Criteria {
             Objects.equals(isValid, that.isValid) &&
             Objects.equals(creationDate, that.creationDate) &&
             Objects.equals(parentId, that.parentId) &&
+            Objects.equals(productId, that.productId) &&
+            Objects.equals(product2Id, that.product2Id) &&
+            Objects.equals(product3Id, that.product3Id) &&
             Objects.equals(distinct, that.distinct)
         );
     }
@@ -355,6 +412,9 @@ public class AppObjectCriteria implements Serializable, Criteria {
             isValid,
             creationDate,
             parentId,
+            productId,
+            product2Id,
+            product3Id,
             distinct
         );
     }
@@ -376,6 +436,9 @@ public class AppObjectCriteria implements Serializable, Criteria {
             (isValid != null ? "isValid=" + isValid + ", " : "") +
             (creationDate != null ? "creationDate=" + creationDate + ", " : "") +
             (parentId != null ? "parentId=" + parentId + ", " : "") +
+            (productId != null ? "productId=" + productId + ", " : "") +
+            (product2Id != null ? "product2Id=" + product2Id + ", " : "") +
+            (product3Id != null ? "product3Id=" + product3Id + ", " : "") +
             (distinct != null ? "distinct=" + distinct + ", " : "") +
             "}";
     }

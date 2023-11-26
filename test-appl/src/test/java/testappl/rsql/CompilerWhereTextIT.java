@@ -55,10 +55,12 @@ public class CompilerWhereTextIT {
     private void setupRsqlCompiler() {
         rsqlContext = new RsqlContext<>(AppObject.class)
             .defineEntityManager(entityManager);
+        rsqlContext.root.alias("a0");
         compiler = new RsqlCompiler<>();
 
         rsqlContextProduct = new RsqlContext<>(Product.class)
             .defineEntityManager(entityManager);
+//        rsqlContextProduct.root.alias("a0");
         compilerForProduct = new RsqlCompiler<>();
     }
 
@@ -403,7 +405,7 @@ public class CompilerWhereTextIT {
     @Test
     void fieldWithDotsEqField() {
         final RsqlQuery rsqlQuery = compilerForProduct.compileToRsqlQuery("tproduct.code==name", rsqlContextProduct);
-        assertThat(rsqlQuery.where).isEqualTo("a1.code=a0.name");
+        assertThat(rsqlQuery.where).isEqualTo("tproduct.code=name");
     }
 
     @Test
@@ -659,9 +661,13 @@ public class CompilerWhereTextIT {
     @Test
     void fieldAliases1() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("seq==1 and parent.seq==2 and parent.parent.seq==3", rsqlContext);
-        RsqlCompiler.normalizeAliasesInWhere(rsqlQuery);
+        assertThat(rsqlQuery.where).isEqualTo("a0.seq=:p1 and a0.parent.seq=:p2 and a0.parent.parent.seq=:p3");
+    }
 
-        assertThat(rsqlQuery.where).isEqualTo("a0.seq=1 and a0.parent.seq=2 and a0.parent.parent.seq=3");
+    @Test
+    void fieldAliases2() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("seq==1 and parent.seq==2 and product.seq==3", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.seq=:p1 and a0.parent.seq=:p2 and a0.product.seq=:p3");
     }
 
 }

@@ -12,7 +12,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 group = 'com.nomendi6'
-version = '3.0.0'
+version = '0.3.0'
 sourceCompatibility=17
 targetCompatibility=17
 assert System.properties["java.specification.version"] == "17" || "18" || "19" || "20" || "21"
@@ -76,7 +76,7 @@ publishing {
         mavenJava(MavenPublication) {
             groupId = "com.nomendi6"
             artifactId = "rsql-filter"
-            version = "3.0.1"
+            version = "0.3.0"
             from components.java
             pom {
                 name = 'rsql-filter'

@@ -129,6 +129,24 @@ public class AppObjectQueryService extends QueryService<AppObject> {
                         buildSpecification(criteria.getParentId(), root -> root.join(AppObject_.parent, JoinType.LEFT).get(AppObject_.id))
                     );
             }
+            if (criteria.getProductId() != null) {
+                specification =
+                    specification.and(
+                        buildSpecification(criteria.getProductId(), root -> root.join(AppObject_.product, JoinType.LEFT).get(Product_.id))
+                    );
+            }
+            if (criteria.getProduct2Id() != null) {
+                specification =
+                    specification.and(
+                        buildSpecification(criteria.getProduct2Id(), root -> root.join(AppObject_.product2, JoinType.LEFT).get(Product_.id))
+                    );
+            }
+            if (criteria.getProduct3Id() != null) {
+                specification =
+                    specification.and(
+                        buildSpecification(criteria.getProduct3Id(), root -> root.join(AppObject_.product3, JoinType.LEFT).get(Product_.id))
+                    );
+            }
         }
         return specification;
     }
