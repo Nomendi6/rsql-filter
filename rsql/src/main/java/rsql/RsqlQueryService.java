@@ -1,5 +1,7 @@
 package rsql;
 
+import jakarta.persistence.TypedQuery;
+import rsql.helper.SimpleQueryExecutor;
 import rsql.where.RsqlContext;
 import rsql.dto.LovDTO;
 import rsql.mapper.EntityMapper;
@@ -14,9 +16,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Tuple;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Tuple;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static rsql.helper.SimpleQueryExecutor.getQueryResult;
@@ -34,6 +38,8 @@ public class RsqlQueryService<
     MAPPER extends EntityMapper<ENTITY_DTO, ENTITY>
 > {
 
+    private static final String DEFAULT_ALIAS_FOR_STARTROOT = "a0";
+
     private final Logger log = LoggerFactory.getLogger(RsqlQueryService.class);
 
     private final REPOS appObjectRepository;
@@ -46,11 +52,37 @@ public class RsqlQueryService<
 
     private final Class<ENTITY> entityClass;
 
+    private final EntityManager entityManager;
+
+    private String jpqlSelectAllFromEntity;
+
+    private String selectAlias = DEFAULT_ALIAS_FOR_STARTROOT;
+    private String jpqlSelectCountFromEntity;
+
+    private String countAlias = DEFAULT_ALIAS_FOR_STARTROOT;
+
+    private boolean useJpqlSelect = false;
+
     public RsqlQueryService(REPOS appObjectRepository, MAPPER appObjectMapper, EntityManager entityManager, Class<ENTITY> entityClass) {
         this.appObjectRepository = appObjectRepository;
         this.appObjectMapper = appObjectMapper;
+        this.entityManager = entityManager;
         this.rsqlContext = new RsqlContext<>(entityClass).defineEntityManager(entityManager);
         this.entityClass = entityClass;
+        this.rsqlContext.root.alias(this.selectAlias);
+    }
+
+    public RsqlQueryService(REPOS appObjectRepository, MAPPER appObjectMapper, EntityManager entityManager, Class<ENTITY> entityClass, String jpqlSelectAllFromEntity, String jpqlSelectCountFromEntity) {
+        this.appObjectRepository = appObjectRepository;
+        this.appObjectMapper = appObjectMapper;
+        this.entityManager = entityManager;
+        this.rsqlContext = new RsqlContext<>(entityClass).defineEntityManager(entityManager);
+        this.entityClass = entityClass;
+
+        this.jpqlSelectAllFromEntity = jpqlSelectAllFromEntity;
+        this.jpqlSelectCountFromEntity = jpqlSelectCountFromEntity;
+        this.rsqlContext.root.alias(this.selectAlias);
+        this.useJpqlSelect = true;
     }
 
     public RsqlCompiler<ENTITY> getRsqlCompiler() {
@@ -65,6 +97,44 @@ public class RsqlQueryService<
         return entityClass;
     }
 
+    public void setJpqlSelectAllFromEntity(String jpqlSelectAllFromEntity) {
+        this.jpqlSelectAllFromEntity = jpqlSelectAllFromEntity;
+        this.selectAlias = findAliasFromJpqlSelectString(jpqlSelectAllFromEntity);
+        this.useJpqlSelect = true;
+    }
+
+    public void setJpqlSelectCountFromEntity(String jpqlSelectCountFromEntity) {
+        this.jpqlSelectCountFromEntity = jpqlSelectCountFromEntity;
+        this.countAlias = findAliasFromJpqlSelectString(jpqlSelectCountFromEntity);
+    }
+
+    public void setUseJpqlSelect(boolean useJpqlSelect) {
+        this.useJpqlSelect = useJpqlSelect;
+    }
+
+    public boolean getUseJpqlSelect() {
+        return this.useJpqlSelect;
+    }
+
+    public void setSelectAlias(String selectAlias) {
+        this.selectAlias = selectAlias;
+        this.rsqlContext.root.alias(this.selectAlias);
+    }
+
+    public String getSelectAlias() {
+        return this.selectAlias;
+    }
+
+    public void setCountAlias(String countAlias) {
+        this.countAlias = countAlias;
+    }
+
+    public String getCountAlias() {
+        return this.countAlias;
+    }
+
+
+
     /**
      * Return a {@link List} of {@link ENTITY_DTO} which matches the filter from the database.
      * @param filter Filter containing RSQL where statement, which the entities should match.
@@ -74,8 +144,19 @@ public class RsqlQueryService<
     public List<ENTITY_DTO> findByFilter(String filter) {
         log.debug("find by filter : {}", filter);
 
-        final Specification<ENTITY> specification = createSpecification(filter);
-        return appObjectMapper.toDto(appObjectRepository.findAll(specification));
+        if (useJpqlSelect) {
+            return SimpleQueryExecutor.getJpqlQueryResult(
+                entityClass,
+                entityClass,
+                this.jpqlSelectAllFromEntity,
+                    selectAlias, filter,
+                null,
+                rsqlContext,
+                rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
+        } else {
+            final Specification<ENTITY> specification = createSpecification(filter);
+            return appObjectMapper.toDto(appObjectRepository.findAll(specification));
+        }
     }
 
     /**
@@ -104,9 +185,19 @@ public class RsqlQueryService<
             sort = sortOrder.getSort();
         }
 
-        final Specification<ENTITY> specification = createSpecification(filter);
-
-        return appObjectRepository.findAll(specification, sort).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
+        if (useJpqlSelect) {
+            return SimpleQueryExecutor.getJpqlQueryResult(
+                    entityClass,
+                    entityClass,
+                    this.jpqlSelectAllFromEntity,
+                    selectAlias, filter,
+                    sortOrder,
+                    rsqlContext,
+                    rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
+        } else {
+            final Specification<ENTITY> specification = createSpecification(filter);
+            return appObjectRepository.findAll(specification, sort).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
+        }
     }
 
     /**
@@ -121,8 +212,23 @@ public class RsqlQueryService<
         if (page == null) {
             page = PageRequest.of(0, 20);
         }
-        final Specification<ENTITY> specification = createSpecification(filter);
-        return appObjectRepository.findAll(specification, page).map(appObjectMapper::toDto);
+        if (useJpqlSelect) {
+             Page<ENTITY>  entityPage = SimpleQueryExecutor.getJpqlQueryResultAsPage(
+                entityClass,
+                entityClass,
+                this.jpqlSelectAllFromEntity,
+                     selectAlias, this.jpqlSelectCountFromEntity,
+                     countAlias, filter,
+                page,
+                rsqlContext,
+                rsqlCompiler);
+
+                return entityPage.map(appObjectMapper::toDto);
+
+        } else {
+            final Specification<ENTITY> specification = createSpecification(filter);
+            return appObjectRepository.findAll(specification, page).map(appObjectMapper::toDto);
+        }
     }
 
     /**
@@ -133,11 +239,22 @@ public class RsqlQueryService<
     @Transactional(readOnly = true)
     public long countByFilter(String filter) {
         log.debug("count by filter : {}", filter);
-        final Specification<ENTITY> specification = createSpecification(filter);
-        if (specification == null) {
-            return appObjectRepository.count();
+
+        if (useJpqlSelect) {
+            return SimpleQueryExecutor.getJpqlQueryCount(
+                entityClass,
+                this.jpqlSelectCountFromEntity,
+                countAlias,
+                filter,
+                rsqlContext,
+                rsqlCompiler);
+        } else {
+            final Specification<ENTITY> specification = createSpecification(filter);
+            if (specification == null) {
+                return appObjectRepository.count();
+            }
+            return appObjectRepository.count(specification);
         }
-        return appObjectRepository.count(specification);
     }
 
     /**
@@ -180,4 +297,72 @@ public class RsqlQueryService<
             rsqlCompiler
         );
     }
+
+    @Transactional(readOnly = true)
+    public List<ENTITY_DTO> getJpqlQueryResult(String jpqlSelectQuery, String filter, Pageable page) {
+        String alias = findAliasFromJpqlSelectString(jpqlSelectQuery);
+        return SimpleQueryExecutor.getJpqlQueryResult(
+            entityClass,
+            entityClass,
+            jpqlSelectQuery,
+            alias, filter,
+            page,
+            rsqlContext,
+            rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Tuple> getJpqlQueryResultAsTuple(String jpqlSelectQuery, String filter, Pageable page) {
+        String alias = findAliasFromJpqlSelectString(jpqlSelectQuery);
+        return SimpleQueryExecutor.getJpqlQueryResult(
+            entityClass,
+            Tuple.class,
+            jpqlSelectQuery,
+            alias, filter,
+            page,
+            rsqlContext,
+            rsqlCompiler);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ENTITY_DTO> getJpqlQueryResultAsPage(String jpqlSelectQuery, String jpqlCountQuery, String filter, Pageable page) {
+        Page<ENTITY>  entityPage = SimpleQueryExecutor.getJpqlQueryResultAsPage(
+            entityClass,
+            entityClass,
+            jpqlSelectQuery,
+                selectAlias, jpqlCountQuery,
+                countAlias, filter,
+            page,
+            rsqlContext,
+            rsqlCompiler);
+
+        return entityPage.map(appObjectMapper::toDto);
+    }
+
+    public String findAliasFromJpqlSelectString(String jpqlSelect) {
+        String alias = "a0"; // pretpostavljeni defaultni alias
+
+        if (jpqlSelect != null && !jpqlSelect.trim().isEmpty()) {
+            try {
+                // Kreiranje TypedQuery objekta
+                TypedQuery<ENTITY> query = entityManager.createQuery(jpqlSelect, entityClass);
+                String jpql = query.unwrap(org.hibernate.query.Query.class).getQueryString();
+
+                // Regularni izraz za pronalaženje aliasa nakon 'FROM' klauzule
+                Pattern pattern = Pattern.compile(" from \\s+\\w+\\s+(\\w+)", Pattern.CASE_INSENSITIVE);
+                Matcher matcher = pattern.matcher(jpql);
+
+                if (matcher.find()) {
+                    // Ako se pronađe odgovarajući pattern, uzima se prva grupa kao alias
+                    alias = matcher.group(1);
+                }
+            } catch (Exception e) {
+                // U slučaju greške, vraća se defaultni alias
+                // Ovdje možete logirati ili obraditi grešku
+            }
+        }
+
+        return "a0";
+    }
+
 }

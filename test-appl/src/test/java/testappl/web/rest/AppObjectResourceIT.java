@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -14,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,21 +23,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.Base64Utils;
 import testappl.IntegrationTest;
 import testappl.domain.AppObject;
 import testappl.domain.AppObject;
+import testappl.domain.Product;
 import testappl.domain.enumeration.AppObjectType;
 import testappl.domain.enumeration.StandardRecordStatus;
 import testappl.repository.AppObjectRepository;
 import testappl.service.AppObjectService;
-import testappl.service.criteria.AppObjectCriteria;
 import testappl.service.dto.AppObjectDTO;
 import testappl.service.mapper.AppObjectMapper;
 
@@ -93,7 +91,7 @@ class AppObjectResourceIT {
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
     private static Random random = new Random();
-    private static AtomicLong count = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
+    private static AtomicLong longCount = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
 
     @Autowired
     private AppObjectRepository appObjectRepository;
@@ -988,12 +986,77 @@ class AppObjectResourceIT {
         appObject.setParent(parent);
         appObjectRepository.saveAndFlush(appObject);
         Long parentId = parent.getId();
-
         // Get all the appObjectList where parent equals to parentId
         defaultAppObjectShouldBeFound("parentId.equals=" + parentId);
 
         // Get all the appObjectList where parent equals to (parentId + 1)
         defaultAppObjectShouldNotBeFound("parentId.equals=" + (parentId + 1));
+    }
+
+    @Test
+    @Transactional
+    void getAllAppObjectsByProductIsEqualToSomething() throws Exception {
+        Product product;
+        if (TestUtil.findAll(em, Product.class).isEmpty()) {
+            appObjectRepository.saveAndFlush(appObject);
+            product = ProductResourceIT.createEntity(em);
+        } else {
+            product = TestUtil.findAll(em, Product.class).get(0);
+        }
+        em.persist(product);
+        em.flush();
+        appObject.setProduct(product);
+        appObjectRepository.saveAndFlush(appObject);
+        Long productId = product.getId();
+        // Get all the appObjectList where product equals to productId
+        defaultAppObjectShouldBeFound("productId.equals=" + productId);
+
+        // Get all the appObjectList where product equals to (productId + 1)
+        defaultAppObjectShouldNotBeFound("productId.equals=" + (productId + 1));
+    }
+
+    @Test
+    @Transactional
+    void getAllAppObjectsByProduct2IsEqualToSomething() throws Exception {
+        Product product2;
+        if (TestUtil.findAll(em, Product.class).isEmpty()) {
+            appObjectRepository.saveAndFlush(appObject);
+            product2 = ProductResourceIT.createEntity(em);
+        } else {
+            product2 = TestUtil.findAll(em, Product.class).get(0);
+        }
+        em.persist(product2);
+        em.flush();
+        appObject.setProduct2(product2);
+        appObjectRepository.saveAndFlush(appObject);
+        Long product2Id = product2.getId();
+        // Get all the appObjectList where product2 equals to product2Id
+        defaultAppObjectShouldBeFound("product2Id.equals=" + product2Id);
+
+        // Get all the appObjectList where product2 equals to (product2Id + 1)
+        defaultAppObjectShouldNotBeFound("product2Id.equals=" + (product2Id + 1));
+    }
+
+    @Test
+    @Transactional
+    void getAllAppObjectsByProduct3IsEqualToSomething() throws Exception {
+        Product product3;
+        if (TestUtil.findAll(em, Product.class).isEmpty()) {
+            appObjectRepository.saveAndFlush(appObject);
+            product3 = ProductResourceIT.createEntity(em);
+        } else {
+            product3 = TestUtil.findAll(em, Product.class).get(0);
+        }
+        em.persist(product3);
+        em.flush();
+        appObject.setProduct3(product3);
+        appObjectRepository.saveAndFlush(appObject);
+        Long product3Id = product3.getId();
+        // Get all the appObjectList where product3 equals to product3Id
+        defaultAppObjectShouldBeFound("product3Id.equals=" + product3Id);
+
+        // Get all the appObjectList where product3 equals to (product3Id + 1)
+        defaultAppObjectShouldNotBeFound("product3Id.equals=" + (product3Id + 1));
     }
 
     /**
@@ -1061,7 +1124,7 @@ class AppObjectResourceIT {
         int databaseSizeBeforeUpdate = appObjectRepository.findAll().size();
 
         // Update the appObject
-        AppObject updatedAppObject = appObjectRepository.findById(appObject.getId()).get();
+        AppObject updatedAppObject = appObjectRepository.findById(appObject.getId()).orElseThrow();
         // Disconnect from session so that the updates on updatedAppObject are not directly saved in db
         em.detach(updatedAppObject);
         updatedAppObject
@@ -1109,7 +1172,7 @@ class AppObjectResourceIT {
     @Transactional
     void putNonExistingAppObject() throws Exception {
         int databaseSizeBeforeUpdate = appObjectRepository.findAll().size();
-        appObject.setId(count.incrementAndGet());
+        appObject.setId(longCount.incrementAndGet());
 
         // Create the AppObject
         AppObjectDTO appObjectDTO = appObjectMapper.toDto(appObject);
@@ -1132,7 +1195,7 @@ class AppObjectResourceIT {
     @Transactional
     void putWithIdMismatchAppObject() throws Exception {
         int databaseSizeBeforeUpdate = appObjectRepository.findAll().size();
-        appObject.setId(count.incrementAndGet());
+        appObject.setId(longCount.incrementAndGet());
 
         // Create the AppObject
         AppObjectDTO appObjectDTO = appObjectMapper.toDto(appObject);
@@ -1140,7 +1203,7 @@ class AppObjectResourceIT {
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restAppObjectMockMvc
             .perform(
-                put(ENTITY_API_URL_ID, count.incrementAndGet())
+                put(ENTITY_API_URL_ID, longCount.incrementAndGet())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(TestUtil.convertObjectToJsonBytes(appObjectDTO))
             )
@@ -1155,7 +1218,7 @@ class AppObjectResourceIT {
     @Transactional
     void putWithMissingIdPathParamAppObject() throws Exception {
         int databaseSizeBeforeUpdate = appObjectRepository.findAll().size();
-        appObject.setId(count.incrementAndGet());
+        appObject.setId(longCount.incrementAndGet());
 
         // Create the AppObject
         AppObjectDTO appObjectDTO = appObjectMapper.toDto(appObject);
@@ -1183,10 +1246,11 @@ class AppObjectResourceIT {
         partialUpdatedAppObject.setId(appObject.getId());
 
         partialUpdatedAppObject
+            .code(UPDATED_CODE)
             .description(UPDATED_DESCRIPTION)
+            .objectType(UPDATED_OBJECT_TYPE)
+            .lastChange(UPDATED_LAST_CHANGE)
             .seq(UPDATED_SEQ)
-            .quantity(UPDATED_QUANTITY)
-            .validFrom(UPDATED_VALID_FROM)
             .validUntil(UPDATED_VALID_UNTIL);
 
         restAppObjectMockMvc
@@ -1201,15 +1265,15 @@ class AppObjectResourceIT {
         List<AppObject> appObjectList = appObjectRepository.findAll();
         assertThat(appObjectList).hasSize(databaseSizeBeforeUpdate);
         AppObject testAppObject = appObjectList.get(appObjectList.size() - 1);
-        assertThat(testAppObject.getCode()).isEqualTo(DEFAULT_CODE);
+        assertThat(testAppObject.getCode()).isEqualTo(UPDATED_CODE);
         assertThat(testAppObject.getName()).isEqualTo(DEFAULT_NAME);
         assertThat(testAppObject.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
-        assertThat(testAppObject.getObjectType()).isEqualTo(DEFAULT_OBJECT_TYPE);
-        assertThat(testAppObject.getLastChange()).isEqualTo(DEFAULT_LAST_CHANGE);
+        assertThat(testAppObject.getObjectType()).isEqualTo(UPDATED_OBJECT_TYPE);
+        assertThat(testAppObject.getLastChange()).isEqualTo(UPDATED_LAST_CHANGE);
         assertThat(testAppObject.getSeq()).isEqualTo(UPDATED_SEQ);
         assertThat(testAppObject.getStatus()).isEqualTo(DEFAULT_STATUS);
-        assertThat(testAppObject.getQuantity()).isEqualTo(UPDATED_QUANTITY);
-        assertThat(testAppObject.getValidFrom()).isEqualTo(UPDATED_VALID_FROM);
+        assertThat(testAppObject.getQuantity()).isEqualTo(DEFAULT_QUANTITY);
+        assertThat(testAppObject.getValidFrom()).isEqualTo(DEFAULT_VALID_FROM);
         assertThat(testAppObject.getValidUntil()).isEqualTo(UPDATED_VALID_UNTIL);
         assertThat(testAppObject.getIsValid()).isEqualTo(DEFAULT_IS_VALID);
         assertThat(testAppObject.getCreationDate()).isEqualTo(DEFAULT_CREATION_DATE);
@@ -1271,7 +1335,7 @@ class AppObjectResourceIT {
     @Transactional
     void patchNonExistingAppObject() throws Exception {
         int databaseSizeBeforeUpdate = appObjectRepository.findAll().size();
-        appObject.setId(count.incrementAndGet());
+        appObject.setId(longCount.incrementAndGet());
 
         // Create the AppObject
         AppObjectDTO appObjectDTO = appObjectMapper.toDto(appObject);
@@ -1294,7 +1358,7 @@ class AppObjectResourceIT {
     @Transactional
     void patchWithIdMismatchAppObject() throws Exception {
         int databaseSizeBeforeUpdate = appObjectRepository.findAll().size();
-        appObject.setId(count.incrementAndGet());
+        appObject.setId(longCount.incrementAndGet());
 
         // Create the AppObject
         AppObjectDTO appObjectDTO = appObjectMapper.toDto(appObject);
@@ -1302,7 +1366,7 @@ class AppObjectResourceIT {
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restAppObjectMockMvc
             .perform(
-                patch(ENTITY_API_URL_ID, count.incrementAndGet())
+                patch(ENTITY_API_URL_ID, longCount.incrementAndGet())
                     .contentType("application/merge-patch+json")
                     .content(TestUtil.convertObjectToJsonBytes(appObjectDTO))
             )
@@ -1317,7 +1381,7 @@ class AppObjectResourceIT {
     @Transactional
     void patchWithMissingIdPathParamAppObject() throws Exception {
         int databaseSizeBeforeUpdate = appObjectRepository.findAll().size();
-        appObject.setId(count.incrementAndGet());
+        appObject.setId(longCount.incrementAndGet());
 
         // Create the AppObject
         AppObjectDTO appObjectDTO = appObjectMapper.toDto(appObject);

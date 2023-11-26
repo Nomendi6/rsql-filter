@@ -1,7 +1,7 @@
 package testappl.service;
 
+import jakarta.persistence.criteria.JoinType;
 import java.util.List;
-import javax.persistence.criteria.JoinType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -127,6 +127,24 @@ public class AppObjectQueryService extends QueryService<AppObject> {
                 specification =
                     specification.and(
                         buildSpecification(criteria.getParentId(), root -> root.join(AppObject_.parent, JoinType.LEFT).get(AppObject_.id))
+                    );
+            }
+            if (criteria.getProductId() != null) {
+                specification =
+                    specification.and(
+                        buildSpecification(criteria.getProductId(), root -> root.join(AppObject_.product, JoinType.LEFT).get(Product_.id))
+                    );
+            }
+            if (criteria.getProduct2Id() != null) {
+                specification =
+                    specification.and(
+                        buildSpecification(criteria.getProduct2Id(), root -> root.join(AppObject_.product2, JoinType.LEFT).get(Product_.id))
+                    );
+            }
+            if (criteria.getProduct3Id() != null) {
+                specification =
+                    specification.and(
+                        buildSpecification(criteria.getProduct3Id(), root -> root.join(AppObject_.product3, JoinType.LEFT).get(Product_.id))
                     );
             }
         }

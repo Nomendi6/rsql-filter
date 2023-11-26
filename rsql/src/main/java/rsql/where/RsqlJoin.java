@@ -1,6 +1,6 @@
 package rsql.where;
 
-import javax.persistence.criteria.Path;
+import jakarta.persistence.criteria.Path;
 
 public class RsqlJoin {
 
@@ -9,8 +9,13 @@ public class RsqlJoin {
     public String entity;
     public String alias;
     public String parentAlias;
+    public String rootAlias;
     public Path root;
     public String joinType;
+    public String fullPath;
+
+    public RsqlJoin() {
+    }
 
     public RsqlJoin(String entity, String joinType) {
         this.entity = entity;
@@ -24,7 +29,7 @@ public class RsqlJoin {
         this.joinType = joinType;
     }
 
-    public RsqlJoin(String path, String attribute, String entity, String alias, String parentAlias, Path root, String joinType) {
+    public RsqlJoin(String path, String attribute, String entity, String alias, String parentAlias, Path<?> root, String joinType) {
         this.path = path;
         this.attribute = attribute;
         this.entity = entity;
@@ -32,6 +37,17 @@ public class RsqlJoin {
         this.parentAlias = parentAlias;
         this.root = root;
         this.joinType = joinType;
+    }
+
+    public RsqlJoin(RsqlJoin otherJoin) {
+        this.path = otherJoin.path;
+        this.attribute = otherJoin.attribute;
+        this.entity = otherJoin.entity;
+        this.alias = otherJoin.alias;
+        this.parentAlias = otherJoin.parentAlias;
+        this.root = otherJoin.root;
+        this.joinType = otherJoin.joinType;
+        this.fullPath = otherJoin.fullPath;
     }
 
     @Override

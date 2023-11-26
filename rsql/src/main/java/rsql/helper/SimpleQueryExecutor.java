@@ -1,5 +1,6 @@
 package rsql.helper;
 
+import org.springframework.data.support.PageableExecutionUtils;
 import rsql.RsqlCompiler;
 import rsql.where.RsqlContext;
 import org.springframework.data.domain.Page;
@@ -10,14 +11,15 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.query.QueryUtils;
-import org.springframework.data.repository.support.PageableExecutionUtils;
 import org.springframework.util.Assert;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.*;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.Metamodel;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.*;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.Metamodel;
+import rsql.where.RsqlQuery;
+
 import java.util.*;
 
 import static rsql.where.RsqlWhereHelper.*;
@@ -30,6 +32,14 @@ public class SimpleQueryExecutor {
         RsqlCompiler<ENTITY> compiler
     ) {
         return compiler.compileToSpecification(filter, rsqlContext);
+    }
+
+    private static <ENTITY> RsqlQuery createWhereClause(
+        String filter,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler
+    ) {
+        return compiler.compileToRsqlQuery(filter, rsqlContext);
     }
 
     public static <ENTITY, RESULT> List<RESULT> getQueryResult(
@@ -69,6 +79,141 @@ public class SimpleQueryExecutor {
         return rsqlContext.entityManager.createQuery(query).getResultList();
     }
 
+    public static <ENTITY, RESULT> List<RESULT> getJpqlQueryResult(
+            Class<ENTITY> entityClass,
+            Class<RESULT> resultClass,
+            String jpqlQueryString,
+            String alias, String filter,
+            Pageable pageable,
+            RsqlContext<ENTITY> rsqlContext,
+            RsqlCompiler<ENTITY> compiler) {
+        Sort sort;
+        if (pageable == null) {
+            sort = null;
+        } else {
+            sort = pageable.getSort();
+        }
+        RsqlQuery rsqlQuery = createWhereClause(filter, rsqlContext, compiler);
+
+        if (rsqlQuery != null) {
+            jpqlQueryString = jpqlQueryString.concat(" where ").concat(rsqlQuery.where);
+        }
+
+        jpqlQueryString = jpqlQueryString.concat(getOrderByWithAlias(sort, alias));
+        TypedQuery<RESULT> query = rsqlContext.entityManager.createQuery(jpqlQueryString, resultClass);
+        if (rsqlQuery != null) {
+            RsqlCompiler.bindImplicitParametersForTypedQuery(rsqlQuery, query);
+        }
+
+        return query.getResultList();
+    }
+
+    public static String getOrderByWithAlias(Sort sort, String alias) {
+        if (sort == null || !sort.isSorted()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(" order by ");
+        Iterator<Sort.Order> iterator = sort.iterator();
+        while (iterator.hasNext()) {
+            Sort.Order order = iterator.next();
+            sb.append(alias).append(".").append(order.getProperty()).append(" ").append(order.getDirection().name());
+            if (iterator.hasNext()) {
+                sb.append(", ");
+            }
+        }
+        return sb.toString();
+    }
+
+    public static <ENTITY, RESULT> Page<RESULT> getJpqlQueryResultAsPage(
+            Class<ENTITY> entityClass,
+            Class<RESULT> resultClass,
+            String jpqlQueryString, String selectAlias,
+            String countQueryString, String countAlias,
+            String filter,
+            Pageable pageable,
+            RsqlContext<ENTITY> rsqlContext,
+            RsqlCompiler<ENTITY> compiler
+    ) {
+        Sort sort;
+        if (pageable == null) {
+            sort = null;
+        } else {
+            sort = pageable.getSort();
+        }
+        RsqlQuery rsqlQuery = createWhereClause(filter, rsqlContext, compiler);
+
+        if (rsqlQuery != null) {
+            jpqlQueryString = jpqlQueryString.concat(" where ").concat(rsqlQuery.where);
+            countQueryString = countQueryString.concat(" where ").concat(rsqlQuery.where);
+        }
+
+        jpqlQueryString = jpqlQueryString.concat(getOrderByWithAlias(sort, selectAlias));
+
+        TypedQuery<RESULT> query = null;
+        TypedQuery<Long> countQuery = null;
+        try {
+            query = rsqlContext.entityManager.createQuery(jpqlQueryString, resultClass);
+            countQuery = rsqlContext.entityManager.createQuery(countQueryString, Long.class);
+        } catch (Exception e) {
+            System.out.println("Error compiling JPQL expression: ");
+            System.out.println("------ SELECT QUERY ------");
+            System.out.println(jpqlQueryString);
+            System.out.println("------ COUNT QUERY ------");
+            System.out.println(countQueryString);
+            System.out.println("------");
+            throw new RuntimeException(e);
+        }
+        if (rsqlQuery != null) {
+            RsqlCompiler.bindImplicitParametersForTypedQuery(rsqlQuery, query);
+            RsqlCompiler.bindImplicitParametersForTypedQuery(rsqlQuery, countQuery);
+        }
+
+        if (isUnpaged(pageable)) {
+            return new PageImpl<>(query.getResultList());
+        }
+
+        Long totalRecords = countQuery.getSingleResult();
+
+        if (pageable.isPaged()) {
+            query.setFirstResult((int) pageable.getOffset());
+            query.setMaxResults(pageable.getPageSize());
+        }
+        return PageableExecutionUtils.getPage(
+                query.getResultList(),
+                pageable,
+                () -> {
+                    return totalRecords;
+                }
+        );
+
+    }
+
+    public static <ENTITY> Long getJpqlQueryCount(
+            Class<ENTITY> entityClass,
+            String countQueryString,
+            String countAlias,
+            String filter,
+            RsqlContext<ENTITY> rsqlContext,
+            RsqlCompiler<ENTITY> compiler
+    ) {
+        RsqlQuery rsqlQuery = createWhereClause(filter, rsqlContext, compiler);
+
+        if (rsqlQuery != null) {
+            if (!Objects.equals(countAlias, "a0")) {
+                RsqlCompiler.replaceAlias(rsqlQuery, "a0", countAlias);
+            }
+            countQueryString = countQueryString.concat(" where ").concat(rsqlQuery.where);
+        }
+        TypedQuery<Long> countQuery = rsqlContext.entityManager.createQuery(countQueryString, Long.class);
+        if (rsqlQuery != null) {
+            RsqlCompiler.bindImplicitParametersForTypedQuery(rsqlQuery, countQuery);
+        }
+
+        return countQuery.getSingleResult();
+    }
+
+
     public static <
         ENTITY, RESULT, REPOS extends JpaRepository<ENTITY, Long> & JpaSpecificationExecutor<ENTITY>
     > Page<RESULT> getQueryResultAsPage(
@@ -97,15 +242,9 @@ public class SimpleQueryExecutor {
         Map<String, Path<?>> joinsMap = new HashMap<>();
         Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
         for (String property : properties) {
-            //            Selection<? extends Object> selection = root.get(property);
             Selection<? extends Object> selection = getPropertyPathRecursive(property, root, rsqlContext, joinsMap, classMetadataMap);
             selectionList.add(selection);
         }
-        //        List<Join<? extends Object, ? extends Object>> joinsList = new ArrayList<>();
-        //        for (String leftJoin : leftJoins) {
-        //            final Join<Object, Object> join = root.join(leftJoin, JoinType.LEFT);
-        //            joinsList.add(join);
-        //        }
 
         query.multiselect(selectionList);
 
@@ -118,9 +257,6 @@ public class SimpleQueryExecutor {
         if (sort != null && sort.isSorted()) {
             query.orderBy(QueryUtils.toOrders(sort, root, builder));
         }
-
-        //        Page<RESULT> page = readPage(query, pageable, predicate, rsqlContext, entityClass);
-        //        return page;
 
         if (isUnpaged(pageable)) {
             return new PageImpl<>((List<RESULT>) rsqlContext.entityManager.createQuery(query).getResultList());

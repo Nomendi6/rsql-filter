@@ -13,7 +13,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
  * @param <E> - Entity type parameter.
  */
 
-public interface EntityMapper<D, E> {
+public interface EntityMapper<D, E> extends rsql.mapper.EntityMapper<D, E> {
     E toEntity(D dto);
 
     D toDto(E entity);

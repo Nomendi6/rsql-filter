@@ -3,10 +3,10 @@ package rsql.where;
 import rsql.antlr.where.RsqlWhereParser;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import javax.persistence.criteria.Path;
-import javax.persistence.metamodel.Attribute;
-import javax.persistence.metamodel.ManagedType;
-import javax.persistence.metamodel.PluralAttribute;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.PluralAttribute;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -170,16 +170,6 @@ public class RsqlWhereHelper {
 
     public static <E extends Enum<E>> E getEnum(String text, Class<E> klass) {
         return Enum.valueOf(klass, text);
-    }
-
-    public static String createPathFromGraph(String[] graph, int index) {
-        StringBuilder path = new StringBuilder(graph[0]);
-        if (index >= 1) {
-            for (int i = 1; i <= index; i++) {
-                path.append(".").append(graph[i]);
-            }
-        }
-        return path.toString();
     }
 
     public static String getFromClause(RsqlQuery query, String rootEntity, String rootEntityAlias) {

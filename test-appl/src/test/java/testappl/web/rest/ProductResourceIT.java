@@ -6,13 +6,13 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,13 +21,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.Base64Utils;
 import testappl.IntegrationTest;
 import testappl.domain.Product;
 import testappl.domain.Product;
@@ -35,7 +33,6 @@ import testappl.domain.ProductType;
 import testappl.domain.enumeration.StandardRecordStatus;
 import testappl.repository.ProductRepository;
 import testappl.service.ProductService;
-import testappl.service.criteria.ProductCriteria;
 import testappl.service.dto.ProductDTO;
 import testappl.service.mapper.ProductMapper;
 
@@ -74,7 +71,7 @@ class ProductResourceIT {
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
     private static Random random = new Random();
-    private static AtomicLong count = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
+    private static AtomicLong longCount = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
 
     @Autowired
     private ProductRepository productRepository;
@@ -645,7 +642,6 @@ class ProductResourceIT {
         product.setTproduct(tproduct);
         productRepository.saveAndFlush(product);
         Long tproductId = tproduct.getId();
-
         // Get all the productList where tproduct equals to tproductId
         defaultProductShouldBeFound("tproductId.equals=" + tproductId);
 
@@ -668,7 +664,6 @@ class ProductResourceIT {
         product.setParent(parent);
         productRepository.saveAndFlush(product);
         Long parentId = parent.getId();
-
         // Get all the productList where parent equals to parentId
         defaultProductShouldBeFound("parentId.equals=" + parentId);
 
@@ -736,7 +731,7 @@ class ProductResourceIT {
         int databaseSizeBeforeUpdate = productRepository.findAll().size();
 
         // Update the product
-        Product updatedProduct = productRepository.findById(product.getId()).get();
+        Product updatedProduct = productRepository.findById(product.getId()).orElseThrow();
         // Disconnect from session so that the updates on updatedProduct are not directly saved in db
         em.detach(updatedProduct);
         updatedProduct
@@ -774,7 +769,7 @@ class ProductResourceIT {
     @Transactional
     void putNonExistingProduct() throws Exception {
         int databaseSizeBeforeUpdate = productRepository.findAll().size();
-        product.setId(count.incrementAndGet());
+        product.setId(longCount.incrementAndGet());
 
         // Create the Product
         ProductDTO productDTO = productMapper.toDto(product);
@@ -797,7 +792,7 @@ class ProductResourceIT {
     @Transactional
     void putWithIdMismatchProduct() throws Exception {
         int databaseSizeBeforeUpdate = productRepository.findAll().size();
-        product.setId(count.incrementAndGet());
+        product.setId(longCount.incrementAndGet());
 
         // Create the Product
         ProductDTO productDTO = productMapper.toDto(product);
@@ -805,7 +800,7 @@ class ProductResourceIT {
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProductMockMvc
             .perform(
-                put(ENTITY_API_URL_ID, count.incrementAndGet())
+                put(ENTITY_API_URL_ID, longCount.incrementAndGet())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(TestUtil.convertObjectToJsonBytes(productDTO))
             )
@@ -820,7 +815,7 @@ class ProductResourceIT {
     @Transactional
     void putWithMissingIdPathParamProduct() throws Exception {
         int databaseSizeBeforeUpdate = productRepository.findAll().size();
-        product.setId(count.incrementAndGet());
+        product.setId(longCount.incrementAndGet());
 
         // Create the Product
         ProductDTO productDTO = productMapper.toDto(product);
@@ -847,7 +842,7 @@ class ProductResourceIT {
         Product partialUpdatedProduct = new Product();
         partialUpdatedProduct.setId(product.getId());
 
-        partialUpdatedProduct.status(UPDATED_STATUS).validFrom(UPDATED_VALID_FROM);
+        partialUpdatedProduct.code(UPDATED_CODE).name(UPDATED_NAME).status(UPDATED_STATUS);
 
         restProductMockMvc
             .perform(
@@ -861,12 +856,12 @@ class ProductResourceIT {
         List<Product> productList = productRepository.findAll();
         assertThat(productList).hasSize(databaseSizeBeforeUpdate);
         Product testProduct = productList.get(productList.size() - 1);
-        assertThat(testProduct.getCode()).isEqualTo(DEFAULT_CODE);
-        assertThat(testProduct.getName()).isEqualTo(DEFAULT_NAME);
+        assertThat(testProduct.getCode()).isEqualTo(UPDATED_CODE);
+        assertThat(testProduct.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testProduct.getDescription()).isEqualTo(DEFAULT_DESCRIPTION);
         assertThat(testProduct.getSeq()).isEqualTo(DEFAULT_SEQ);
         assertThat(testProduct.getStatus()).isEqualTo(UPDATED_STATUS);
-        assertThat(testProduct.getValidFrom()).isEqualTo(UPDATED_VALID_FROM);
+        assertThat(testProduct.getValidFrom()).isEqualTo(DEFAULT_VALID_FROM);
         assertThat(testProduct.getValidUntil()).isEqualTo(DEFAULT_VALID_UNTIL);
     }
 
@@ -916,7 +911,7 @@ class ProductResourceIT {
     @Transactional
     void patchNonExistingProduct() throws Exception {
         int databaseSizeBeforeUpdate = productRepository.findAll().size();
-        product.setId(count.incrementAndGet());
+        product.setId(longCount.incrementAndGet());
 
         // Create the Product
         ProductDTO productDTO = productMapper.toDto(product);
@@ -939,7 +934,7 @@ class ProductResourceIT {
     @Transactional
     void patchWithIdMismatchProduct() throws Exception {
         int databaseSizeBeforeUpdate = productRepository.findAll().size();
-        product.setId(count.incrementAndGet());
+        product.setId(longCount.incrementAndGet());
 
         // Create the Product
         ProductDTO productDTO = productMapper.toDto(product);
@@ -947,7 +942,7 @@ class ProductResourceIT {
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProductMockMvc
             .perform(
-                patch(ENTITY_API_URL_ID, count.incrementAndGet())
+                patch(ENTITY_API_URL_ID, longCount.incrementAndGet())
                     .contentType("application/merge-patch+json")
                     .content(TestUtil.convertObjectToJsonBytes(productDTO))
             )
@@ -962,7 +957,7 @@ class ProductResourceIT {
     @Transactional
     void patchWithMissingIdPathParamProduct() throws Exception {
         int databaseSizeBeforeUpdate = productRepository.findAll().size();
-        product.setId(count.incrementAndGet());
+        product.setId(longCount.incrementAndGet());
 
         // Create the Product
         ProductDTO productDTO = productMapper.toDto(product);

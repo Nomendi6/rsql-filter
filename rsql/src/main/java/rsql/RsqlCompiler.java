@@ -1,17 +1,16 @@
 package rsql;
 
-import rsql.antlr.where.RsqlWhereLexer;
-import rsql.antlr.where.RsqlWhereParser;
 import rsql.exceptions.SyntaxErrorException;
 import rsql.where.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.springframework.data.jpa.domain.Specification;
 
-import javax.persistence.Query;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.Query;
+import jakarta.persistence.TypedQuery;
+
+import java.util.Map;
 import java.util.Objects;
 
 public class RsqlCompiler<T> {
@@ -146,4 +145,5 @@ public class RsqlCompiler<T> {
         query.where = query.where.replace("Id", "_id");
         query.where = query.where.replace(".id", "_id");
     }
+
 }

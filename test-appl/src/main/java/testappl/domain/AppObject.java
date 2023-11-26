@@ -1,14 +1,13 @@
 package testappl.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalDate;
-import javax.persistence.*;
-import javax.validation.constraints.*;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
-import org.hibernate.annotations.Type;
 import testappl.domain.enumeration.AppObjectType;
 import testappl.domain.enumeration.StandardRecordStatus;
 
@@ -38,7 +37,6 @@ public class AppObject implements Serializable {
     private String name;
 
     @Lob
-    @Type(type = "org.hibernate.type.TextType")
     @Column(name = "description")
     private String description;
 
@@ -71,9 +69,21 @@ public class AppObject implements Serializable {
     @Column(name = "creation_date")
     private LocalDate creationDate;
 
-    @ManyToOne
-    @JsonIgnoreProperties(value = { "parent" }, allowSetters = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnoreProperties(value = { "parent", "product", "product2", "product3" }, allowSetters = true)
     private AppObject parent;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnoreProperties(value = { "tproduct", "parent" }, allowSetters = true)
+    private Product product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnoreProperties(value = { "tproduct", "parent" }, allowSetters = true)
+    private Product product2;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnoreProperties(value = { "tproduct", "parent" }, allowSetters = true)
+    private Product product3;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -259,7 +269,56 @@ public class AppObject implements Serializable {
         return this;
     }
 
+    public Product getProduct() {
+        return this.product;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
+    }
+
+    public AppObject product(Product product) {
+        this.setProduct(product);
+        return this;
+    }
+
+    public Product getProduct2() {
+        return this.product2;
+    }
+
+    public void setProduct2(Product product) {
+        this.product2 = product;
+    }
+
+    public AppObject product2(Product product) {
+        this.setProduct2(product);
+        return this;
+    }
+
+    public Product getProduct3() {
+        return this.product3;
+    }
+
+    public void setProduct3(Product product) {
+        this.product3 = product;
+    }
+
+    public AppObject product3(Product product) {
+        this.setProduct3(product);
+        return this;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
+
+
+    public AppObject() {
+    }
+
+    public AppObject(Long id, String code, String name) {
+        this.id = id;
+        this.code = code;
+        this.name = name;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -269,7 +328,7 @@ public class AppObject implements Serializable {
         if (!(o instanceof AppObject)) {
             return false;
         }
-        return id != null && id.equals(((AppObject) o).id);
+        return getId() != null && getId().equals(((AppObject) o).getId());
     }
 
     @Override
