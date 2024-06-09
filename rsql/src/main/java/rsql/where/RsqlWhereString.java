@@ -1,10 +1,7 @@
 package rsql.where;
 
-import rsql.antlr.where.RsqlWhereLexer;
-import rsql.antlr.where.RsqlWhereParser;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.io.IOException;

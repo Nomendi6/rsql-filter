@@ -1,4 +1,4 @@
-// Generated from java-escape by ANTLR 4.11.1
+// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter/rsql/src/main/antlr/RsqlWhere.g4 by ANTLR 4.13.1
 package rsql.antlr.where;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
@@ -52,12 +52,12 @@ public interface RsqlWhereVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitConditionParens(RsqlWhereParser.ConditionParensContext ctx);
 	/**
-	 * Visit a parse tree produced by the {@code missingClosingParenthesis}
+	 * Visit a parse tree produced by the {@code missingClosingParenthesis2}
 	 * labeled alternative in {@link RsqlWhereParser#errorCondition}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitMissingClosingParenthesis(RsqlWhereParser.MissingClosingParenthesisContext ctx);
+	T visitMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx);
 	/**
 	 * Visit a parse tree produced by {@link RsqlWhereParser#inList}.
 	 * @param ctx the parse tree
@@ -77,6 +77,13 @@ public interface RsqlWhereVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitSingleConditionBetween(RsqlWhereParser.SingleConditionBetweenContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code singleConditionNotBetween}
+	 * labeled alternative in {@link RsqlWhereParser#singleCondition}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code singleConditionIn}
 	 * labeled alternative in {@link RsqlWhereParser#singleCondition}.
@@ -223,6 +230,12 @@ public interface RsqlWhereVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitOperatorLIKE(RsqlWhereParser.OperatorLIKEContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link RsqlWhereParser#operatorNLIKE}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link RsqlWhereParser#operatorIN}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -234,6 +247,12 @@ public interface RsqlWhereVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitOperatorNIN(RsqlWhereParser.OperatorNINContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link RsqlWhereParser#operatorNBT}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitOperatorNBT(RsqlWhereParser.OperatorNBTContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link RsqlWhereParser#operatorBT}.
 	 * @param ctx the parse tree

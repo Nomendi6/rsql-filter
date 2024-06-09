@@ -1,12 +1,13 @@
 package rsql.where;
 
-import rsql.antlr.where.RsqlWhereParser;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.PluralAttribute;
+import rsql.antlr.where.RsqlWhereParser;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

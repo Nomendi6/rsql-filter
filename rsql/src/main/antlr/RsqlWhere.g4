@@ -15,7 +15,7 @@ condition:
 ;
 
 errorCondition:
-      '(' condition         { notifyErrorListeners("Missing closing parenthesis"); }       # missingClosingParenthesis
+      '(' condition         { notifyErrorListeners("Missing closing parenthesis"); }       # missingClosingParenthesis2
 ;
 
 
@@ -39,6 +39,7 @@ inListElement
 
 singleCondition    :
         field operatorBT LR_BRACKET inListElement COMMA inListElement RR_BRACKET # singleConditionBetween
+    |   field operatorNBT LR_BRACKET inListElement COMMA inListElement RR_BRACKET # singleConditionNotBetween
     |   field operatorIN LR_BRACKET inList RR_BRACKET  # singleConditionIn
     |   field operatorNIN LR_BRACKET inList RR_BRACKET  # singleConditionNotIn
     |   field operator STRING_LITERAL  # singleConditionString
@@ -85,6 +86,7 @@ operator
             | operatorLE
             | operatorGE
             | operatorLIKE
+            | operatorNLIKE
             ;
 
 operatorBasic
@@ -99,17 +101,21 @@ operatorLT: '=' LT '=';
 operatorGE: '=' GE '=';
 operatorLE: '=' LE '=';
 operatorLIKE: '=*' | '=' LIKE '=';
+operatorNLIKE: '=!*' | '=' NLIKE '=';
 operatorIN: '=' IN '=';
 operatorNIN: '=' NIN '=';
+operatorNBT: '=' NBT '=';
 operatorBT: '=' BT '=';
 
 GT: G T;
 LT: L T;
 GE: G E;
 LE: L E;
+NLIKE : N L I K E;
 LIKE : L I K E;
 NIN : N I N;
 IN: I N;
+NBT : N B T;
 BT: B T;
 
 field:  ID(DOT_ID)*;
