@@ -900,6 +900,7 @@ public class RsqlWhereParser extends Parser {
 			else return visitor.visitChildren(this);
 		}
 	}
+
 	@SuppressWarnings("CheckReturnValue")
 	public static class SingleConditionNullContext extends SingleConditionContext {
 		public FieldContext field() {

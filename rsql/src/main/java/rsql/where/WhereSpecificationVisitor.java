@@ -197,6 +197,62 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
     }
 
     @Override
+    public Specification<T> visitSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx) {
+        String fieldName = getFieldName(ctx.field());
+
+        Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
+            if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
+                String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
+                String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
+                Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).DECIMAL_LITERAL() != null && ctx.inListElement(1).DECIMAL_LITERAL() != null) {
+                Long from = Long.valueOf(ctx.inListElement(0).DECIMAL_LITERAL().getText());
+                Long to = Long.valueOf(ctx.inListElement(1).DECIMAL_LITERAL().getText());
+                Path<Long> path = (Path<Long>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).REAL_LITERAL() != null && ctx.inListElement(1).REAL_LITERAL() != null) {
+                BigDecimal from = new BigDecimal(ctx.inListElement(0).REAL_LITERAL().getText());
+                BigDecimal to = new BigDecimal(ctx.inListElement(1).REAL_LITERAL().getText());
+                Path<BigDecimal> path = (Path<BigDecimal>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
+                LocalDate from = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
+                LocalDate to = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
+                Path<LocalDate> path = (Path<LocalDate>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
+                Instant from = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
+                Instant to = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
+                Path<Instant> path = (Path<Instant>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).PARAM_LITERAL() != null && ctx.inListElement(1).PARAM_LITERAL() != null) {
+                String fromParam = getParamFromLiteral(ctx.inListElement(0).PARAM_LITERAL());
+                String toParam = getParamFromLiteral(ctx.inListElement(1).PARAM_LITERAL());
+                Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+                final ParameterExpression<? extends String> parameterFrom = criteriaBuilder.parameter(path.getJavaType(), fromParam);
+                final ParameterExpression<? extends String> parameterTo = criteriaBuilder.parameter(path.getJavaType(), toParam);
+                return criteriaBuilder.not(criteriaBuilder.between(path, parameterFrom, parameterTo));
+            } else if (ctx.inListElement(0).field() != null && ctx.inListElement(1).field() != null) {
+                String fromField = getFieldName(ctx.inListElement(0).field());
+                String toField = getFieldName(ctx.inListElement(1).field());
+                Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+                Path<String> pathFromField = (Path<String>) getPropertyPath(fromField, root);
+                Path<String> pathToField = (Path<String>) getPropertyPath(toField, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, pathFromField, pathToField));
+            }
+
+            throw new SyntaxErrorException(
+                    "Invalid arguments for BETWEEN clause: " + ctx.inListElement(0).getText() + "," + ctx.inListElement(1).getText()
+            );
+        };
+
+        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
+        return spec;
+    }
+
+    @Override
     public Specification<T> visitSingleConditionDate(RsqlWhereParser.SingleConditionDateContext ctx) {
         String fieldName = getFieldName(ctx.field());
         LocalDate value = RsqlWhereHelper.getLocalDateFromDateLiteral((ctx.DATE_LITERAL()));
@@ -470,6 +526,11 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 final String likeString = value.replace('*', '%').toLowerCase(Locale.ROOT);
 
                 return criteriaBuilder.like(criteriaBuilder.lower(path), likeString);
+                //                return criteriaBuilder.like(path, likeString);
+            } else if (operator.operatorNLIKE() != null) {
+                final String likeString = value.replace('*', '%').toLowerCase(Locale.ROOT);
+
+                return criteriaBuilder.notLike(criteriaBuilder.lower(path), likeString);
                 //                return criteriaBuilder.like(path, likeString);
             }
 

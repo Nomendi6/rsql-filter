@@ -25,7 +25,12 @@ The following table shows the list of supported operators:
 | Operator | Description              |
 |----------|--------------------------|
 | ==       | Equal to                 |
-| !=       | Not equal to             |
+| =!       | Not equal to             |
+| =*       | Like                     |
+| =like=   | Like                     |
+| =!*      | Not like                 |
+| =nlike=  | Not like                 |
+| =        | Not equal to             |
 | =gt=     | Greater than             |
 | =ge=     | Greater than or equal to |
 | =lt=     | Less than                |
@@ -33,6 +38,7 @@ The following table shows the list of supported operators:
 | =in=     | In                       |
 | =nin=    | Not in                   |
 | =bt=     | Between                  |
+| =nbt=    | Not between              |
 | ==null   | Is null                  |
 | !=null   | Is not null              |
 | ==true   | Equal to true            |
@@ -126,7 +132,7 @@ Complete example application can be found [here](./test-appl).
 
 This library is designed to work with Spring Boot JPA applications. It provides a convenient way to transfer filter parameters in REST GET requests. The library makes it easy to build RESTful APIs that allow clients to filter data based on specific criteria.
 
-This specific version is working with Spring Boot 3 (3.1.5) and Hibernate version 6 (6.2.13).   
+This specific version is working with Spring Boot 3 (3.3.0) and Hibernate version 6 (6.5.2.Final).   
 
 ## **References**
 

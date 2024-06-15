@@ -413,6 +413,68 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
     }
 
     @Override
+    public RsqlQuery visitSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx) {
+        String fieldName = getFieldName(ctx.field());
+
+        RsqlQuery query = new RsqlQuery();
+        String p1 = nextParam();
+        String p2 = nextParam();
+        String fieldPath = getFieldFromPath(getPropertyPath(fieldName, rsqlContext.root));
+
+        if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
+            query.where = fieldPath + " not between :" + p1 + " and :" + p2;
+            String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
+            String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
+            query.params.add(new RsqlQueryParam(p1, from));
+            query.params.add(new RsqlQueryParam(p2, to));
+            return query;
+        } else if (ctx.inListElement(0).DECIMAL_LITERAL() != null && ctx.inListElement(1).DECIMAL_LITERAL() != null) {
+            query.where = fieldPath + " not between :" + p1 + " and :" + p2;
+            Long from = Long.valueOf(ctx.inListElement(0).DECIMAL_LITERAL().getText());
+            Long to = Long.valueOf(ctx.inListElement(1).DECIMAL_LITERAL().getText());
+            query.params.add(new RsqlQueryParam(p1, from));
+            query.params.add(new RsqlQueryParam(p2, to));
+            return query;
+        } else if (ctx.inListElement(0).REAL_LITERAL() != null && ctx.inListElement(1).REAL_LITERAL() != null) {
+            query.where = fieldPath + " not between :" + p1 + " and :" + p2;
+            BigDecimal from = new BigDecimal(ctx.inListElement(0).REAL_LITERAL().getText());
+            BigDecimal to = new BigDecimal(ctx.inListElement(1).REAL_LITERAL().getText());
+            query.params.add(new RsqlQueryParam(p1, from));
+            query.params.add(new RsqlQueryParam(p2, to));
+            return query;
+        } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
+            query.where = fieldPath + " not between :" + p1 + " and :" + p2;
+            LocalDate from = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
+            LocalDate to = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
+            query.params.add(new RsqlQueryParam(p1, from));
+            query.params.add(new RsqlQueryParam(p2, to));
+            return query;
+        } else if (ctx.inListElement(0 ).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
+            query.where = fieldPath + " not between :" + p1 + " and :" + p2;
+            Instant from = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
+            Instant to = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
+            query.params.add(new RsqlQueryParam(p1, from));
+            query.params.add(new RsqlQueryParam(p2, to));
+            return query;
+        } else if (ctx.inListElement(0).PARAM_LITERAL() != null && ctx.inListElement(1).PARAM_LITERAL() != null) {
+            String fromParam = ctx.inListElement(0).PARAM_LITERAL().getText();
+            String toParam = ctx.inListElement(1).PARAM_LITERAL().getText();
+            query.where = fieldPath + " not between " + fromParam + " and " + toParam;
+            return query;
+        } else if (ctx.inListElement(0).field() != null && ctx.inListElement(1).field() != null) {
+            String fromField = getFieldName(ctx.inListElement(0).field());
+            String toField = getFieldName(ctx.inListElement(1).field());
+            query.where = fieldPath + " not between " + fromField + " and " + toField;
+            return query;
+        }
+
+        throw new SyntaxErrorException(
+            "Invalid NOT BETWEEN clause: " + fieldName + " not between " + ctx.inListElement(0).getText() + " and " + ctx.inListElement(1).getText()
+        );
+
+    }
+
+    @Override
     public RsqlQuery visitSingleConditionDate(RsqlWhereParser.SingleConditionDateContext ctx) {
         String fieldName = getFieldName(ctx.field());
         RsqlQuery query = new RsqlQuery();
@@ -687,6 +749,9 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         } else if (operator.operatorLIKE() != null) {
             value = value.replace('*', '%').toLowerCase(Locale.ROOT);
             query.where = "lower(".concat(fieldPath).concat(") like :").concat(p1);
+        } else if (operator.operatorNLIKE() != null) {
+            value = value.replace('*', '%').toLowerCase(Locale.ROOT);
+            query.where = "lower(".concat(fieldPath).concat(") not like :").concat(p1);
         } else {
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         }
