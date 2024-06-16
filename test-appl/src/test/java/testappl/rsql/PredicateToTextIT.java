@@ -204,6 +204,22 @@ public class PredicateToTextIT {
     }
 
     @Test
+    void fieldEqUuid() {
+        String rsql = "uuidField=='f47ac10b-58cc-4372-a567-0e02b2c3d479'";
+        String expected = "uuidField = UUID('f47ac10b-58cc-4372-a567-0e02b2c3d479')";
+        String actual = compileToPredicate(rsql);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void fieldNotEqUuid() {
+        String rsql = "uuidField!='f47ac10b-58cc-4372-a567-0e02b2c3d479'";
+        String expected = "uuidField != UUID('f47ac10b-58cc-4372-a567-0e02b2c3d479')";
+        String actual = compileToPredicate(rsql);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
     void fieldNotEqString() {
         String rsql = "code!='AAAAA'";
         String expected = "code != 'AAAAA'";
@@ -764,6 +780,14 @@ public class PredicateToTextIT {
     }
 
     @Test
+    void fieldInUuid() {
+        String rsql = "uuidField=in=('f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479')";
+        String expected = "uuidField in (UUID('f47ac10b-58cc-4372-a567-0e02b2c3d479'), UUID('f47ac10b-58cc-4372-a567-0e02b2c3d479'))";
+        String actual = compileToPredicate(rsql);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
     void fieldInDatetime() {
         String rsql = "validFrom=in=(#2023-01-01T14:01:01Z#,#2023-01-02T14:01:01Z#)";
         String expected = "validFrom in (TIMESTAMP('2023-01-01T14:01:01Z'), TIMESTAMP('2023-01-02T14:01:01Z'))";
@@ -832,6 +856,30 @@ public class PredicateToTextIT {
     void fieldLikeString2() {
         String rsql = "code=like='A*'";
         String expected = "lower(code) like 'a%'";
+        String actual = compileToPredicate(rsql);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void fieldNotLikeString1() {
+        String rsql = "code=!*'A*'";
+        String expected = "lower(code) not like 'a%'";
+        String actual = compileToPredicate(rsql);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void fieldNotLikeString2() {
+        String rsql = "code!=*'A*'";
+        String expected = "lower(code) not like 'a%'";
+        String actual = compileToPredicate(rsql);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void fieldNotLikeString3() {
+        String rsql = "code=nlike='A*'";
+        String expected = "lower(code) not like 'a%'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }

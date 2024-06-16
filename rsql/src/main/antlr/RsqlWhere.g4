@@ -101,7 +101,7 @@ operatorLT: '=' LT '=';
 operatorGE: '=' GE '=';
 operatorLE: '=' LE '=';
 operatorLIKE: '=*' | '=' LIKE '=';
-operatorNLIKE: '=!*' | '=' NLIKE '=';
+operatorNLIKE: '=!*' | '!=*' | '=' NLIKE '=';
 operatorIN: '=' IN '=';
 operatorNIN: '=' NIN '=';
 operatorNBT: '=' NBT '=';

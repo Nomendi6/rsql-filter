@@ -690,6 +690,24 @@ public class CompilerWhereTextIT {
     }
 
     @Test
+    void fieldNotLikeString1() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=!*'A*'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1");
+    }
+
+    @Test
+    void fieldNotLikeString2() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name!=*'A*'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1");
+    }
+
+    @Test
+    void fieldNotLikeString3() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=nlike='A*'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1");
+    }
+
+    @Test
     void fieldAliases1() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("seq==1 and parent.seq==2 and parent.parent.seq==3", rsqlContext);
         assertThat(rsqlQuery.where).isEqualTo("a0.seq=:p1 and a0.parent.seq=:p2 and a0.parent.parent.seq=:p3");

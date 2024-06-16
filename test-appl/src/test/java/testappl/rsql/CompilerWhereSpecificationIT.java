@@ -1289,6 +1289,23 @@ public class CompilerWhereSpecificationIT {
     }
 
     @Test
+    void fieldNotLikeString1() {
+        testFieldWithLikeOperator("lower", "name=!*'A*'", ComparisonOperator.NOT_EQUAL, "a%");
+
+    }
+
+    @Test
+    void fieldNotLikeString2() {
+        testFieldWithLikeOperator("lower", "name!=*'A*'", ComparisonOperator.NOT_EQUAL, "a%");
+
+    }
+
+    @Test
+    void fieldNotLikeString3() {
+        testFieldWithLikeOperator("lower", "name=nlike='A*'", ComparisonOperator.NOT_EQUAL, "a%");
+    }
+
+    @Test
     void relations1() {
         testFieldToFieldComparison("product.code==name", new ExpectedCondition("product.code", ComparisonOperator.EQUAL, "name"));
         testFieldToFieldComparison("parent.code==name", new ExpectedCondition("parent.code", ComparisonOperator.EQUAL, "name"));

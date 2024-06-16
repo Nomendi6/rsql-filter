@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * This class implements the SemanticQueryWalker interface and provides methods to convert
@@ -609,6 +610,9 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
         }
         if (value instanceof Enum) {
             return "'" + value.toString() + "'";
+        }
+        if (value instanceof UUID) {
+            return "UUID('" + value.toString() + "')";
         }
         return value.toString();
     }

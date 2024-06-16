@@ -25,12 +25,13 @@ The following table shows the list of supported operators:
 | Operator | Description              |
 |----------|--------------------------|
 | ==       | Equal to                 |
+| !=       | Not equal to             |
 | =!       | Not equal to             |
 | =*       | Like                     |
 | =like=   | Like                     |
+| !=*      | Not like                 |
 | =!*      | Not like                 |
 | =nlike=  | Not like                 |
-| =        | Not equal to             |
 | =gt=     | Greater than             |
 | =ge=     | Greater than or equal to |
 | =lt=     | Less than                |
@@ -46,15 +47,16 @@ The following table shows the list of supported operators:
 
 Supported data types:
 
-| Data Type      | Description                                                         |
-|----------------|---------------------------------------------------------------------|
-| String         | Expression in quotes ("" or '' or ``), for example `name='Ana'`     |
-| Integer        | Integer number, for example `id==2345`                              |
-| Decimal number | Decimal number, for example `amount=gt=10.23`                       |
-| Enum           | Enum name, for example `status=#ACTIVE#`                            |
-| Date           | Date in ISO format, for example `date=ge=#2019-01-01#`              |
-| Datetime       | Datetime in ISO format, for example `date=ge=#2019-01-01T00:00:00#` |
-| Boolean        | Boolean value, for example `active==true` or `active==false`        |
+| Data Type      | Description                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| String         | Expression in quotes ("" or '' or ``), for example `name=='Ana'`            |
+| Integer        | Integer number, for example `id==2345`                                      |
+| Decimal number | Decimal number, for example `amount=gt=10.23`                               |
+| Enum           | Enum name, for example `status==#ACTIVE#`                                   |
+| Date           | Date in ISO format, for example `date=ge=#2019-01-01#`                      |
+| Datetime       | Datetime in ISO format, for example `date=ge=#2019-01-01T00:00:00#`         |
+| Boolean        | Boolean value, for example `active==true` or `active==false`                |
+| UUID           | UUID value, for example `uuidField=='f47ac10b-58cc-4372-a567-0e02b2c3d479'` |
 
 
 
