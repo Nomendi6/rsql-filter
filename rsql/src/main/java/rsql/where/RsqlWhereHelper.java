@@ -169,6 +169,10 @@ public class RsqlWhereHelper {
         return Enum.class.isAssignableFrom(pathField.getJavaType());
     }
 
+    static boolean isFieldUuidType(Path<?> pathField) {
+        return pathField.getJavaType().equals(java.util.UUID.class);
+    }
+
     public static <E extends Enum<E>> E getEnum(String text, Class<E> klass) {
         return Enum.valueOf(klass, text);
     }

@@ -14,10 +14,13 @@ import jakarta.persistence.criteria.ParameterExpression;
 import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.Metamodel;
 import jakarta.persistence.criteria.Path;
+
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Locale;
+import java.util.UUID;
 
 import static rsql.where.RsqlWhereHelper.*;
 
@@ -97,10 +100,24 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         return root;
     }
 
+    private Class<?> getFieldType(Path<?> root, String fieldName) {
+        try {
+            Field field = root.getJavaType().getDeclaredField(fieldName);
+            return field.getType();
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException("Field not found: " + fieldName, e);
+        }
+    }
+
+    private Class<?> getFieldType(Path<?> pathField) {
+        return pathField.getJavaType();
+    }
+
     private Specification<T> getSpecificationForInCondition(String fieldName, RsqlWhereParser.InListContext inListContext) {
         return (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
             Path<?> pathField = getPropertyPath(fieldName, root);
             boolean isEnum = RsqlWhereHelper.isFieldEnumType(pathField);
+            boolean isUuid = RsqlWhereHelper.isFieldUuidType(pathField);
             CriteriaBuilder.In<Object> in = criteriaBuilder.in(getPropertyPath(fieldName, root));
             for (int i = 0; i < inListContext.inListElement().size(); i++) {
                 Object element = getInListElement(inListContext.inListElement(i));
@@ -108,6 +125,8 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                     if (isEnum && element.getClass().equals(String.class)) {
                         Path<Enum> enumField = (Path<Enum>) pathField;
                         element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
+                    } else if (isUuid && element.getClass().equals(String.class)) {
+                        element = UUID.fromString((String) element);
                     }
                     in.value(element);
                 }
@@ -507,9 +526,29 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         String fieldName = getFieldName(ctx.field());
         String value = getStringFromStringLiteral(ctx.STRING_LITERAL());
         RsqlWhereParser.OperatorContext operator = ctx.operator();
-
         Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
             Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+
+            boolean isUuid = isFieldUuidType(path);
+
+            // If fieldType is UUID, convert the value to UUID
+            if (isUuid) {
+                UUID uuidValue;
+                try {
+                    uuidValue = UUID.fromString(value);
+                } catch (IllegalArgumentException e) {
+                    throw new SyntaxErrorException("Invalid UUID format: " + value);
+                }
+
+                if (operator.operatorEQ() != null) {
+                    return criteriaBuilder.equal(path, uuidValue);
+                } else if (operator.operatorNEQ() != null) {
+                    return criteriaBuilder.notEqual(path, uuidValue);
+                }
+                // Add other UUID-compatible operators here if needed
+                throw new SyntaxErrorException("Unknown operator for UUID: " + operator.getText());
+            }
+
             if (operator.operatorEQ() != null) {
                 return criteriaBuilder.equal(path, value);
             } else if (operator.operatorGT() != null) {

@@ -1,5 +1,6 @@
 package testappl.rsql;
 
+import org.hibernate.query.sqm.ComparisonOperator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,9 @@ import testappl.repository.ProductTypeRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -203,11 +207,25 @@ public class CompilerWhereTextIT {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=='text'", rsqlContext);
         assertThat(rsqlQuery.where).isEqualTo("a0.name=:p1");
     }
+
+    @Test
+    void fieldEqUuid() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("uuidField=='f47ac10b-58cc-4372-a567-0e02b2c3d479'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.uuidField=:p1");
+    }
+
     @Test
     void fieldNotEqString() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name!='text'", rsqlContext);
         assertThat(rsqlQuery.where).isEqualTo("a0.name!=:p1");
     }
+
+    @Test
+    void fieldNotEqUuid() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("uuidField!='f47ac10b-58cc-4372-a567-0e02b2c3d479'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.uuidField!=:p1");
+    }
+
     @Test
     void fieldGtString() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=gt='text'", rsqlContext);
@@ -619,6 +637,19 @@ public class CompilerWhereTextIT {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("code=in=('A','B','C')", rsqlContext);
         assertThat(rsqlQuery.where).isEqualTo("a0.code in (:p1)");
     }
+
+    @Test
+    void fieldInUuid() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("uuidField=in=('f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479')", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.uuidField in (:p1)");
+    }
+
+    @Test
+    void fieldNotInUuid() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("uuidField=nin=('f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479')", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.uuidField not in (:p1)");
+    }
+
 
     @Test
     void fieldInEnum() {

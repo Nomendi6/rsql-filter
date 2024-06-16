@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -239,6 +240,10 @@ public class CompilerWhereSpecificationIT {
 
     private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, String expectedValue) {
         testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, String.class);
+    }
+
+    private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, UUID expectedValue) {
+        testFieldWithOperator(fieldName, condition, expectedOperator, expectedValue, UUID.class);
     }
 
     private void testFieldWithOperator(String fieldName, String condition, ComparisonOperator expectedOperator, Double expectedValue) {
@@ -725,9 +730,22 @@ public class CompilerWhereSpecificationIT {
     void fieldEqString() {
         testFieldWithOperator("name", "name=='text'", ComparisonOperator.EQUAL, "text");
     }
+
+    @Test
+    void fieldEqUuid() {
+        UUID expectedUuid = UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479");
+        testFieldWithOperator("uuidField", "uuidField=='f47ac10b-58cc-4372-a567-0e02b2c3d479'", ComparisonOperator.EQUAL, expectedUuid);
+    }
+
     @Test
     void fieldNotEqString() {
         testFieldWithOperator("name", "name!='text'", ComparisonOperator.NOT_EQUAL, "text");
+    }
+
+    @Test
+    void fieldNotEqUuid() {
+        UUID expectedUuid = UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479");
+        testFieldWithOperator("uuidField", "uuidField!='f47ac10b-58cc-4372-a567-0e02b2c3d479'", ComparisonOperator.NOT_EQUAL, expectedUuid);
     }
 
     @Test
@@ -1208,9 +1226,32 @@ public class CompilerWhereSpecificationIT {
     }
 
     @Test
+    void fieldInUuid() {
+        List<Object> expectedValues = Arrays.asList(UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479"), UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479"), UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479"));
+        testCondition("uuidField=in=('f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479')",
+            new ExpectedCondition("uuidField", ComparisonOperator.EQUAL, expectedValues, null, null));
+
+    }
+
+    @Test
+    void fieldNotInUuid() {
+        List<Object> expectedValues = Arrays.asList(UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479"), UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479"), UUID.fromString("f47ac10b-58cc-4372-a567-0e02b2c3d479"));
+        testCondition("uuidField=nin=('f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479','f47ac10b-58cc-4372-a567-0e02b2c3d479')",
+            new ExpectedCondition("uuidField", ComparisonOperator.NOT_EQUAL, expectedValues, null, null));
+
+    }
+
+    @Test
     void fieldInEnum() {
         List<Object> expectedValues = Arrays.asList(StandardRecordStatus.ACTIVE, StandardRecordStatus.NOT_ACTIVE);
         testCondition("status=in=('ACTIVE','NOT_ACTIVE')",
+            new ExpectedCondition("status", ComparisonOperator.EQUAL, expectedValues, null, null));
+    }
+
+    @Test
+    void fieldInEnum2() {
+        List<Object> expectedValues = Arrays.asList(StandardRecordStatus.ACTIVE, StandardRecordStatus.NOT_ACTIVE);
+        testCondition("status=in=(#ACTIVE#,#NOT_ACTIVE#)",
             new ExpectedCondition("status", ComparisonOperator.EQUAL, expectedValues, null, null));
     }
 
