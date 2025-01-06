@@ -72,7 +72,7 @@ publishing {
         mavenJava(MavenPublication) {
             groupId = "com.nomendi6"
             artifactId = "rsql-filter"
-            version = "0.4.1"
+            version = "0.4.2"
             from components.java
             pom {
                 name = 'rsql-filter'
@@ -104,8 +104,11 @@ publishing {
         maven {
             url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
             credentials {
-                username = ossrhUsername
-                password = ossrhPassword
+//                username = ossrhUsername
+//                password = ossrhPassword
+                username = project.findProperty("ossrhUsername") ?: ""
+                password = project.findProperty("ossrhPassword") ?: ""
+                println "Using OSSRH Username: ${username}"
             }
         }
     }
