@@ -134,7 +134,7 @@ Complete example application can be found [here](./test-appl).
 
 This library is designed to work with Spring Boot JPA applications. It provides a convenient way to transfer filter parameters in REST GET requests. The library makes it easy to build RESTful APIs that allow clients to filter data based on specific criteria.
 
-This specific version is working with Spring Boot 3 (3.3.0) and Hibernate version 6 (6.5.2.Final).   
+This specific version is working with Spring Boot 3 (3.3.5) and Hibernate version 6 (6.5.3.Final).   
 
 ## **References**
 
