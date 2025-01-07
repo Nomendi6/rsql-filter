@@ -12,6 +12,7 @@ import org.hibernate.query.sqm.tree.delete.SqmDeleteStatement;
 import org.hibernate.query.sqm.tree.domain.*;
 import org.hibernate.query.sqm.tree.expression.*;
 import org.hibernate.query.sqm.tree.from.*;
+import org.hibernate.query.sqm.tree.insert.SqmConflictClause;
 import org.hibernate.query.sqm.tree.insert.SqmInsertSelectStatement;
 import org.hibernate.query.sqm.tree.insert.SqmInsertValuesStatement;
 import org.hibernate.query.sqm.tree.insert.SqmValues;
@@ -25,15 +26,32 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+/**
+ * This class implements the SemanticQueryWalker interface and provides methods to convert
+ * SqmSelectStatement and Predicate objects to their string representations.
+ */
 public class PredicateToText implements SemanticQueryWalker<Object> {
 
+    /**
+     * Converts a SqmSelectStatement object to its string representation.
+     *
+     * @param sqmSelectStatement The SqmSelectStatement object to be converted.
+     * @return The string representation of the SqmSelectStatement object.
+     */
     public static String convert(SqmSelectStatement<?> sqmSelectStatement) {
         PredicateToText predicateToText = new PredicateToText();
         sqmSelectStatement.accept(predicateToText);
         return predicateToText.toString();
     }
 
+    /**
+     * Converts a Predicate object to its string representation.
+     *
+     * @param predicate The Predicate object to be converted.
+     * @return The string representation of the Predicate object.
+     */
     public static String convert (Predicate predicate) {
         SqmPredicate sqmPredicate = (SqmPredicate) predicate;
         PredicateToText predicateToText = new PredicateToText();
@@ -63,6 +81,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
     @Override
     public Object visitInsertValuesStatement(SqmInsertValuesStatement<?> statement) {
+        return null;
+    }
+
+    @Override
+    public Object visitConflictClause(SqmConflictClause<?> sqmConflictClause) {
         return null;
     }
 
@@ -258,6 +281,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
     @Override
     public Object visitFieldLiteral(SqmFieldLiteral<?> sqmFieldLiteral) {
+        return null;
+    }
+
+    @Override
+    public <N extends Number> Object visitHqlNumericLiteral(SqmHqlNumericLiteral<N> sqmHqlNumericLiteral) {
         return null;
     }
 
@@ -583,6 +611,9 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
         if (value instanceof Enum) {
             return "'" + value.toString() + "'";
         }
+        if (value instanceof UUID) {
+            return "UUID('" + value.toString() + "')";
+        }
         return value.toString();
     }
 
@@ -597,6 +628,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
         String operator = predicate.isNegated() ? " is not null" : " is null";
         return leftHandSide + operator;
+    }
+
+    @Override
+    public Object visitIsTruePredicate(SqmTruthnessPredicate sqmTruthnessPredicate) {
+        return null;
     }
 
     @Override

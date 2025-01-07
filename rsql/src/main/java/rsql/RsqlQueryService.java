@@ -285,6 +285,25 @@ public class RsqlQueryService<
         );
     }
 
+    /**
+     * Return a list of values with id, name for the entity filtered by a provided filter.
+     * @param filter    Filter that will generate where criteria for the query
+     * @param pageable  Pageable containing the sort order that will be used
+     * @return          List of values in LovDTO form
+     */
+    @Transactional(readOnly = true)
+    public List<LovDTO> getLOVwithIdAndName(String filter, Pageable pageable) {
+        return getQueryResult(
+            entityClass,
+            LovDTO.class,
+            new String[] { "id", "name" },
+            filter,
+            pageable,
+            rsqlContext,
+            rsqlCompiler
+        );
+    }
+
     @Transactional(readOnly = true)
     public List<Tuple> getTuple(String filter, Pageable pageable, String[] fields) {
         return getQueryResult(

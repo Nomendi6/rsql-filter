@@ -1,4 +1,4 @@
-// Generated from java-escape by ANTLR 4.11.1
+// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter/rsql/src/main/antlr/RsqlSelect.g4 by ANTLR 4.13.1
 package rsql.antlr.select;
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
@@ -11,7 +11,7 @@ import java.util.ArrayList;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue"})
 public class RsqlSelectParser extends Parser {
-	static { RuntimeMetaData.checkVersion("4.11.1", RuntimeMetaData.VERSION); }
+	static { RuntimeMetaData.checkVersion("4.13.1", RuntimeMetaData.VERSION); }
 
 	protected static final DFA[] _decisionToDFA;
 	protected static final PredictionContextCache _sharedContextCache =
@@ -85,7 +85,7 @@ public class RsqlSelectParser extends Parser {
 	}
 
 	@Override
-	public String getGrammarFileName() { return "java-escape"; }
+	public String getGrammarFileName() { return "RsqlSelect.g4"; }
 
 	@Override
 	public String[] getRuleNames() { return ruleNames; }
@@ -148,7 +148,7 @@ public class RsqlSelectParser extends Parser {
 				setState(21); 
 				_errHandler.sync(this);
 				_la = _input.LA(1);
-			} while ( ((_la) & ~0x3f) == 0 && ((1L << _la) & 268437114L) != 0 );
+			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & 268437114L) != 0) );
 			}
 		}
 		catch (RecognitionException re) {
@@ -560,7 +560,7 @@ public class RsqlSelectParser extends Parser {
 				{
 				setState(52);
 				_la = _input.LA(1);
-				if ( !(((_la) & ~0x3f) == 0 && ((1L << _la) & 1144L) != 0) ) {
+				if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 1144L) != 0)) ) {
 				_errHandler.recoverInline(this);
 				}
 				else {

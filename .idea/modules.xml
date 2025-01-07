@@ -2,10 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rsql/com.nomendi6.rsql-filter.rsql.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rsql/com.nomendi6.rsql-filter.rsql.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/rsql-filter.iml" filepath="$PROJECT_DIR$/.idea/modules/rsql-filter.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/rsql/rsql-filter.rsql.main.iml" filepath="$PROJECT_DIR$/.idea/modules/rsql/rsql-filter.rsql.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/test-appl/rsql-filter.test-appl.iml" filepath="$PROJECT_DIR$/.idea/modules/test-appl/rsql-filter.test-appl.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/test-appl/rsql-filter.test-appl.main.iml" filepath="$PROJECT_DIR$/.idea/modules/test-appl/rsql-filter.test-appl.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/test-appl/testappl.rsql-filter.test-appl.main.iml" filepath="$PROJECT_DIR$/.idea/modules/test-appl/testappl.rsql-filter.test-appl.main.iml" />
     </modules>

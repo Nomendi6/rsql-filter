@@ -26,6 +26,12 @@ The following table shows the list of supported operators:
 |----------|--------------------------|
 | ==       | Equal to                 |
 | !=       | Not equal to             |
+| =!       | Not equal to             |
+| =*       | Like                     |
+| =like=   | Like                     |
+| !=*      | Not like                 |
+| =!*      | Not like                 |
+| =nlike=  | Not like                 |
 | =gt=     | Greater than             |
 | =ge=     | Greater than or equal to |
 | =lt=     | Less than                |
@@ -33,6 +39,7 @@ The following table shows the list of supported operators:
 | =in=     | In                       |
 | =nin=    | Not in                   |
 | =bt=     | Between                  |
+| =nbt=    | Not between              |
 | ==null   | Is null                  |
 | !=null   | Is not null              |
 | ==true   | Equal to true            |
@@ -40,15 +47,16 @@ The following table shows the list of supported operators:
 
 Supported data types:
 
-| Data Type      | Description                                                         |
-|----------------|---------------------------------------------------------------------|
-| String         | Expression in quotes ("" or '' or ``), for example `name='Ana'`     |
-| Integer        | Integer number, for example `id==2345`                              |
-| Decimal number | Decimal number, for example `amount=gt=10.23`                       |
-| Enum           | Enum name, for example `status=#ACTIVE#`                            |
-| Date           | Date in ISO format, for example `date=ge=#2019-01-01#`              |
-| Datetime       | Datetime in ISO format, for example `date=ge=#2019-01-01T00:00:00#` |
-| Boolean        | Boolean value, for example `active==true` or `active==false`        |
+| Data Type      | Description                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| String         | Expression in quotes ("" or '' or ``), for example `name=='Ana'`            |
+| Integer        | Integer number, for example `id==2345`                                      |
+| Decimal number | Decimal number, for example `amount=gt=10.23`                               |
+| Enum           | Enum name, for example `status==#ACTIVE#`                                   |
+| Date           | Date in ISO format, for example `date=ge=#2019-01-01#`                      |
+| Datetime       | Datetime in ISO format, for example `date=ge=#2019-01-01T00:00:00#`         |
+| Boolean        | Boolean value, for example `active==true` or `active==false`                |
+| UUID           | UUID value, for example `uuidField=='f47ac10b-58cc-4372-a567-0e02b2c3d479'` |
 
 
 
@@ -126,7 +134,7 @@ Complete example application can be found [here](./test-appl).
 
 This library is designed to work with Spring Boot JPA applications. It provides a convenient way to transfer filter parameters in REST GET requests. The library makes it easy to build RESTful APIs that allow clients to filter data based on specific criteria.
 
-This specific version is working with Spring Boot 3 (3.1.5) and Hibernate version 6 (6.2.13).   
+This specific version is working with Spring Boot 3 (3.3.5) and Hibernate version 6 (6.5.3.Final).   
 
 ## **References**
 

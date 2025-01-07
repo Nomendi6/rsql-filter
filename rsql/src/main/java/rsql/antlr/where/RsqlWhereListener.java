@@ -1,4 +1,4 @@
-// Generated from java-escape by ANTLR 4.11.1
+// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter/rsql/src/main/antlr/RsqlWhere.g4 by ANTLR 4.13.1
 package rsql.antlr.where;
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
@@ -78,17 +78,17 @@ public interface RsqlWhereListener extends ParseTreeListener {
 	 */
 	void exitConditionParens(RsqlWhereParser.ConditionParensContext ctx);
 	/**
-	 * Enter a parse tree produced by the {@code missingClosingParenthesis}
+	 * Enter a parse tree produced by the {@code missingClosingParenthesis2}
 	 * labeled alternative in {@link RsqlWhereParser#errorCondition}.
 	 * @param ctx the parse tree
 	 */
-	void enterMissingClosingParenthesis(RsqlWhereParser.MissingClosingParenthesisContext ctx);
+	void enterMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx);
 	/**
-	 * Exit a parse tree produced by the {@code missingClosingParenthesis}
+	 * Exit a parse tree produced by the {@code missingClosingParenthesis2}
 	 * labeled alternative in {@link RsqlWhereParser#errorCondition}.
 	 * @param ctx the parse tree
 	 */
-	void exitMissingClosingParenthesis(RsqlWhereParser.MissingClosingParenthesisContext ctx);
+	void exitMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx);
 	/**
 	 * Enter a parse tree produced by {@link RsqlWhereParser#inList}.
 	 * @param ctx the parse tree
@@ -121,6 +121,18 @@ public interface RsqlWhereListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitSingleConditionBetween(RsqlWhereParser.SingleConditionBetweenContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code singleConditionNotBetween}
+	 * labeled alternative in {@link RsqlWhereParser#singleCondition}.
+	 * @param ctx the parse tree
+	 */
+	void enterSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code singleConditionNotBetween}
+	 * labeled alternative in {@link RsqlWhereParser#singleCondition}.
+	 * @param ctx the parse tree
+	 */
+	void exitSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx);
 	/**
 	 * Enter a parse tree produced by the {@code singleConditionIn}
 	 * labeled alternative in {@link RsqlWhereParser#singleCondition}.
@@ -368,6 +380,16 @@ public interface RsqlWhereListener extends ParseTreeListener {
 	 */
 	void exitOperatorLIKE(RsqlWhereParser.OperatorLIKEContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link RsqlWhereParser#operatorNLIKE}.
+	 * @param ctx the parse tree
+	 */
+	void enterOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link RsqlWhereParser#operatorNLIKE}.
+	 * @param ctx the parse tree
+	 */
+	void exitOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link RsqlWhereParser#operatorIN}.
 	 * @param ctx the parse tree
 	 */
@@ -387,6 +409,16 @@ public interface RsqlWhereListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitOperatorNIN(RsqlWhereParser.OperatorNINContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link RsqlWhereParser#operatorNBT}.
+	 * @param ctx the parse tree
+	 */
+	void enterOperatorNBT(RsqlWhereParser.OperatorNBTContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link RsqlWhereParser#operatorNBT}.
+	 * @param ctx the parse tree
+	 */
+	void exitOperatorNBT(RsqlWhereParser.OperatorNBTContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link RsqlWhereParser#operatorBT}.
 	 * @param ctx the parse tree

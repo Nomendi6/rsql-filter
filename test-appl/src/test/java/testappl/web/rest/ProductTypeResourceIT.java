@@ -452,10 +452,10 @@ class ProductTypeResourceIT {
         productTypeRepository.saveAndFlush(productType);
 
         // Get all the productTypeList where seq is less than or equal to DEFAULT_SEQ
-        defaultProductTypeShouldBeFound("seq.lessThanOrEqual=" + DEFAULT_SEQ);
+        defaultProductTypeShouldBeFound("seq=le=" + DEFAULT_SEQ);
 
         // Get all the productTypeList where seq is less than or equal to SMALLER_SEQ
-        defaultProductTypeShouldNotBeFound("seq.lessThanOrEqual=" + SMALLER_SEQ);
+        defaultProductTypeShouldNotBeFound("seq=le=" + SMALLER_SEQ);
     }
 
     @Test

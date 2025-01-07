@@ -1,4 +1,4 @@
-// Generated from java-escape by ANTLR 4.11.1
+// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter/rsql/src/main/antlr/RsqlWhere.g4 by ANTLR 4.13.1
 package rsql.antlr.where;
 
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -89,13 +89,13 @@ public class RsqlWhereBaseListener implements RsqlWhereListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterMissingClosingParenthesis(RsqlWhereParser.MissingClosingParenthesisContext ctx) { }
+	@Override public void enterMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitMissingClosingParenthesis(RsqlWhereParser.MissingClosingParenthesisContext ctx) { }
+	@Override public void exitMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -132,6 +132,18 @@ public class RsqlWhereBaseListener implements RsqlWhereListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitSingleConditionBetween(RsqlWhereParser.SingleConditionBetweenContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -401,6 +413,18 @@ public class RsqlWhereBaseListener implements RsqlWhereListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterOperatorIN(RsqlWhereParser.OperatorINContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -420,6 +444,18 @@ public class RsqlWhereBaseListener implements RsqlWhereListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitOperatorNIN(RsqlWhereParser.OperatorNINContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterOperatorNBT(RsqlWhereParser.OperatorNBTContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitOperatorNBT(RsqlWhereParser.OperatorNBTContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

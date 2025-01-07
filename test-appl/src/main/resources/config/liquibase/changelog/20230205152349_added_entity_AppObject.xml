@@ -47,6 +47,10 @@
             <column name="is_valid" type="boolean">
                 <constraints nullable="true" />
             </column>
+            <column name="uuid_field" type="${uuidType}">
+                <constraints nullable="true" />
+            </column>
+	    
             <column name="creation_date" type="date">
                 <constraints nullable="true" />
             </column>

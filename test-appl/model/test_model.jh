@@ -23,6 +23,7 @@ entity AppObject {
     validUntil Instant,
     isValid Boolean,
     creationDate LocalDate,
+    uuidField UUID,
 }
 relationship ManyToOne { AppObject {parent(name)} to AppObject}
 
@@ -46,6 +47,7 @@ entity Product {
     status StandardRecordStatus,
     validFrom Instant,
     validUntil Instant,
+    uuidField UUID,
 }
 
 relationship ManyToOne { Product {tproduct(name)} to ProductType}
