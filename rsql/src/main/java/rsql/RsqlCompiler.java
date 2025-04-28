@@ -13,10 +13,22 @@ import jakarta.persistence.TypedQuery;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * This class is responsible for compiling RSQL queries into Specifications or RsqlQuery structures.
+ *
+ * @param <T> The type of the entity that the RSQL operations are targeting.
+ */
 public class RsqlCompiler<T> {
 
+    /**
+     * The RsqlWhereTreeParser used to parse the RSQL query.
+     */
     private RsqlWhereTreeParser treeParser;
 
+    /**
+     * Default constructor for the RsqlCompiler class.
+     * It initializes the RsqlWhereTreeParser.
+     */
     public RsqlCompiler() {
         this.treeParser = new RsqlWhereTreeParser();
     }

@@ -1,12 +1,13 @@
 package rsql.where;
 
-import rsql.antlr.where.RsqlWhereParser;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.PluralAttribute;
+import rsql.antlr.where.RsqlWhereParser;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -166,6 +167,10 @@ public class RsqlWhereHelper {
 
     static boolean isFieldEnumType(Path<?> pathField) {
         return Enum.class.isAssignableFrom(pathField.getJavaType());
+    }
+
+    static boolean isFieldUuidType(Path<?> pathField) {
+        return pathField.getJavaType().equals(java.util.UUID.class);
     }
 
     public static <E extends Enum<E>> E getEnum(String text, Class<E> klass) {

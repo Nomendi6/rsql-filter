@@ -1,6 +1,6 @@
-const path = require('path');
 const webpack = require('webpack');
 const { merge } = require('webpack-merge');
+const path = require('path');
 const BrowserSyncPlugin = require('browser-sync-webpack-plugin');
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const WebpackNotifierPlugin = require('webpack-notifier');
@@ -74,7 +74,7 @@ module.exports = async (config, options, targetOptions) => {
       new BundleAnalyzerPlugin({
         analyzerMode: 'static',
         openAnalyzer: false,
-        // Webpack statistics in target folder
+        // Webpack statistics in temporary folder
         reportFilename: '../../../stats.html',
       }),
     );

@@ -1,6 +1,6 @@
 # testappl
 
-This application was generated using JHipster 8.0.0, you can find documentation and help at [https://www.jhipster.tech/documentation-archive/v8.0.0](https://www.jhipster.tech/documentation-archive/v8.0.0).
+This application was generated using JHipster 7.9.2-C0021, you can find documentation and help at [https://www.jhipster.tech/documentation-archive/v7.9.2-C0021](https://www.jhipster.tech/documentation-archive/v7.9.2-C0021).
 
 ## Project Structure
 
@@ -190,6 +190,7 @@ Additionally, Instead of passing `sonar.password` and `sonar.login` as CLI argum
 sonar.login=admin
 sonar.password=admin
 ```
+
 For more information, refer to the [Code quality page][].
 
 ### Using Docker to simplify development (optional)
@@ -235,19 +236,19 @@ For more information refer to [Using Docker and Docker-Compose][], this page als
 
 To configure CI for your project, run the ci-cd sub-generator (`jhipster ci-cd`), this will let you generate configuration files for a number of Continuous Integration systems. Consult the [Setting up Continuous Integration][] page for more information.
 
-[jhipster homepage and latest documentation]: https://www.jhipster.tech
-[jhipster 7.9.2 archive]: https://www.jhipster.tech/documentation-archive/v7.9.2
-[using jhipster in development]: https://www.jhipster.tech/documentation-archive/v7.9.2/development/
-[using docker and docker-compose]: https://www.jhipster.tech/documentation-archive/v7.9.2/docker-compose
-[using jhipster in production]: https://www.jhipster.tech/documentation-archive/v7.9.2/production/
-[running tests page]: https://www.jhipster.tech/documentation-archive/v7.9.2/running-tests/
-[code quality page]: https://www.jhipster.tech/documentation-archive/v7.9.2/code-quality/
-[setting up continuous integration]: https://www.jhipster.tech/documentation-archive/v7.9.2/setting-up-ci/
-[node.js]: https://nodejs.org/
-[npm]: https://www.npmjs.com/
-[webpack]: https://webpack.github.io/
-[browsersync]: https://www.browsersync.io/
-[jest]: https://facebook.github.io/jest/
-[leaflet]: https://leafletjs.com/
-[definitelytyped]: https://definitelytyped.org/
-[angular cli]: https://cli.angular.io/
+[JHipster Homepage and latest documentation]: https://www.jhipster.tech
+[JHipster 7.9.2-C0021 archive]: https://www.jhipster.tech/documentation-archive/v7.9.2-C0021
+[Using JHipster in development]: https://www.jhipster.tech/documentation-archive/v7.9.2-C0021/development/
+[Using Docker and Docker-Compose]: https://www.jhipster.tech/documentation-archive/v7.9.2-C0021/docker-compose
+[Using JHipster in production]: https://www.jhipster.tech/documentation-archive/v7.9.2-C0021/production/
+[Running tests page]: https://www.jhipster.tech/documentation-archive/v7.9.2-C0021/running-tests/
+[Code quality page]: https://www.jhipster.tech/documentation-archive/v7.9.2-C0021/code-quality/
+[Setting up Continuous Integration]: https://www.jhipster.tech/documentation-archive/v7.9.2-C0021/setting-up-ci/
+[Node.js]: https://nodejs.org/
+[NPM]: https://www.npmjs.com/
+[Webpack]: https://webpack.github.io/
+[BrowserSync]: https://www.browsersync.io/
+[Jest]: https://facebook.github.io/jest/
+[Leaflet]: https://leafletjs.com/
+[DefinitelyTyped]: https://definitelytyped.org/
+[Angular CLI]: https://cli.angular.io/

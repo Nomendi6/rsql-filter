@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -267,6 +268,74 @@ public class RsqlQueryService<
     }
 
     /**
+     * Retrieves a list of {@link LovDTO} (List of Values Data Transfer Objects) for the entity,
+     * filtered by the provided RSQL filter and paginated according to the given {@link Pageable}.
+     * The fields included in the result can be customized by specifying the id, code, and name fields.
+     *
+     * <p>
+     * The method dynamically selects which fields to include in the result based on which of
+     * {@code codeField} and {@code nameField} are provided (non-null):
+     * <ul>
+     *   <li>If both {@code codeField} and {@code nameField} are provided, the result will include
+     *       {@code idField}, {@code codeField}, and {@code nameField}.</li>
+     *   <li>If only {@code nameField} is provided, the result will include {@code idField} and {@code nameField}.</li>
+     *   <li>If only {@code codeField} is provided, the result will include {@code idField} and {@code codeField}.</li>
+     *   <li>If neither is provided, only {@code idField} will be included.</li>
+     * </ul>
+     *
+     * @param filter    RSQL filter string to apply to the query.
+     * @param pageable  Pagination and sorting information.
+     * @param idField   Name of the ID field to include in the result (required).
+     * @param codeField Name of the code field to include in the result (optional).
+     * @param nameField Name of the name field to include in the result (optional).
+     * @return          List of {@link LovDTO} objects matching the filter and field selection.
+     */
+    @Transactional(readOnly = true)
+    public List<LovDTO> getLOV(String filter, Pageable pageable,
+                               String idField, String codeField, String nameField) {
+        if (codeField != null && nameField != null) {
+            return getQueryResult(
+                    entityClass,
+                    LovDTO.class,
+                    new String[] { idField, codeField, nameField },
+                    filter,
+                    pageable,
+                    rsqlContext,
+                    rsqlCompiler
+            );
+        } else if (nameField != null) {
+            return getQueryResult(
+                    entityClass,
+                    LovDTO.class,
+                    new String[] { idField, nameField },
+                    filter,
+                    pageable,
+                    rsqlContext,
+                    rsqlCompiler
+            );
+        } else if (codeField != null) {
+            return getQueryResult(
+                    entityClass,
+                    LovDTO.class,
+                    new String[] { idField, codeField },
+                    filter,
+                    pageable,
+                    rsqlContext,
+                    rsqlCompiler
+            );
+        }
+        return getQueryResult(
+                entityClass,
+                LovDTO.class,
+                new String[] { idField },
+                filter,
+                pageable,
+                rsqlContext,
+                rsqlCompiler
+        );
+    }
+
+    /**
      * Return a list of values with id, code and name for the entity filtered by a provided filter.
      * @param filter    Filter that will generate where criteria for the query
      * @param pageable  Pageable containing the sort order that will be used
@@ -274,10 +343,21 @@ public class RsqlQueryService<
      */
     @Transactional(readOnly = true)
     public List<LovDTO> getLOV(String filter, Pageable pageable) {
+        return getLOV(filter, pageable, "id", "code", "name");
+    }
+
+    /**
+     * Return a list of values with id, name for the entity filtered by a provided filter.
+     * @param filter    Filter that will generate where criteria for the query
+     * @param pageable  Pageable containing the sort order that will be used
+     * @return          List of values in LovDTO form
+     */
+    @Transactional(readOnly = true)
+    public List<LovDTO> getLOVwithIdAndName(String filter, Pageable pageable) {
         return getQueryResult(
             entityClass,
             LovDTO.class,
-            new String[] { "id", "code", "name" },
+            new String[] { "id", "name" },
             filter,
             pageable,
             rsqlContext,
@@ -337,6 +417,36 @@ public class RsqlQueryService<
             rsqlCompiler);
 
         return entityPage.map(appObjectMapper::toDto);
+    }
+
+    /**
+     * Return a list of values as maps for the entity filtered by a provided filter.
+     * Each map contains field names as keys and their values.
+     * @param filter    Filter that will generate where criteria for the query
+     * @param pageable  Pageable containing the sort order that will be used
+     * @param fields    Entity fields to return in the map
+     * @return          List of maps with field-value pairs
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getResultAsMap(String filter, Pageable pageable, String... fields) {
+        List<Object[]> results = SimpleQueryExecutor.getQueryResult(
+                entityClass,
+                Object[].class,
+                fields,
+                filter,
+                pageable,
+                rsqlContext,
+                rsqlCompiler
+        );
+        List<Map<String, Object>> mappedResults = new java.util.ArrayList<>();
+        for (Object[] row : results) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            for (int i = 0; i < fields.length; i++) {
+                map.put(fields[i], row[i]);
+            }
+            mappedResults.add(map);
+        }
+        return mappedResults;
     }
 
     public String findAliasFromJpqlSelectString(String jpqlSelect) {

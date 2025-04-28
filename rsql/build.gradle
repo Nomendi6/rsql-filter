@@ -1,6 +1,5 @@
 plugins {
-    // Apply the java-library plugin for API and implementation separation.
-    id "java"
+    id 'java'
     id 'java-library'
     id 'java-library-distribution'
     id 'maven-publish'
@@ -12,13 +11,12 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 group = 'com.nomendi6'
-version = '0.3.0'
+version = '0.5.1'
 sourceCompatibility=17
 targetCompatibility=17
-assert System.properties["java.specification.version"] == "17" || "18" || "19" || "20" || "21"
+assert System.properties["java.specification.version"] in ["17", "18", "19", "20", "21"]
 
 repositories {
-    // Use Maven Central for resolving dependencies.
     mavenLocal()
     mavenCentral()
     maven {
@@ -31,9 +29,7 @@ repositories {
 
 
 dependencies {
-    annotationProcessor(group: 'org.antlr', name: 'antlr4', version: '4.11.1')
-    api group: 'org.antlr', name: 'antlr4-runtime', version: '4.11.1'
-//    api "org.springframework.boot:spring-boot-starter:${springBootVersion}"
+    implementation 'org.antlr:antlr4-runtime:4.13.1'
     api "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"
     api "org.hibernate:hibernate-core:${hibernateVersion}"
     api "org.mapstruct:mapstruct:${mapstructVersion}"
@@ -76,7 +72,7 @@ publishing {
         mavenJava(MavenPublication) {
             groupId = "com.nomendi6"
             artifactId = "rsql-filter"
-            version = "0.3.0"
+            version = "0.5.1"
             from components.java
             pom {
                 name = 'rsql-filter'
@@ -108,8 +104,9 @@ publishing {
         maven {
             url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
             credentials {
-                username = ossrhUsername
-                password = ossrhPassword
+                username = project.findProperty("ossrhUsername") ?: ""
+                password = project.findProperty("ossrhPassword") ?: ""
+                println "Using OSSRH Username: ${username}"
             }
         }
     }

@@ -22,7 +22,7 @@ public class RsqlWhereTreeParser {
         RsqlWhereParser parser = new RsqlWhereParser(tokens);
         parser.removeErrorListeners();
         parser.addErrorListener(new RsqlWhereErrorListener());
-        parser.setErrorHandler(new BailErrorStrategy());
+        parser.setErrorHandler(new CustomErrorStrategy());
 
         return parser.where();
     }

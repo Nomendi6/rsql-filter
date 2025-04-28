@@ -14,10 +14,13 @@ import jakarta.persistence.criteria.ParameterExpression;
 import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.Metamodel;
 import jakarta.persistence.criteria.Path;
+
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Locale;
+import java.util.UUID;
 
 import static rsql.where.RsqlWhereHelper.*;
 
@@ -97,10 +100,24 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         return root;
     }
 
+    private Class<?> getFieldType(Path<?> root, String fieldName) {
+        try {
+            Field field = root.getJavaType().getDeclaredField(fieldName);
+            return field.getType();
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException("Field not found: " + fieldName, e);
+        }
+    }
+
+    private Class<?> getFieldType(Path<?> pathField) {
+        return pathField.getJavaType();
+    }
+
     private Specification<T> getSpecificationForInCondition(String fieldName, RsqlWhereParser.InListContext inListContext) {
         return (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
             Path<?> pathField = getPropertyPath(fieldName, root);
             boolean isEnum = RsqlWhereHelper.isFieldEnumType(pathField);
+            boolean isUuid = RsqlWhereHelper.isFieldUuidType(pathField);
             CriteriaBuilder.In<Object> in = criteriaBuilder.in(getPropertyPath(fieldName, root));
             for (int i = 0; i < inListContext.inListElement().size(); i++) {
                 Object element = getInListElement(inListContext.inListElement(i));
@@ -108,6 +125,8 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                     if (isEnum && element.getClass().equals(String.class)) {
                         Path<Enum> enumField = (Path<Enum>) pathField;
                         element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
+                    } else if (isUuid && element.getClass().equals(String.class)) {
+                        element = UUID.fromString((String) element);
                     }
                     in.value(element);
                 }
@@ -189,6 +208,62 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException(
                 "Invalid arguments for BETWEEN clause: " + ctx.inListElement(0).getText() + "," + ctx.inListElement(1).getText()
+            );
+        };
+
+        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
+        return spec;
+    }
+
+    @Override
+    public Specification<T> visitSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx) {
+        String fieldName = getFieldName(ctx.field());
+
+        Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
+            if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
+                String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
+                String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
+                Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).DECIMAL_LITERAL() != null && ctx.inListElement(1).DECIMAL_LITERAL() != null) {
+                Long from = Long.valueOf(ctx.inListElement(0).DECIMAL_LITERAL().getText());
+                Long to = Long.valueOf(ctx.inListElement(1).DECIMAL_LITERAL().getText());
+                Path<Long> path = (Path<Long>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).REAL_LITERAL() != null && ctx.inListElement(1).REAL_LITERAL() != null) {
+                BigDecimal from = new BigDecimal(ctx.inListElement(0).REAL_LITERAL().getText());
+                BigDecimal to = new BigDecimal(ctx.inListElement(1).REAL_LITERAL().getText());
+                Path<BigDecimal> path = (Path<BigDecimal>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
+                LocalDate from = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
+                LocalDate to = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
+                Path<LocalDate> path = (Path<LocalDate>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
+                Instant from = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
+                Instant to = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
+                Path<Instant> path = (Path<Instant>) getPropertyPath(fieldName, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
+            } else if (ctx.inListElement(0).PARAM_LITERAL() != null && ctx.inListElement(1).PARAM_LITERAL() != null) {
+                String fromParam = getParamFromLiteral(ctx.inListElement(0).PARAM_LITERAL());
+                String toParam = getParamFromLiteral(ctx.inListElement(1).PARAM_LITERAL());
+                Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+                final ParameterExpression<? extends String> parameterFrom = criteriaBuilder.parameter(path.getJavaType(), fromParam);
+                final ParameterExpression<? extends String> parameterTo = criteriaBuilder.parameter(path.getJavaType(), toParam);
+                return criteriaBuilder.not(criteriaBuilder.between(path, parameterFrom, parameterTo));
+            } else if (ctx.inListElement(0).field() != null && ctx.inListElement(1).field() != null) {
+                String fromField = getFieldName(ctx.inListElement(0).field());
+                String toField = getFieldName(ctx.inListElement(1).field());
+                Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+                Path<String> pathFromField = (Path<String>) getPropertyPath(fromField, root);
+                Path<String> pathToField = (Path<String>) getPropertyPath(toField, root);
+                return criteriaBuilder.not(criteriaBuilder.between(path, pathFromField, pathToField));
+            }
+
+            throw new SyntaxErrorException(
+                    "Invalid arguments for BETWEEN clause: " + ctx.inListElement(0).getText() + "," + ctx.inListElement(1).getText()
             );
         };
 
@@ -451,9 +526,29 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         String fieldName = getFieldName(ctx.field());
         String value = getStringFromStringLiteral(ctx.STRING_LITERAL());
         RsqlWhereParser.OperatorContext operator = ctx.operator();
-
         Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
             Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+
+            boolean isUuid = isFieldUuidType(path);
+
+            // If fieldType is UUID, convert the value to UUID
+            if (isUuid) {
+                UUID uuidValue;
+                try {
+                    uuidValue = UUID.fromString(value);
+                } catch (IllegalArgumentException e) {
+                    throw new SyntaxErrorException("Invalid UUID format: " + value);
+                }
+
+                if (operator.operatorEQ() != null) {
+                    return criteriaBuilder.equal(path, uuidValue);
+                } else if (operator.operatorNEQ() != null) {
+                    return criteriaBuilder.notEqual(path, uuidValue);
+                }
+                // Add other UUID-compatible operators here if needed
+                throw new SyntaxErrorException("Unknown operator for UUID: " + operator.getText());
+            }
+
             if (operator.operatorEQ() != null) {
                 return criteriaBuilder.equal(path, value);
             } else if (operator.operatorGT() != null) {
@@ -470,6 +565,11 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 final String likeString = value.replace('*', '%').toLowerCase(Locale.ROOT);
 
                 return criteriaBuilder.like(criteriaBuilder.lower(path), likeString);
+                //                return criteriaBuilder.like(path, likeString);
+            } else if (operator.operatorNLIKE() != null) {
+                final String likeString = value.replace('*', '%').toLowerCase(Locale.ROOT);
+
+                return criteriaBuilder.notLike(criteriaBuilder.lower(path), likeString);
                 //                return criteriaBuilder.like(path, likeString);
             }
 

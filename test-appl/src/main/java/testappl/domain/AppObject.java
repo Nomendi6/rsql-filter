@@ -6,6 +6,8 @@ import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
+
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import testappl.domain.enumeration.AppObjectType;
@@ -65,6 +67,9 @@ public class AppObject implements Serializable {
 
     @Column(name = "is_valid")
     private Boolean isValid;
+
+    @Column(name = "uuid_field")
+    private UUID uuidField;
 
     @Column(name = "creation_date")
     private LocalDate creationDate;
