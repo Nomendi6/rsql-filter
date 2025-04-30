@@ -1,11 +1,11 @@
 package testappl;
 
+import jakarta.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
-import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +23,7 @@ import testappl.config.CRLFLogConverter;
 @EnableConfigurationProperties({ LiquibaseProperties.class, ApplicationProperties.class })
 public class TestapplApp {
 
-    private static final Logger log = LoggerFactory.getLogger(TestapplApp.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestapplApp.class);
 
     private final Environment env;
 
@@ -45,7 +45,7 @@ public class TestapplApp {
             activeProfiles.contains(JHipsterConstants.SPRING_PROFILE_DEVELOPMENT) &&
             activeProfiles.contains(JHipsterConstants.SPRING_PROFILE_PRODUCTION)
         ) {
-            log.error(
+            LOG.error(
                 "You have misconfigured your application! It should not run " + "with both the 'dev' and 'prod' profiles at the same time."
             );
         }
@@ -53,7 +53,7 @@ public class TestapplApp {
             activeProfiles.contains(JHipsterConstants.SPRING_PROFILE_DEVELOPMENT) &&
             activeProfiles.contains(JHipsterConstants.SPRING_PROFILE_CLOUD)
         ) {
-            log.error(
+            LOG.error(
                 "You have misconfigured your application! It should not " + "run with both the 'dev' and 'cloud' profiles at the same time."
             );
         }
@@ -75,19 +75,19 @@ public class TestapplApp {
         String protocol = Optional.ofNullable(env.getProperty("server.ssl.key-store")).map(key -> "https").orElse("http");
         String applicationName = env.getProperty("spring.application.name");
         String serverPort = env.getProperty("server.port");
-        String contextPath = Optional
-            .ofNullable(env.getProperty("server.servlet.context-path"))
+        String contextPath = Optional.ofNullable(env.getProperty("server.servlet.context-path"))
             .filter(StringUtils::isNotBlank)
             .orElse("/");
         String hostAddress = "localhost";
         try {
             hostAddress = InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
-            log.warn("The host name could not be determined, using `localhost` as fallback");
+            LOG.warn("The host name could not be determined, using `localhost` as fallback");
         }
-        log.info(
+        LOG.info(
             CRLFLogConverter.CRLF_SAFE_MARKER,
             """
+
             ----------------------------------------------------------
             \tApplication '{}' is running! Access URLs:
             \tLocal: \t\t{}://localhost:{}{}

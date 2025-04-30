@@ -5,17 +5,16 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import testappl.config.AsyncSyncConfiguration;
 import testappl.config.EmbeddedSQL;
+import testappl.config.JacksonConfiguration;
 
 /**
  * Base composite annotation for integration tests.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(classes = { TestapplApp.class, AsyncSyncConfiguration.class })
+@SpringBootTest(classes = { TestapplApp.class, JacksonConfiguration.class, AsyncSyncConfiguration.class })
 @EmbeddedSQL
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public @interface IntegrationTest {
 }

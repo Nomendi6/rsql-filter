@@ -1,15 +1,15 @@
+// Template: EntityServiceImpl|v3.1
+// Security type: none
 package testappl.service;
 
-import java.util.List;
-import java.util.Optional;
-
 import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rsql.RsqlQueryService;
@@ -19,7 +19,7 @@ import testappl.service.dto.ProductTypeDTO;
 import testappl.service.mapper.ProductTypeMapper;
 
 /**
- * Service Implementation for managing {@link testappl.domain.ProductType}.
+ * Service Implementation for managing {@link ProductType}.
  */
 @Service
 @Transactional
@@ -35,15 +35,15 @@ public class ProductTypeService {
 
     private RsqlQueryService<ProductType, ProductTypeDTO, ProductTypeRepository, ProductTypeMapper> queryService;
 
-    private String jpqlSelectAll = "SELECT a0 FROM ProductType a0";
-
-    private String jpqlSelectAllCount = "SELECT count(a0) FROM ProductType a0";
-
-    public ProductTypeService(ProductTypeRepository productTypeRepository, ProductTypeMapper productTypeMapper, EntityManager entityManager) {
+    public ProductTypeService(
+        ProductTypeRepository productTypeRepository,
+        ProductTypeMapper productTypeMapper,
+        EntityManager entityManager
+    ) {
         this.productTypeRepository = productTypeRepository;
         this.productTypeMapper = productTypeMapper;
         this.entityManager = entityManager;
-        this.queryService = new RsqlQueryService<>(productTypeRepository, productTypeMapper, this.entityManager, ProductType.class, jpqlSelectAll, jpqlSelectAllCount);
+        this.queryService = new RsqlQueryService<>(productTypeRepository, productTypeMapper, entityManager, ProductType.class);
     }
 
     /**
@@ -54,19 +54,6 @@ public class ProductTypeService {
      */
     public ProductTypeDTO save(ProductTypeDTO productTypeDTO) {
         log.debug("Request to save ProductType : {}", productTypeDTO);
-        ProductType productType = productTypeMapper.toEntity(productTypeDTO);
-        productType = productTypeRepository.save(productType);
-        return productTypeMapper.toDto(productType);
-    }
-
-    /**
-     * Update a productType.
-     *
-     * @param productTypeDTO the entity to save.
-     * @return the persisted entity.
-     */
-    public ProductTypeDTO update(ProductTypeDTO productTypeDTO) {
-        log.debug("Request to update ProductType : {}", productTypeDTO);
         ProductType productType = productTypeMapper.toEntity(productTypeDTO);
         productType = productTypeRepository.save(productType);
         return productTypeMapper.toDto(productType);
@@ -126,32 +113,76 @@ public class ProductTypeService {
         productTypeRepository.deleteById(id);
     }
 
-    public RsqlQueryService<ProductType, ProductTypeDTO, ProductTypeRepository, ProductTypeMapper> getQueryService() {
-        if (this.queryService == null) {
-            this.queryService = new RsqlQueryService<>(productTypeRepository, productTypeMapper, this.entityManager, ProductType.class, jpqlSelectAll, jpqlSelectAllCount);
-        }
-        return this.queryService;
+    /**
+     * Revert the attributes that are not allowed to be changed
+     *
+     * @param updated   Updated ProductTypeDTO which attributes has to be reverted
+     * @param existing  Existing ProductTypeDTO
+     */
+    public void revertUnUpdatableAttributes(ProductTypeDTO updated, ProductTypeDTO existing) {
+        updated.setCreatedBy(existing.getCreatedBy());
+        updated.setCreatedDate(existing.getCreatedDate());
     }
 
-    public void testRsql() {
+    /**
+     * Find all entities by filter with pagination.
+     *
+     * @param filter the filter which the requested entities should match.
+     * @param pageable the pagination information.
+     * @return the list of entities.
+     */
+    public Page<ProductTypeDTO> findAll(String filter, Pageable pageable) {
+        log.debug("Request to get all ProductTypes by filter: {}", filter);
+        return getQueryService().findByFilter(filter, pageable);
+    }
 
-        // test find by filter and return list
+    /**
+     * Find all entities by filter and sort.
+     *
+     * @param filter the filter which the requested entities should match.
+     * @param pageable the sort information.
+     * @return the list of entities.
+     */
+    public List<ProductTypeDTO> findByFilterAndSort(String filter, Pageable pageable) {
+        log.debug("Request to get a list of all ProductTypes by filter: {}", filter);
+        return getQueryService().findByFilterAndSort(filter, pageable);
+    }
 
-        Pageable pageable = PageRequest.of(0,1000, Sort.by("name").ascending());
+    /**
+     * Get entities as a list of values (id, code, name).
+     *
+     * @param filter the filter which the requested entities should match.
+     * @param pageable the sort information.
+     * @param idField the id field name.
+     * @param codeField the code field name.
+     * @param nameField the name field name.
+     * @return the list of LOV DTOs.
+     */
+    public List<Map<String, Object>> getLOV(String filter, Pageable pageable, String idField, String codeField, String nameField) {
+        log.debug("Request to get LOV ProductTypes by filter: {}", filter);
+        return getQueryService().getResultAsMap(filter, pageable, idField, codeField, nameField);
+    }
 
-/*
-        List<ProductTypeDTO> list1 = this.getQueryService().findByFilter("name=*'a*'");
-        Long counted = this.queryService.countByFilter("name=*'a*'");
-        Page<ProductTypeDTO> page1 = this.getQueryService().findByFilter("name=*'a*'", pageable);
-        Page<ProductTypeDTO> page2 = this.getQueryService().findByFilter("name=*'a*'", Pageable.unpaged());
-        List<ProductTypeDTO> byFilterAndSort = this.getQueryService().findByFilterAndSort("name=*'a*'", pageable);
-*/
+    /**
+     * Count all entities by filter.
+     *
+     * @param filter the filter which the requested entities should match.
+     * @return the count of entities.
+     */
+    public Long countByFilter(String filter) {
+        log.debug("Request to count ProductTypes by filter: {}", filter);
+        return getQueryService().countByFilter(filter);
+    }
 
-        this.getQueryService().findAliasFromJpqlSelectString("SELECT productType FROM ProductType productType");
-        // test sa drugim jpqlom
-        String selectAll = "SELECT new ProductType(pt.id, pt.code, pt.name, pt.description) FROM ProductType pt";
-        List<ProductTypeDTO> list2 = this.getQueryService().getJpqlQueryResult(selectAll, "name=*'a*'", pageable);
-        System.out.println("list2 = " + list2);
-
+    /**
+     * Return a rsqlQueryService used for executing queries with rsql filters.
+     *
+     * @return RsqlQueryService
+     */
+    public RsqlQueryService<ProductType, ProductTypeDTO, ProductTypeRepository, ProductTypeMapper> getQueryService() {
+        if (this.queryService == null) {
+            this.queryService = new RsqlQueryService<>(productTypeRepository, productTypeMapper, entityManager, ProductType.class);
+        }
+        return this.queryService;
     }
 }

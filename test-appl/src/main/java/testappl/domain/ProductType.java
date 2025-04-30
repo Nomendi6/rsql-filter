@@ -1,3 +1,4 @@
+// Bp:Spiral5|Entity.java|4.1
 package testappl.domain;
 
 import jakarta.persistence.*;
@@ -14,8 +15,7 @@ import testappl.domain.enumeration.StandardRecordStatus;
 @Entity
 @Table(name = "product_type")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-@SuppressWarnings("common-java:DuplicatedBlocks")
-public class ProductType implements Serializable {
+public class ProductType extends AbstractAuditingEntity<Long> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -33,8 +33,7 @@ public class ProductType implements Serializable {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Lob
-    @Column(name = "description")
+    @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
     @Column(name = "seq")
@@ -51,26 +50,25 @@ public class ProductType implements Serializable {
     private Instant validUntil;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
-
     public Long getId() {
-        return this.id;
-    }
-
-    public ProductType id(Long id) {
-        this.setId(id);
-        return this;
+        return id;
     }
 
     public void setId(Long id) {
         this.id = id;
     }
 
+    public ProductType withId(Long id) {
+        this.id = id;
+        return this;
+    }
+
     public String getCode() {
         return this.code;
     }
 
-    public ProductType code(String code) {
-        this.setCode(code);
+    public ProductType withCode(String code) {
+        this.code = code;
         return this;
     }
 
@@ -82,8 +80,8 @@ public class ProductType implements Serializable {
         return this.name;
     }
 
-    public ProductType name(String name) {
-        this.setName(name);
+    public ProductType withName(String name) {
+        this.name = name;
         return this;
     }
 
@@ -95,8 +93,8 @@ public class ProductType implements Serializable {
         return this.description;
     }
 
-    public ProductType description(String description) {
-        this.setDescription(description);
+    public ProductType withDescription(String description) {
+        this.description = description;
         return this;
     }
 
@@ -108,8 +106,8 @@ public class ProductType implements Serializable {
         return this.seq;
     }
 
-    public ProductType seq(Long seq) {
-        this.setSeq(seq);
+    public ProductType withSeq(Long seq) {
+        this.seq = seq;
         return this;
     }
 
@@ -121,8 +119,8 @@ public class ProductType implements Serializable {
         return this.status;
     }
 
-    public ProductType status(StandardRecordStatus status) {
-        this.setStatus(status);
+    public ProductType withStatus(StandardRecordStatus status) {
+        this.status = status;
         return this;
     }
 
@@ -134,8 +132,8 @@ public class ProductType implements Serializable {
         return this.validFrom;
     }
 
-    public ProductType validFrom(Instant validFrom) {
-        this.setValidFrom(validFrom);
+    public ProductType withValidFrom(Instant validFrom) {
+        this.validFrom = validFrom;
         return this;
     }
 
@@ -147,8 +145,8 @@ public class ProductType implements Serializable {
         return this.validUntil;
     }
 
-    public ProductType validUntil(Instant validUntil) {
-        this.setValidUntil(validUntil);
+    public ProductType withValidUntil(Instant validUntil) {
+        this.validUntil = validUntil;
         return this;
     }
 
@@ -166,7 +164,7 @@ public class ProductType implements Serializable {
         if (!(o instanceof ProductType)) {
             return false;
         }
-        return getId() != null && getId().equals(((ProductType) o).getId());
+        return id != null && id.equals(((ProductType) o).id);
     }
 
     @Override

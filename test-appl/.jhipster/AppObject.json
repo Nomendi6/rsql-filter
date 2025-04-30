@@ -1,6 +1,14 @@
 {
+  "aggregations": [],
+  "annotations": {
+    "changelogDate": "20250429060119"
+  },
   "applications": "*",
-  "changelogDate": "20230207132619",
+  "auditType": "basic",
+  "changelogDate": "20250429060119",
+  "clientRootFolder": "",
+  "customTemplate": false,
+  "databaseType": "sql",
   "dto": "mapstruct",
   "embedded": false,
   "entityTableName": "app_object",
@@ -8,72 +16,132 @@
     {
       "fieldName": "code",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required"],
+      "index": 0
     },
     {
       "fieldName": "name",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required"],
+      "index": 1
     },
     {
       "fieldName": "description",
-      "fieldType": "byte[]",
-      "fieldTypeBlobContent": "text"
+      "fieldType": "TextBlob",
+      "index": 2
     },
     {
+      "fieldDefaultValue": "FUNCTIONAL_MODULE",
       "fieldName": "objectType",
       "fieldType": "AppObjectType",
-      "fieldValues": "FUNCTIONAL_MODULE,FORM,REPORT,ENTITY"
+      "fieldValues": "FUNCTIONAL_MODULE,FORM,REPORT,ENTITY",
+      "index": 3
     },
     {
       "fieldName": "lastChange",
-      "fieldType": "Instant"
+      "fieldType": "Instant",
+      "index": 4
     },
     {
       "fieldName": "seq",
-      "fieldType": "Long"
+      "fieldType": "Long",
+      "index": 5
     },
     {
       "fieldName": "status",
       "fieldType": "StandardRecordStatus",
-      "fieldValues": "NOT_ACTIVE,ACTIVE"
+      "fieldValues": "ACTIVE,NOT_ACTIVE",
+      "index": 6
     },
     {
       "fieldName": "quantity",
-      "fieldType": "Double"
+      "fieldType": "Double",
+      "index": 7
     },
     {
       "fieldName": "validFrom",
-      "fieldType": "Instant"
+      "fieldType": "Instant",
+      "index": 8
     },
     {
       "fieldName": "validUntil",
-      "fieldType": "Instant"
-    },
-    {
-      "fieldName": "isValid",
-      "fieldType": "Boolean"
-    },
-    {
-      "fieldName": "creationDate",
-      "fieldType": "LocalDate"
+      "fieldType": "Instant",
+      "index": 9
     }
   ],
   "fluentMethods": true,
-  "jpaMetamodelFiltering": true,
+  "genJavaConstructors": false,
+  "hasAggregations": false,
+  "importFakeData": true,
+  "importRealData": false,
+  "jpaMetamodelFiltering": false,
+  "lazyRelationships": false,
+  "lockingType": "none",
+  "messages": {
+    "createLabel": {
+      "fieldName": "name",
+      "key": "new-app-object",
+      "messageType": "NAME",
+      "text": "New App Object"
+    },
+    "createOrEditLabel": {
+      "fieldName": "name",
+      "key": "create-or-edit-app-object",
+      "messageType": "NAME",
+      "text": "Create or Edit App Object"
+    },
+    "created": {
+      "fieldName": "name",
+      "key": "a-new-app-object-{{-param-}}-has21926743",
+      "messageType": "NAME",
+      "text": "A new App Object '{{ param }}' has been created."
+    },
+    "deleteQuestion": {
+      "fieldName": "name",
+      "key": "are-you-sure-you-want-to-delete-b7b7199",
+      "messageType": "NAME",
+      "text": "Are you sure you want to delete App Object '{{ param }}'?"
+    },
+    "deleted": {
+      "fieldName": "name",
+      "key": "the-app-object-{{-param-}}-has-b8a446b5b",
+      "messageType": "NAME",
+      "text": "The App Object '{{ param }}' has been successfully deleted."
+    },
+    "frozen": false,
+    "notFound": {
+      "fieldName": "name",
+      "key": "no-app-objects-found",
+      "messageType": "NAME",
+      "text": "No App Objects found."
+    },
+    "updated": {
+      "fieldName": "name",
+      "key": "the-app-object-{{-param-}}-has-b1fe11bfd",
+      "messageType": "NAME",
+      "text": "The App Object '{{ param }}' has been successfully updated."
+    }
+  },
   "name": "AppObject",
   "pagination": "pagination",
   "readOnly": false,
   "relationships": [
     {
+      "index": 0,
       "otherEntityField": "name",
       "otherEntityName": "appObject",
       "relationshipName": "parent",
+      "relationshipSide": "left",
       "relationshipType": "many-to-one"
     }
   ],
+  "searchEngine": "no",
   "secure": {
     "securityType": "none"
   },
-  "service": "serviceClass"
+  "service": "serviceClass",
+  "skipServer": false,
+  "specifyDbFields": false,
+  "useDedicatedSequence": false,
+  "version": "2.0.0"
 }

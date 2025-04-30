@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import testappl.domain.AppObject;
 
 /**
- * Spring Data JPA repository for the AppObject entity.
+ * Spring Data SQL repository for the AppObject entity.
  */
 @Repository
 public interface AppObjectRepository extends JpaRepository<AppObject, Long>, JpaSpecificationExecutor<AppObject> {
@@ -27,18 +27,14 @@ public interface AppObjectRepository extends JpaRepository<AppObject, Long>, Jpa
     }
 
     @Query(
-        value = "select appObject from AppObject appObject left join fetch appObject.parent left join fetch appObject.product left join fetch appObject.product2 left join fetch appObject.product3",
-        countQuery = "select count(appObject) from AppObject appObject"
+        value = "select distinct appObject from AppObject appObject left join fetch appObject.parent",
+        countQuery = "select count(distinct appObject) from AppObject appObject"
     )
     Page<AppObject> findAllWithToOneRelationships(Pageable pageable);
 
-    @Query(
-        "select appObject from AppObject appObject left join fetch appObject.parent left join fetch appObject.product left join fetch appObject.product2 left join fetch appObject.product3"
-    )
+    @Query("select distinct appObject from AppObject appObject left join fetch appObject.parent")
     List<AppObject> findAllWithToOneRelationships();
 
-    @Query(
-        "select appObject from AppObject appObject left join fetch appObject.parent left join fetch appObject.product left join fetch appObject.product2 left join fetch appObject.product3 where appObject.id =:id"
-    )
+    @Query("select appObject from AppObject appObject left join fetch appObject.parent where appObject.id =:id")
     Optional<AppObject> findOneWithToOneRelationships(@Param("id") Long id);
 }

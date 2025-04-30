@@ -5,7 +5,7 @@ import org.springframework.stereotype.Repository;
 import testappl.domain.ProductType;
 
 /**
- * Spring Data JPA repository for the ProductType entity.
+ * Spring Data SQL repository for the ProductType entity.
  */
 @SuppressWarnings("unused")
 @Repository

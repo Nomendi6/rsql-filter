@@ -1,10 +1,11 @@
-<!DOCTYPE html>
+<!doctype html>
 <html class="no-js" lang="en" dir="ltr">
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>testappl</title>
     <meta name="description" content="Description for testappl" />
+    <meta name="google" content="notranslate" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <meta name="theme-color" content="#000000" />
     <base href="/" />
@@ -20,7 +21,7 @@
         your experience.
       </p>
     <![endif]-->
-    <jhi-main>
+    <app-app>
       <div class="app-loading">
         <div class="lds-pacman">
           <div>
@@ -56,7 +57,7 @@
             </li>
           </ol>
           <h2>Building the client side code again</h2>
-          <p>If you want to go fast, run <code style="color: red">./gradlew</code> to build and run everything.</p>
+          <p>If you want to go fast, run <code style="color: red">./mvnw</code> to build and run everything.</p>
           <p>If you want to have more control, so you can debug your issue more easily, you should follow the following steps:</p>
           <ol>
             <li>Install npm dependencies with the command <code style="color: red">npm install</code></li>
@@ -64,7 +65,7 @@
               Build the client with the command <code style="color: red">npm run webapp:build</code> or
               <code style="color: red">npm start</code>
             </li>
-            <li>Start the server with <code style="color: red">./gradlew</code> or using your IDE</li>
+            <li>Start the server with <code style="color: red">./mvnw</code> or using your IDE</li>
           </ol>
 
           <h2>Getting more help</h2>
@@ -98,7 +99,7 @@
           <!-- end of troubleshooting content -->
         </div>
       </div>
-    </jhi-main>
+    </app-app>
     <noscript>
       <h1>You must enable JavaScript to view this page.</h1>
     </noscript>
@@ -108,20 +109,11 @@
         setTimeout(showError, 4000);
       };
       function showError() {
-        var errorElm = document.getElementById('jhipster-error');
-        if (errorElm && errorElm.style) {
+        const errorElm = document.getElementById('jhipster-error');
+        if (errorElm?.style) {
           errorElm.style.display = 'block';
         }
       }
     </script>
-    <!-- Google Analytics: uncomment and change UA-XXXXX-X to be your site's ID.
-    <script>
-      (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
-      function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
-      e=o.createElement(i);r=o.getElementsByTagName(i)[0];
-      e.src='//www.google-analytics.com/analytics.js';
-      r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
-      ga('create','UA-XXXXX-X');ga('send','pageview');
-    </script>-->
   </body>
 </html>

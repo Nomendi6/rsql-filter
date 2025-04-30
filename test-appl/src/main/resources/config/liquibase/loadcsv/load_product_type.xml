@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <property name="now" value="now()" dbms="h2"/>
+
+    <property name="now" value="current_timestamp" dbms="postgresql"/>
+
+    <property name="floatType" value="float4" dbms="postgresql, h2"/>
+    <property name="floatType" value="float" dbms="mysql, oracle, mssql"/>
+
+    <!--
+        Load csv for the entity ProductType.
+    -->
+    <changeSet id="load-product_type-1" author="applipress">
+        <loadData encoding="UTF-8"
+                  file="config/liquibase/import/product_type.csv"
+                  quotchar="'"
+                  separator=";"
+                  tableName="product_type">
+            <column name="id" type="numeric"/>
+            <column name="code" type="string"/>
+            <column name="name" type="string"/>
+            <column name="description" type="string"/>
+            <column name="seq" type="numeric"/>
+            <column name="status" type="string"/>
+            <column name="valid_from" type="date"/>
+            <column name="valid_until" type="date"/>
+            <!-- audit and version columns -->
+            <column name="version" type="numeric" />
+            <column name="created_by" type="string"/>
+            <column name="created_date" type="date"/>
+            <column name="last_modified_by" type="string"/>
+            <column name="last_modified_date" type="date"/>
+            <!-- jhipster-needle-liquibase-add-loadcolumn - JHipster (and/or extensions) can add load columns here -->
+        </loadData>
+    </changeSet>
+</databaseChangeLog>

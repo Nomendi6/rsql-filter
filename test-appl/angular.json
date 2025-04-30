@@ -15,7 +15,7 @@
       },
       "root": "",
       "sourceRoot": "src/main/webapp",
-      "prefix": "jhi",
+      "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular-builders/custom-webpack:browser",
@@ -23,7 +23,7 @@
             "customWebpackConfig": {
               "path": "./webpack/webpack.custom.js"
             },
-            "outputPath": "build/resources/main/static/",
+            "outputPath": "target/classes/static/",
             "index": "src/main/webapp/index.html",
             "main": "src/main/webapp/main.ts",
             "polyfills": ["zone.js"],
@@ -35,7 +35,11 @@
               "src/main/webapp/manifest.webapp",
               "src/main/webapp/robots.txt"
             ],
-            "styles": ["src/main/webapp/content/scss/vendor.scss", "src/main/webapp/content/scss/global.scss"],
+            "styles": [
+              "src/main/webapp/content/css/vendor.css",
+              "src/main/webapp/content/scss/vendor.scss",
+              "src/main/webapp/content/scss/global.scss"
+            ],
             "scripts": []
           },
           "configurations": {
@@ -52,7 +56,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kb",
+                  "maximumWarning": "700kb",
                   "maximumError": "1mb"
                 },
                 {
@@ -68,23 +72,30 @@
               "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
-              "namedChunks": true
-            }
+              "namedChunks": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/main/webapp/environments/environment.ts",
+                  "with": "src/main/webapp/environments/environment.development.ts"
+                }
+              ]
+            },
+            "instrumenter": {}
           },
           "defaultConfiguration": "production"
         },
         "serve": {
           "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
-            "browserTarget": "testappl:build:development",
+            "buildTarget": "testappl:build:development",
             "port": 4200
           },
           "configurations": {
             "production": {
-              "browserTarget": "testappl:build:production"
+              "buildTarget": "testappl:build:production"
             },
             "development": {
-              "browserTarget": "testappl:build:development"
+              "buildTarget": "testappl:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -102,9 +113,10 @@
   "cli": {
     "cache": {
       "enabled": true,
-      "path": "./build/angular/",
+      "path": "./target/angular/",
       "environment": "all"
     },
-    "packageManager": "npm"
+    "packageManager": "npm",
+    "analytics": "true"
   }
 }

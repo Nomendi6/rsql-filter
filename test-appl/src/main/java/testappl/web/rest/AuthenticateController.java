@@ -4,8 +4,8 @@ import static testappl.security.SecurityUtils.AUTHORITIES_KEY;
 import static testappl.security.SecurityUtils.JWT_ALGORITHM;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.stream.Collectors;
@@ -34,7 +34,7 @@ import testappl.web.rest.vm.LoginVM;
 @RequestMapping("/api")
 public class AuthenticateController {
 
-    private final Logger log = LoggerFactory.getLogger(AuthenticateController.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AuthenticateController.class);
 
     private final JwtEncoder jwtEncoder;
 
@@ -67,15 +67,15 @@ public class AuthenticateController {
     }
 
     /**
-     * {@code GET /authenticate} : check if the user is authenticated, and return its login.
+     * {@code GET /authenticate} : check if the user is authenticated.
      *
-     * @param request the HTTP request.
-     * @return the login if the user is authenticated.
+     * @return the {@link ResponseEntity} with status {@code 204 (No Content)},
+     * or with status {@code 401 (Unauthorized)} if not authenticated.
      */
     @GetMapping("/authenticate")
-    public String isAuthenticated(HttpServletRequest request) {
-        log.debug("REST request to check if the current user is authenticated");
-        return request.getRemoteUser();
+    public ResponseEntity<Void> isAuthenticated(Principal principal) {
+        LOG.debug("REST request to check if the current user is authenticated");
+        return ResponseEntity.status(principal == null ? HttpStatus.UNAUTHORIZED : HttpStatus.NO_CONTENT).build();
     }
 
     public String createToken(Authentication authentication, boolean rememberMe) {

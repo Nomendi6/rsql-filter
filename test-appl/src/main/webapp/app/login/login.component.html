@@ -1,55 +1,81 @@
-<div>
-  <div class="d-flex justify-content-center">
-    <div class="col-lg-6 col-md-8 col-sm-10">
-      <h1 data-cy="loginTitle">Sign in</h1>
-      <div class="alert alert-danger" *ngIf="authenticationError" data-cy="loginError">
+<div class="bg-surface-0 dark:bg-surface-900 p-6 shadow rounded-border w-full">
+  <div class="text-center mb-2">
+    <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4" data-cy="loginTitle" appTranslate="login.title">
+      Sign in
+    </div>
+    @if (authenticationError()) {
+      <div
+        class="bg-red-200 p-2 my-2 rounded"
+        *ngIf="authenticationError"
+        data-cy="loginError"
+        appTranslate="login.messages.error.authentication"
+      >
         <strong>Failed to sign in!</strong> Please check your credentials and try again.
       </div>
-      <form class="form" role="form" (ngSubmit)="login()" [formGroup]="loginForm">
-        <div class="mb-3">
-          <label class="username-label" for="username">Username</label>
-          <input
-            type="text"
-            class="form-control"
-            name="username"
-            id="username"
-            placeholder="Your username"
-            formControlName="username"
-            #username
-            data-cy="username"
-          />
-        </div>
+    }
+  </div>
 
-        <div class="mb-3">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            class="form-control"
-            name="password"
-            id="password"
-            placeholder="Your password"
-            formControlName="password"
-            data-cy="password"
-          />
-        </div>
+  <div>
+    <form class="form" role="form" (ngSubmit)="login()" [formGroup]="loginForm">
+      <label for="username" class="block text-surface-900 dark:text-surface-0 font-medium mb-2" appTranslate="global.form.username.label"
+        >Username</label
+      >
+      <input
+        pInputText
+        id="username"
+        #username
+        type="text"
+        placeholder="{{ 'global.form.username.placeholder' | translate }}"
+        class="w-full mb-4"
+        formControlName="username"
+        data-cy="username"
+        autocomplete="username"
+      />
 
-        <div class="form-check">
-          <label class="form-check-label" for="rememberMe">
-            <input class="form-check-input" type="checkbox" name="rememberMe" id="rememberMe" formControlName="rememberMe" />
-            <span>Remember me</span>
-          </label>
-        </div>
+      <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium mb-2" appTranslate="login.form.password"
+        >Password</label
+      >
+      <input
+        pInputText
+        id="password"
+        name="password"
+        type="password"
+        placeholder="{{ 'login.form.password.placeholder' | translate }}"
+        class="w-full mb-4"
+        formControlName="password"
+        data-cy="password"
+        autocomplete="current-password"
+      />
 
-        <button type="submit" class="btn btn-primary" data-cy="submit">Sign in</button>
-      </form>
-      <div class="mt-3 alert alert-warning">
-        <a class="alert-link" routerLink="/account/reset/request" data-cy="forgetYourPasswordSelector">Did you forget your password?</a>
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center">
+          <p-checkbox inputId="rememberMe" [binary]="true" styleClass="mr-2" formControlName="rememberMe"></p-checkbox>
+          <label for="rememberMe" appTranslate="login.form.rememberme">Remember me</label>
+        </div>
       </div>
 
-      <div class="alert alert-warning">
-        <span>You don't have an account yet?</span>
-        <a class="alert-link" routerLink="/account/register">Register a new account</a>
-      </div>
+      <p-button
+        type="submit"
+        label="{{ 'login.form.button' | translate }}"
+        icon="pi pi-user"
+        styleClass="w-full"
+        data-cy="submit"
+      ></p-button>
+    </form>
+
+    <div class="mt-4">
+      <a
+        class="font-medium no-underline text-blue-500 text-right cursor-pointer"
+        routerLink="/account/reset/request"
+        data-cy="forgetYourPasswordSelector"
+        appTranslate="login.password.forgot"
+        >Did you forget your password?</a
+      >
+    </div>
+
+    <div class="mt-2">
+      <span appTranslate="global.messages.info.register.noaccount">You don&apos;t have an account yet?</span>
+      <a routerLink="/account/register" appTranslate="global.messages.info.register.link">Register a new account</a>
     </div>
   </div>
 </div>

@@ -1,0 +1,29 @@
+<div>
+  <h1 class="text-2xl font-bold" id="tracker-page-heading" data-cy="trackerPageHeading" appTranslate="tracker.title">
+    Translation missing for tracker.title
+  </h1>
+
+  <div class="table-responsive">
+    <table class="table table-striped" aria-describedby="tracker-page-heading" data-cy="trackerTable">
+      <thead>
+        <tr>
+          <th scope="col" appTranslate="tracker.table.userlogin">Translation missing for tracker.table.userlogin</th>
+          <th scope="col" appTranslate="tracker.table.ipaddress">Translation missing for tracker.table.ipaddress</th>
+          <th scope="col" appTranslate="tracker.table.page">Translation missing for tracker.table.page</th>
+          <th scope="col" appTranslate="tracker.table.time">Translation missing for tracker.table.time</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (activity of activities; track $index) {
+          <tr>
+            <td>{{ activity.userLogin }}</td>
+            <td>{{ activity.ipAddress }}</td>
+            <td>{{ activity.page }}</td>
+            <td>{{ activity.time | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

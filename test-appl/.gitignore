@@ -79,6 +79,8 @@ out/
 ######################
 .gradle/
 /build/
+/buildSrc/.gradle/
+/buildSrc/build/
 
 ######################
 # Package Files
@@ -149,3 +151,6 @@ Desktop.ini
 ######################
 /coverage/
 /.nyc_output/
+
+.aider*
+.env

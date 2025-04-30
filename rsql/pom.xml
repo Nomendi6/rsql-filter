@@ -1,0 +1,106 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.nomendi6</groupId>
+        <artifactId>rsql-filter-parent</artifactId>
+        <version>0.5.1</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>rsql-filter</artifactId>
+    <packaging>jar</packaging>
+
+    <name>RSQL Filter Library</name>
+    <description>RSQL filter for Spring Data JPA</description>
+
+    <dependencies>
+        <!-- Ovisnosti - verzije definirane u parent/dependencyManagement -->
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+             <!-- Verzija ${spring-boot-rsql.version} iz parenta -->
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <!-- Verzija ${hibernate-rsql.version} iz parenta -->
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <!-- Verzija ${mapstruct-rsql.version} iz parenta -->
+        </dependency>
+
+        <!-- Test ovisnosti -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+              <!-- Verzija ${spring-boot-rsql.version} iz parenta -->
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                 <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct-rsql.version}</version>
+                        </path>
+                         <path>
+                            <groupId>org.hibernate.orm</groupId>
+                            <artifactId>hibernate-jpamodelgen</artifactId>
+                             <version>${hibernate-rsql.version}</version>
+                        </path>
+                         <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                             <version>${spring-boot-rsql.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                 <!-- Koristi konfiguraciju iz parenta -->
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                         <manifestEntries>
+                             <Implementation-Vendor>Nomendi 6 d.o.o.</Implementation-Vendor>
+                             <Automatic-Module-Name>com.nomendi6.rsql</Automatic-Module-Name> <!-- Dodano za JPMS -->
+                         </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+             <!-- Plugini za release (source, javadoc, gpg, nexus-staging) nasljeđeni iz parenta i aktivirani profilom -->
+        </plugins>
+    </build>
+
+</project>

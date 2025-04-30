@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+<!--
+    Added the indexes for entity ProductType.
+-->
+    <changeSet id="20250429060219-3" author="applipress">
+        
+        <createIndex indexName="product_type_name_idx" tableName="product_type" >
+            <column name="name" />
+        </createIndex>
+
+        <createIndex indexName="product_type_code_idx" tableName="product_type" >
+            <column name="code" />
+        </createIndex>
+
+        <createIndex indexName="product_type_status_idx" tableName="product_type" >
+            <column name="status" />
+        </createIndex>
+
+    </changeSet>
+</databaseChangeLog>

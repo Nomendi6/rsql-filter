@@ -1,0 +1,466 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.nomendi6</groupId>
+    <artifactId>rsql-filter-parent</artifactId>
+    <version>0.5.1</version>
+    <packaging>pom</packaging>
+
+    <name>RSQL Filter Parent</name>
+    <description>Parent POM for RSQL Filter Library and Test Application</description>
+    <url>https://github.com/Nomendi6/rsql-filter</url>
+
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>Nomendi6</id>
+            <name>Nomendi 6 d.o.o.</name>
+            <email>ivan.vrbovcan@nomendi6.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/Nomendi6/rsql-filter.git</connection>
+        <developerConnection>scm:git:ssh://github.com/Nomendi6/rsql-filter.git</developerConnection>
+        <url>https://github.com/Nomendi6/rsql-filter</url>
+    </scm>
+
+    <modules>
+        <module>rsql</module>
+        <module>test-appl</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+
+        <!-- Verzije za test-appl (JHipster) -->
+        <jhipster-dependencies.version>8.0.0</jhipster-dependencies.version>
+        <spring-boot-test-appl.version>3.1.5</spring-boot-test-appl.version>
+        <hibernate-test-appl.version>6.2.13.Final</hibernate-test-appl.version>
+        <mapstruct-test-appl.version>1.5.5.Final</mapstruct-test-appl.version>
+        <archunit-junit5.version>1.1.0</archunit-junit5.version>
+        <checkstyle.version>10.12.4</checkstyle.version>
+        <liquibase.version>4.24.0</liquibase.version>
+        <testcontainers.version>1.19.1</testcontainers.version> <!-- Potrebno dodati verziju za testcontainers -->
+        <springdoc-openapi.version>2.2.0</springdoc-openapi.version> <!-- Potrebno dodati verziju za springdoc -->
+
+
+        <!-- Verzije za rsql -->
+        <spring-boot-rsql.version>3.3.5</spring-boot-rsql.version>
+        <hibernate-rsql.version>6.5.3.Final</hibernate-rsql.version>
+        <mapstruct-rsql.version>1.6.2</mapstruct-rsql.version>
+        <antlr4.version>4.13.1</antlr4.version>
+        <junit-jupiter.version>5.9.1</junit-jupiter.version>
+
+
+        <!-- Maven Plugin Verzije -->
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.1.2</maven-failsafe-plugin.version>
+        <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
+        <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.6.0</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
+        <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
+        <liquibase-maven-plugin.version>${liquibase.version}</liquibase-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
+        <spring-boot-maven-plugin.version>${spring-boot-test-appl.version}</spring-boot-maven-plugin.version> <!-- Koristi verziju za test-appl za sada -->
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+             <!-- JHipster BOM - upravlja većinom ovisnosti za test-appl -->
+            <dependency>
+                <groupId>tech.jhipster</groupId>
+                <artifactId>jhipster-dependencies</artifactId>
+                <version>${jhipster-dependencies.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Boot BOM (za test-appl) - JHipster BOM već importira odgovarajući -->
+            <!-- Ne importiramo SB 3.3.5 BOM ovdje da izbjegnemo konflikte -->
+
+             <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-runtime</artifactId>
+                <version>${antlr4.version}</version>
+             </dependency>
+             <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-data-jpa</artifactId>
+                <version>${spring-boot-rsql.version}</version>
+             </dependency>
+             <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-test</artifactId>
+                <version>${spring-boot-rsql.version}</version>
+                 <scope>test</scope>
+             </dependency>
+             <dependency>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-core</artifactId>
+                <version>${hibernate-rsql.version}</version>
+             </dependency>
+             <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct-rsql.version}</version>
+             </dependency>
+             <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+             </dependency>
+             <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-configuration-processor</artifactId>
+             </dependency>
+             <dependency>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-jpamodelgen</artifactId>
+                 <version>${hibernate-test-appl.version}</version>
+                 <scope>provided</scope>
+             </dependency>
+             <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+             <!-- Verzije za test-appl koje nisu pokrivene JHipster BOM-om ili ih želimo eksplicitno definirati -->
+             <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+             </dependency>
+              <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5-api</artifactId>
+                <version>${archunit-junit5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5-engine</artifactId>
+                <version>${archunit-junit5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+                <version>${springdoc-openapi.version}</version>
+            </dependency>
+
+             <!-- Verzije za hibernate-jpamodelgen i mapstruct-processor za test-appl -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct-test-appl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-jpamodelgen</artifactId>
+                <version>${hibernate-test-appl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-configuration-processor</artifactId>
+                 <version>${spring-boot-test-appl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.enterprise</groupId>
+                <artifactId>jakarta.enterprise.cdi-api</artifactId>
+                <version>4.0.1</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement> <!-- Define versions and common config for plugins -->
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <!-- Annotation processors će biti definirani u podmodulima -->
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                         <argLine>@{argLine} -Djava.security.egd=file:/dev/./urandom -Xmx512m</argLine>
+                         <properties>
+                            <configurationParameters>
+                                <!-- JUnit 5 config -->
+                            </configurationParameters>
+                        </properties>
+                         <!-- Excludes/Includes će biti definirani u podmodulima ako treba -->
+                    </configuration>
+                </plugin>
+                 <plugin>
+                     <groupId>org.apache.maven.plugins</groupId>
+                     <artifactId>maven-failsafe-plugin</artifactId>
+                     <version>${maven-failsafe-plugin.version}</version>
+                     <configuration>
+                         <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+                         <argLine>@{argLine} -Djava.security.egd=file:/dev/./urandom -Xmx512m</argLine>
+                         <includes>
+                             <include>**/*IT*</include>
+                             <include>**/*IntTest*</include>
+                         </includes>
+                         <properties>
+                            <configurationParameters>
+                                <!-- JUnit 5 config -->
+                            </configurationParameters>
+                        </properties>
+                     </configuration>
+                     <executions>
+                         <execution>
+                             <id>integration-test</id>
+                             <goals>
+                                 <goal>integration-test</goal>
+                             </goals>
+                         </execution>
+                         <execution>
+                             <id>verify</id>
+                             <goals>
+                                 <goal>verify</goal>
+                             </goals>
+                         </execution>
+                     </executions>
+                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>${maven-jar-plugin.version}</version>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                                <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                            </manifest>
+                        </archive>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot-maven-plugin.version}</version>
+                     <!-- Konfiguracija u podmodulu test-appl -->
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${maven-source-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar-no-fork</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>${maven-javadoc-plugin.version}</version>
+                     <configuration>
+                        <source>${maven.compiler.source}</source>
+                        <quiet>true</quiet>
+                        <failOnError>false</failOnError>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${maven-gpg-plugin.version}</version>
+                     <!-- Konfiguracija u profilu 'release' -->
+                </plugin>
+                 <plugin>
+                     <groupId>org.sonatype.plugins</groupId>
+                     <artifactId>nexus-staging-maven-plugin</artifactId>
+                     <version>${nexus-staging-maven-plugin.version}</version>
+                     <extensions>true</extensions>
+                     <configuration>
+                         <serverId>ossrh</serverId>
+                         <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                         <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                     </configuration>
+                 </plugin>
+                <plugin>
+                    <groupId>org.liquibase</groupId>
+                    <artifactId>liquibase-maven-plugin</artifactId>
+                    <version>${liquibase-maven-plugin.version}</version>
+                    <!-- Konfiguracija u podmodulu test-appl -->
+                </plugin>
+                <plugin>
+                   <groupId>org.jacoco</groupId>
+                   <artifactId>jacoco-maven-plugin</artifactId>
+                   <version>${jacoco-maven-plugin.version}</version>
+                   <executions>
+                       <execution>
+                           <id>prepare-agent</id>
+                           <goals>
+                               <goal>prepare-agent</goal>
+                           </goals>
+                       </execution>
+                       <execution>
+                           <id>report</id>
+                           <phase>test</phase>
+                           <goals>
+                               <goal>report</goal>
+                           </goals>
+                       </execution>
+                       <execution>
+                           <id>report-integration</id>
+                           <goals>
+                               <goal>report-integration</goal>
+                           </goals>
+                       </execution>
+                   </executions>
+               </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+     <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                         <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                 <configuration>
+                                    <!-- Potrebno konfigurirati GPG ključ u settings.xml ili preko propertya -->
+                                    <!-- <keyname>${gpg.keyname}</keyname> -->
+                                    <gpgArguments>
+                                      <arg>--pinentry-mode</arg>
+                                      <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                         <groupId>org.sonatype.plugins</groupId>
+                         <artifactId>nexus-staging-maven-plugin</artifactId>
+                     </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- Profili dev/prod iz test-appl -->
+         <profile>
+            <id>dev</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <spring.profiles.active>dev</spring.profiles.active>
+            </properties>
+            <!-- Ovisnosti samo za dev profil idu u test-appl pom -->
+        </profile>
+        <profile>
+            <id>prod</id>
+             <properties>
+                <spring.profiles.active>prod</spring.profiles.active>
+            </properties>
+            <!-- Ovisnosti samo za prod profil idu u test-appl pom -->
+        </profile>
+    </profiles>
+
+     <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>sonatype-snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled> <!-- Omogućeno zbog potencijalnih snapshot ovisnosti -->
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+         <pluginRepository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+         <pluginRepository>
+            <id>sonatype-snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+             <releases>
+                 <enabled>false</enabled>
+             </releases>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id> <!-- Mora odgovarati ID-u servera u settings.xml -->
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id> <!-- Mora odgovarati ID-u servera u settings.xml -->
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+</project>
