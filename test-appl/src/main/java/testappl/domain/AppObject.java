@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.UUID;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import testappl.domain.enumeration.AppObjectType;
@@ -60,10 +61,35 @@ public class AppObject extends AbstractAuditingEntity<Long> implements Serializa
 
     @Column(name = "valid_until")
     private Instant validUntil;
+    
+    @Column(name = "uuid_field")
+    private UUID uuidField;
+    
+    @Column(name = "is_valid")
+    private Boolean isValid;
+    
+    @Column(name = "creation_date")
+    private Instant creationDate;
 
     @ManyToOne
     @JsonIgnoreProperties(value = { "parent" }, allowSetters = true)
     private AppObject parent;
+    
+    @ManyToOne
+    @JsonIgnoreProperties(value = { "productType" }, allowSetters = true)
+    private Product product;
+
+    // Constructor required for JPQL queries in tests
+    public AppObject() {
+        // Default constructor
+    }
+    
+    // Constructor used in JPQL query for tests
+    public AppObject(Long id, String code, String name) {
+        this.id = id;
+        this.code = code;
+        this.name = name;
+    }
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
     public Long getId() {
@@ -209,6 +235,45 @@ public class AppObject extends AbstractAuditingEntity<Long> implements Serializa
         this.validUntil = validUntil;
     }
 
+    public UUID getUuidField() {
+        return this.uuidField;
+    }
+
+    public AppObject withUuidField(UUID uuidField) {
+        this.setUuidField(uuidField);
+        return this;
+    }
+
+    public void setUuidField(UUID uuidField) {
+        this.uuidField = uuidField;
+    }
+
+    public Boolean getIsValid() {
+        return this.isValid;
+    }
+
+    public AppObject withIsValid(Boolean isValid) {
+        this.setIsValid(isValid);
+        return this;
+    }
+
+    public void setIsValid(Boolean isValid) {
+        this.isValid = isValid;
+    }
+
+    public Instant getCreationDate() {
+        return this.creationDate;
+    }
+
+    public AppObject withCreationDate(Instant creationDate) {
+        this.setCreationDate(creationDate);
+        return this;
+    }
+
+    public void setCreationDate(Instant creationDate) {
+        this.creationDate = creationDate;
+    }
+
     public AppObject getParent() {
         return this.parent;
     }
@@ -220,6 +285,19 @@ public class AppObject extends AbstractAuditingEntity<Long> implements Serializa
 
     public void setParent(AppObject appObject) {
         this.parent = appObject;
+    }
+
+    public Product getProduct() {
+        return this.product;
+    }
+
+    public AppObject withProduct(Product product) {
+        this.setProduct(product);
+        return this;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
@@ -256,6 +334,9 @@ public class AppObject extends AbstractAuditingEntity<Long> implements Serializa
             ", quantity=" + getQuantity() +
             ", validFrom='" + getValidFrom() + "'" +
             ", validUntil='" + getValidUntil() + "'" +
+            ", uuidField='" + getUuidField() + "'" +
+            ", isValid='" + getIsValid() + "'" +
+            ", creationDate='" + getCreationDate() + "'" +
             "}";
     }
 }

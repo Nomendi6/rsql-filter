@@ -5,6 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import testappl.config.AsyncSyncConfiguration;
 import testappl.config.EmbeddedSQL;
 import testappl.config.JacksonConfiguration;
@@ -15,6 +16,7 @@ import testappl.config.JacksonConfiguration;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest(classes = { TestapplApp.class, JacksonConfiguration.class, AsyncSyncConfiguration.class })
+@ActiveProfiles({"test"})
 @EmbeddedSQL
 public @interface IntegrationTest {
 }
