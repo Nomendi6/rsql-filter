@@ -62,7 +62,6 @@ export default tseslint.config(
         },
       ],
       '@angular-eslint/relative-url-prefix': 'error',
-      '@angular-eslint/prefer-standalone': 'warn',
       '@typescript-eslint/consistent-type-definitions': 'off',
       '@typescript-eslint/explicit-function-return-type': ['error', { allowExpressions: true }],
       '@typescript-eslint/explicit-module-boundary-types': 'off',

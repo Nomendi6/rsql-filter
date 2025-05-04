@@ -48,35 +48,35 @@
 
         <!-- Verzije za test-appl (JHipster) -->
         <jhipster-dependencies.version>8.0.0</jhipster-dependencies.version>
-        <spring-boot-test-appl.version>3.1.5</spring-boot-test-appl.version>
+        <spring-boot-test-appl.version>3.4.4</spring-boot-test-appl.version>
         <hibernate-test-appl.version>6.2.13.Final</hibernate-test-appl.version>
-        <mapstruct-test-appl.version>1.5.5.Final</mapstruct-test-appl.version>
-        <archunit-junit5.version>1.1.0</archunit-junit5.version>
-        <checkstyle.version>10.12.4</checkstyle.version>
-        <liquibase.version>4.24.0</liquibase.version>
+        <mapstruct-test-appl.version>1.6.3</mapstruct-test-appl.version>
+        <archunit-junit5.version>1.4.0</archunit-junit5.version>
+        <checkstyle.version>10.22.0</checkstyle.version>
+        <liquibase.version>4.26.0</liquibase.version>
         <testcontainers.version>1.19.1</testcontainers.version> <!-- Potrebno dodati verziju za testcontainers -->
-        <springdoc-openapi.version>2.2.0</springdoc-openapi.version> <!-- Potrebno dodati verziju za springdoc -->
+        <springdoc-openapi.version>2.8.6</springdoc-openapi.version> <!-- Potrebno dodati verziju za springdoc -->
 
 
         <!-- Verzije za rsql -->
-        <spring-boot-rsql.version>3.3.5</spring-boot-rsql.version>
+        <spring-boot-rsql.version>3.4.4</spring-boot-rsql.version>
         <hibernate-rsql.version>6.5.3.Final</hibernate-rsql.version>
-        <mapstruct-rsql.version>1.6.2</mapstruct-rsql.version>
+        <mapstruct-rsql.version>1.6.3</mapstruct-rsql.version>
         <antlr4.version>4.13.1</antlr4.version>
         <junit-jupiter.version>5.9.1</junit-jupiter.version>
 
 
         <!-- Maven Plugin Verzije -->
-        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
-        <maven-failsafe-plugin.version>3.1.2</maven-failsafe-plugin.version>
-        <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.5.3</maven-failsafe-plugin.version>
+        <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
-        <maven-javadoc-plugin.version>3.6.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
         <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
         <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
         <liquibase-maven-plugin.version>${liquibase.version}</liquibase-maven-plugin.version>
-        <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <spring-boot-maven-plugin.version>${spring-boot-test-appl.version}</spring-boot-maven-plugin.version> <!-- Koristi verziju za test-appl za sada -->
     </properties>
 
@@ -161,17 +161,7 @@
                 <version>${springdoc-openapi.version}</version>
             </dependency>
 
-             <!-- Verzije za hibernate-jpamodelgen i mapstruct-processor za test-appl -->
-            <dependency>
-                <groupId>org.mapstruct</groupId>
-                <artifactId>mapstruct</artifactId>
-                <version>${mapstruct-test-appl.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.hibernate.orm</groupId>
-                <artifactId>hibernate-jpamodelgen</artifactId>
-                <version>${hibernate-test-appl.version}</version>
-            </dependency>
+             <!-- Verzije za spring-boot-configuration-processor i jakarta-cdi -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-configuration-processor</artifactId>
