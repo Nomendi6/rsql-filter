@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import testappl.IntegrationTest;
 import testappl.config.Constants;
 import testappl.domain.User;
+import testappl.domain.Authority;
 import testappl.repository.AuthorityRepository;
 import testappl.repository.UserRepository;
 import testappl.security.AuthoritiesConstants;
@@ -63,7 +64,20 @@ class AccountResourceIT {
     private Long numberOfUsers;
 
     @BeforeEach
-    public void countUsers() {
+    public void setup() throws Exception {
+        // Provjeri da li ROLE_USER i ROLE_ADMIN autoriteti postoje u bazi, ako ne, kreiraj ih
+        if (!authorityRepository.findById(AuthoritiesConstants.USER).isPresent()) {
+            Authority userAuthority = new Authority();
+            userAuthority.setName(AuthoritiesConstants.USER);
+            authorityRepository.saveAndFlush(userAuthority);
+        }
+        
+        if (!authorityRepository.findById(AuthoritiesConstants.ADMIN).isPresent()) {
+            Authority adminAuthority = new Authority();
+            adminAuthority.setName(AuthoritiesConstants.ADMIN);
+            authorityRepository.saveAndFlush(adminAuthority);
+        }
+        
         numberOfUsers = userRepository.count();
     }
 

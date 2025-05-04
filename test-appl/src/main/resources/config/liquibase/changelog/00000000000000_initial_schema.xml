@@ -92,9 +92,9 @@
             </loadData>
             <dropDefaultValue tableName="app_user" columnName="created_date" columnDataType="${datetimeType}"/>
             <loadData encoding="UTF-8"
-                                                                          file="config/liquibase/data/authority.csv"
-                                                                          separator=";"
-                                                                          tableName="app_authority">
+                  file="config/liquibase/data/authority.csv"
+                  separator=";"
+                  tableName="app_authority">
                 <column name="name" type="string"/>
             </loadData>
 
