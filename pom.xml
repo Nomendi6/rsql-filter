@@ -200,7 +200,6 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                         <argLine>@{argLine} -Djava.security.egd=file:/dev/./urandom -Xmx512m</argLine>
                          <properties>
                             <configurationParameters>
                                 <!-- JUnit 5 config -->
@@ -215,16 +214,15 @@
                      <version>${maven-failsafe-plugin.version}</version>
                      <configuration>
                          <classesDirectory>${project.build.outputDirectory}</classesDirectory>
-                         <argLine>@{argLine} -Djava.security.egd=file:/dev/./urandom -Xmx512m</argLine>
-                         <includes>
-                             <include>**/*IT*</include>
-                             <include>**/*IntTest*</include>
-                         </includes>
                          <properties>
                             <configurationParameters>
                                 <!-- JUnit 5 config -->
                             </configurationParameters>
                         </properties>
+                         <includes>
+                             <include>**/*IT*</include>
+                             <include>**/*IntTest*</include>
+                         </includes>
                      </configuration>
                      <executions>
                          <execution>
