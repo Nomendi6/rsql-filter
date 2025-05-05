@@ -1,59 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>com.nomendi6</groupId>
-        <artifactId>rsql-filter-parent</artifactId>
-        <version>0.5.2</version>
-        <relativePath>../pom.xml</relativePath>
-    </parent>
-
+    <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
+    <version>0.5.2</version>
     <packaging>jar</packaging>
 
     <name>RSQL Filter Library</name>
     <description>RSQL filter for Spring Data JPA</description>
+    <url>https://github.com/Nomendi6/rsql-filter</url>
+
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>Nomendi6</id>
+            <name>Nomendi 6 d.o.o.</name>
+            <email>ivan.vrbovcan@nomendi6.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/Nomendi6/rsql-filter.git</connection>
+        <developerConnection>scm:git:ssh://github.com/Nomendi6/rsql-filter.git</developerConnection>
+        <url>https://github.com/Nomendi6/rsql-filter</url>
+    </scm>
+
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        
+        <!-- Verzije ovisnosti -->
+        <spring-boot.version>3.4.4</spring-boot.version>
+        <hibernate.version>6.5.3.Final</hibernate.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <antlr4.version>4.13.1</antlr4.version>
+        <junit-jupiter.version>5.9.1</junit-jupiter.version>
+        
+        <!-- Maven Plugin Verzije -->
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+        <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
+        <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+    </properties>
 
     <dependencies>
-        <!-- Ovisnosti - verzije definirane u parent/dependencyManagement -->
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4-runtime</artifactId>
+            <version>${antlr4.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
-             <!-- Verzija ${spring-boot-rsql.version} iz parenta -->
+            <version>${spring-boot.version}</version>
         </dependency>
         <dependency>
             <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-core</artifactId>
-            <!-- Verzija ${hibernate-rsql.version} iz parenta -->
+            <version>${hibernate.version}</version>
         </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
-            <!-- Verzija ${mapstruct-rsql.version} iz parenta -->
+            <version>${mapstruct.version}</version>
         </dependency>
 
         <!-- Test ovisnosti -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <version>${spring-boot.version}</version>
             <scope>test</scope>
-              <!-- Verzija ${spring-boot-rsql.version} iz parenta -->
         </dependency>
     </dependencies>
 
@@ -62,22 +105,25 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                 <configuration>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
-                            <version>${mapstruct-rsql.version}</version>
+                            <version>${mapstruct.version}</version>
                         </path>
-                         <path>
+                        <path>
                             <groupId>org.hibernate.orm</groupId>
                             <artifactId>hibernate-jpamodelgen</artifactId>
-                             <version>${hibernate-rsql.version}</version>
+                            <version>${hibernate.version}</version>
                         </path>
-                         <path>
+                        <path>
                             <groupId>org.springframework.boot</groupId>
                             <artifactId>spring-boot-configuration-processor</artifactId>
-                             <version>${spring-boot-rsql.version}</version>
+                            <version>${spring-boot.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
@@ -85,22 +131,63 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                 <!-- Koristi konfiguraciju iz parenta -->
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <properties>
+                        <configurationParameters>
+                            <!-- JUnit 5 config -->
+                        </configurationParameters>
+                    </properties>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven-jar-plugin.version}</version>
                 <configuration>
                     <archive>
-                         <manifestEntries>
-                             <Implementation-Vendor>Nomendi 6 d.o.o.</Implementation-Vendor>
-                             <Automatic-Module-Name>com.nomendi6.rsql</Automatic-Module-Name> <!-- Dodano za JPMS -->
-                         </manifestEntries>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Implementation-Vendor>Nomendi 6 d.o.o.</Implementation-Vendor>
+                            <Automatic-Module-Name>com.nomendi6.rsql</Automatic-Module-Name>
+                        </manifestEntries>
                     </archive>
                 </configuration>
             </plugin>
-             <!-- Plugini za release (source, javadoc, gpg, nexus-staging) nasljeđeni iz parenta i aktivirani profilom -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <quiet>true</quiet>
+                    <failOnError>false</failOnError>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
-
 </project>
