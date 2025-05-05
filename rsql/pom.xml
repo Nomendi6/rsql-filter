@@ -46,7 +46,7 @@
         <spring-boot.version>3.4.4</spring-boot.version>
         <hibernate.version>6.5.3.Final</hibernate.version>
         <mapstruct.version>1.6.3</mapstruct.version>
-        <antlr4.version>4.13.1</antlr4.version>
+        <antlr4.version>4.13.2</antlr4.version>
         <junit-jupiter.version>5.9.1</junit-jupiter.version>
         
         <!-- Maven Plugin Versions -->
@@ -185,6 +185,70 @@
                         <goals>
                             <goal>jar</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- ANTLR4 Plugin for generating code from grammar files -->
+            <plugin>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-maven-plugin</artifactId>
+                <version>${antlr4.version}</version>
+                <configuration>
+                    <sourceDirectory>${project.basedir}/src/main/antlr</sourceDirectory>
+                    <listener>true</listener>
+                    <visitor>true</visitor>
+                    <treatWarningsAsErrors>false</treatWarningsAsErrors>
+                </configuration>
+                <executions>
+                    <!-- RsqlCommonLexer.g4 -->
+                    <execution>
+                        <id>antlr-lexer</id>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>RsqlCommonLexer.g4</include>
+                            </includes>
+                            <outputDirectory>${project.basedir}/src/main/java/rsql/antlr/lexer</outputDirectory>
+                            <libDirectory>${project.basedir}/src/main/antlr</libDirectory>
+                        </configuration>
+                    </execution>
+                    <!-- RsqlSelect.g4 -->
+                    <execution>
+                        <id>antlr-select</id>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>RsqlSelect.g4</include>
+                            </includes>
+                            <outputDirectory>${project.basedir}/src/main/java/rsql/antlr/select</outputDirectory>
+                            <libDirectory>${project.basedir}/src/main/antlr</libDirectory>
+                            <arguments>
+                                <argument>-lib</argument>
+                                <argument>${project.basedir}/src/main/java/rsql/antlr/lexer</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <!-- RsqlWhere.g4 -->
+                    <execution>
+                        <id>antlr-where</id>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>RsqlWhere.g4</include>
+                            </includes>
+                            <outputDirectory>${project.basedir}/src/main/java/rsql/antlr/where</outputDirectory>
+                            <libDirectory>${project.basedir}/src/main/antlr</libDirectory>
+                            <arguments>
+                                <argument>-lib</argument>
+                                <argument>${project.basedir}/src/main/java/rsql/antlr/lexer</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
