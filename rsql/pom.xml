@@ -42,14 +42,14 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         
-        <!-- Verzije ovisnosti -->
+        <!-- Dependency Versions -->
         <spring-boot.version>3.4.4</spring-boot.version>
         <hibernate.version>6.5.3.Final</hibernate.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <antlr4.version>4.13.1</antlr4.version>
         <junit-jupiter.version>5.9.1</junit-jupiter.version>
         
-        <!-- Maven Plugin Verzije -->
+        <!-- Maven Plugin Versions -->
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
@@ -79,7 +79,7 @@
             <version>${mapstruct.version}</version>
         </dependency>
 
-        <!-- Test ovisnosti -->
+        <!-- Test dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>

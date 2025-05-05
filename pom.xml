@@ -46,7 +46,7 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
 
-        <!-- Verzije za test-appl (JHipster) -->
+        <!-- Versions for test-appl (JHipster) -->
         <jhipster-dependencies.version>8.0.0</jhipster-dependencies.version>
         <spring-boot-test-appl.version>3.4.4</spring-boot-test-appl.version>
         <hibernate-test-appl.version>6.5.3.Final</hibernate-test-appl.version>
@@ -54,11 +54,11 @@
         <archunit-junit5.version>1.4.0</archunit-junit5.version>
         <checkstyle.version>10.22.0</checkstyle.version>
         <liquibase.version>4.26.0</liquibase.version>
-        <testcontainers.version>1.19.1</testcontainers.version> <!-- Potrebno dodati verziju za testcontainers -->
-        <springdoc-openapi.version>2.8.6</springdoc-openapi.version> <!-- Potrebno dodati verziju za springdoc -->
+        <testcontainers.version>1.19.1</testcontainers.version> <!-- Need to add version for testcontainers -->
+        <springdoc-openapi.version>2.8.6</springdoc-openapi.version> <!-- Need to add version for springdoc -->
 
 
-        <!-- Verzije za rsql -->
+        <!-- Versions for rsql -->
         <spring-boot-rsql.version>3.4.4</spring-boot-rsql.version>
         <hibernate-rsql.version>6.5.3.Final</hibernate-rsql.version>
         <mapstruct-rsql.version>1.6.3</mapstruct-rsql.version>
@@ -66,7 +66,7 @@
         <junit-jupiter.version>5.9.1</junit-jupiter.version>
 
 
-        <!-- Maven Plugin Verzije -->
+        <!-- Maven Plugin Versions -->
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-failsafe-plugin.version>3.5.3</maven-failsafe-plugin.version>
@@ -77,12 +77,12 @@
         <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
         <liquibase-maven-plugin.version>${liquibase.version}</liquibase-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
-        <spring-boot-maven-plugin.version>${spring-boot-test-appl.version}</spring-boot-maven-plugin.version> <!-- Koristi verziju za test-appl za sada -->
+        <spring-boot-maven-plugin.version>${spring-boot-test-appl.version}</spring-boot-maven-plugin.version> <!-- Using test-appl version for now -->
     </properties>
 
     <dependencyManagement>
         <dependencies>
-             <!-- JHipster BOM - upravlja većinom ovisnosti za test-appl -->
+             <!-- JHipster BOM - manages most dependencies for test-appl -->
             <dependency>
                 <groupId>tech.jhipster</groupId>
                 <artifactId>jhipster-dependencies</artifactId>
@@ -90,8 +90,8 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Spring Boot BOM (za test-appl) - JHipster BOM već importira odgovarajući -->
-            <!-- Ne importiramo SB 3.3.5 BOM ovdje da izbjegnemo konflikte -->
+            <!-- Spring Boot BOM (for test-appl) - JHipster BOM already imports the corresponding one -->
+            <!-- We don't import SB 3.3.5 BOM here to avoid conflicts -->
 
              <dependency>
                 <groupId>org.antlr</groupId>
@@ -137,7 +137,7 @@
                 <scope>import</scope>
             </dependency>
 
-             <!-- Verzije za test-appl koje nisu pokrivene JHipster BOM-om ili ih želimo eksplicitno definirati -->
+             <!-- Versions for test-appl that are not covered by JHipster BOM or that we want to define explicitly -->
              <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
@@ -161,7 +161,7 @@
                 <version>${springdoc-openapi.version}</version>
             </dependency>
 
-             <!-- Verzije za spring-boot-configuration-processor i jakarta-cdi -->
+             <!-- Versions for spring-boot-configuration-processor and jakarta-cdi -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-configuration-processor</artifactId>
@@ -192,7 +192,7 @@
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
-                        <!-- Annotation processors će biti definirani u podmodulima -->
+                        <!-- Annotation processors will be defined in submodules -->
                     </configuration>
                 </plugin>
                 <plugin>
@@ -205,7 +205,7 @@
                                 <!-- JUnit 5 config -->
                             </configurationParameters>
                         </properties>
-                         <!-- Excludes/Includes će biti definirani u podmodulima ako treba -->
+                         <!-- Excludes/Includes will be defined in submodules if needed -->
                     </configuration>
                 </plugin>
                  <plugin>
@@ -256,7 +256,7 @@
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>${spring-boot-maven-plugin.version}</version>
-                     <!-- Konfiguracija u podmodulu test-appl -->
+                     <!-- Configuration in test-appl submodule -->
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -293,7 +293,7 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-gpg-plugin</artifactId>
                     <version>${maven-gpg-plugin.version}</version>
-                     <!-- Konfiguracija u profilu 'release' -->
+                     <!-- Configuration in 'release' profile -->
                 </plugin>
                  <plugin>
                      <groupId>org.sonatype.plugins</groupId>
@@ -310,7 +310,7 @@
                     <groupId>org.liquibase</groupId>
                     <artifactId>liquibase-maven-plugin</artifactId>
                     <version>${liquibase-maven-plugin.version}</version>
-                    <!-- Konfiguracija u podmodulu test-appl -->
+                    <!-- Configuration in test-appl submodule -->
                 </plugin>
                 <plugin>
                    <groupId>org.jacoco</groupId>
@@ -367,7 +367,7 @@
                                     <goal>sign</goal>
                                 </goals>
                                  <configuration>
-                                    <!-- Potrebno konfigurirati GPG ključ u settings.xml ili preko propertya -->
+                                    <!-- Need to configure GPG key in settings.xml or via property -->
                                     <!-- <keyname>${gpg.keyname}</keyname> -->
                                     <gpgArguments>
                                       <arg>--pinentry-mode</arg>
@@ -384,7 +384,7 @@
                 </plugins>
             </build>
         </profile>
-        <!-- Profili dev/prod iz test-appl -->
+        <!-- Profiles dev/prod from test-appl -->
          <profile>
             <id>dev</id>
             <activation>
@@ -393,14 +393,14 @@
             <properties>
                 <spring.profiles.active>dev</spring.profiles.active>
             </properties>
-            <!-- Ovisnosti samo za dev profil idu u test-appl pom -->
+            <!-- Dependencies only for dev profile go in test-appl pom -->
         </profile>
         <profile>
             <id>prod</id>
              <properties>
                 <spring.profiles.active>prod</spring.profiles.active>
             </properties>
-            <!-- Ovisnosti samo za prod profil idu u test-appl pom -->
+            <!-- Dependencies only for prod profile go in test-appl pom -->
         </profile>
     </profiles>
 
@@ -416,7 +416,7 @@
             <id>sonatype-snapshots</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
             <snapshots>
-                <enabled>true</enabled> <!-- Omogućeno zbog potencijalnih snapshot ovisnosti -->
+                <enabled>true</enabled> <!-- Enabled due to potential snapshot dependencies -->
             </snapshots>
             <releases>
                 <enabled>false</enabled>
@@ -446,11 +446,11 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>ossrh</id> <!-- Mora odgovarati ID-u servera u settings.xml -->
+            <id>ossrh</id> <!-- Must match the ID of the server in settings.xml -->
             <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
         <repository>
-            <id>ossrh</id> <!-- Mora odgovarati ID-u servera u settings.xml -->
+            <id>ossrh</id> <!-- Must match the ID of the server in settings.xml -->
             <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>

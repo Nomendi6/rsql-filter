@@ -81,7 +81,7 @@
     </properties>
 
     <dependencies>
-        <!-- Ovisnost o rsql library modulu -->
+        <!-- Dependency on rsql library module -->
         <dependency>
             <groupId>com.nomendi6</groupId>
             <artifactId>rsql-filter</artifactId>
