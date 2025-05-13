@@ -54,7 +54,7 @@ cd test-appl
 The core library configuration is in `rsql/build.gradle` and `rsql/gradle.properties`:
 
 - Java compatibility: 17+
-- Current version: 0.5.2
+- Current version: 0.6.0
 - Spring Boot version: 3.4.4
 - Hibernate version: 6.6.11.Final
 - MapStruct version: 1.6.3

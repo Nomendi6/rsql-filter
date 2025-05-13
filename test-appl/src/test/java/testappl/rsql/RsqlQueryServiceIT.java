@@ -142,4 +142,44 @@ public class RsqlQueryServiceIT {
         assertThat(countByFilter).isNotNull();
     }
 
+    @Test
+    void testFindEntitiesByFilter() {
+        String filter = "";
+        
+        List<AppObject> result = queryService.findEntitiesByFilter(filter);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    void testFindEntitiesByFilterWithNameFilter() {
+        String filter = "name=*'A*'";
+        
+        List<AppObject> result = queryService.findEntitiesByFilter(filter);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    void testFindEntitiesByFilterWithComplexFilter() {
+        String filter = "parent.id=gt=1 and product.id=gt=1";
+        
+        List<AppObject> result = queryService.findEntitiesByFilter(filter);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    void testFindEntitiesByFilterWithSorting() {
+        String filter = "parent.id=gt=1 and product.id=gt=1";
+        Sort sort = Sort.by("id");
+        Pageable pageable = PageRequest.of(0, 10, sort);
+        
+        // Since findEntitiesByFilter doesn't support sorting directly, we'll use getJpqlQueryEntities
+        List<AppObject> result = queryService.getJpqlQueryEntities(jpqlSelectAll, filter, pageable);
+        assertThat(result).isNotNull();
+        // If there are results, verify they're properly sorted
+        if (!result.isEmpty() && result.size() > 1) {
+            for (int i = 0; i < result.size() - 1; i++) {
+                assertTrue(result.get(i).getId() <= result.get(i + 1).getId());
+            }
+        }
+    }
 }

@@ -126,8 +126,8 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
     }
 
     private String getFullPath(NavigablePath navigablePath) {
-        return navigablePath.getLocalName();
-/*
+        // return navigablePath.getLocalName();
+
         String rootPath = getRootPath(navigablePath);
         int rootPathLength = rootPath.length();
         String fullIdentifier = navigablePath.getIdentifierForTableGroup().toString();
@@ -144,7 +144,7 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         String fullPath = fullIdentifier.substring(nextDotPosition + 1);
 
         return fullPath;
-*/
+
     }
 
     private String getRootPath(NavigablePath navigablePath) {
