@@ -98,25 +98,61 @@ public class RsqlQueryService<
         return entityClass;
     }
 
+    /**
+     * Sets the JPQL 'SELECT ... FROM ...' query string to be used for retrieving
+     * all entities and determines the select alias from the provided query.
+     * This method also enables the use of JPQL select functionality.
+     *
+     * @param jpqlSelectAllFromEntity the JPQL 'SELECT ... FROM ...' query string
+     *                                representing the entity selection. This query
+     *                                must define the structure for entity retrieval
+     *                                and the parameter alias.
+     */
     public void setJpqlSelectAllFromEntity(String jpqlSelectAllFromEntity) {
         this.jpqlSelectAllFromEntity = jpqlSelectAllFromEntity;
         this.selectAlias = findAliasFromJpqlSelectString(jpqlSelectAllFromEntity);
         this.useJpqlSelect = true;
     }
 
+    /**
+     * Sets the JPQL select count from entity query string and determines the count alias
+     * from the provided query. This method updates the internal JPQL select count structure
+     * for subsequent operations.
+     *
+     * @param jpqlSelectCountFromEntity the JPQL 'SELECT ... FROM ...' query string used to count
+     *                                  the entities. This query must define the necessary structure
+     *                                  to retrieve the entity count and alias.
+     */
     public void setJpqlSelectCountFromEntity(String jpqlSelectCountFromEntity) {
         this.jpqlSelectCountFromEntity = jpqlSelectCountFromEntity;
         this.countAlias = findAliasFromJpqlSelectString(jpqlSelectCountFromEntity);
     }
 
+    /**
+     * Sets whether JPQL queries should use the specified select statement.
+     *
+     * @param useJpqlSelect a boolean value indicating whether JPQL queries
+     *                      should utilize the select operation. True to enable,
+     *                      false to disable.
+     */
     public void setUseJpqlSelect(boolean useJpqlSelect) {
         this.useJpqlSelect = useJpqlSelect;
     }
 
+    /**
+     * Determines whether JPQL queries are configured to use a specific select operation.
+     *
+     * @return true if JPQL queries should use the specified select operation; false otherwise.
+     */
     public boolean getUseJpqlSelect() {
         return this.useJpqlSelect;
     }
 
+    /**
+     * Sets the alias to be used for selecting entities in JPQL queries.
+     *
+     * @param selectAlias the alias to be used for the select query as a String
+     */
     public void setSelectAlias(String selectAlias) {
         this.selectAlias = selectAlias;
         this.rsqlContext.root.alias(this.selectAlias);
@@ -126,15 +162,23 @@ public class RsqlQueryService<
         return this.selectAlias;
     }
 
+    /**
+     * Sets the alias used for counting entities in JPQL queries.
+     *
+     * @param countAlias the alias to be used for the count query as a String
+     */
     public void setCountAlias(String countAlias) {
         this.countAlias = countAlias;
     }
 
+    /**
+     * Retrieves the alias used for counting entities in JPQL queries.
+     *
+     * @return the alias used for the count query as a String.
+     */
     public String getCountAlias() {
         return this.countAlias;
     }
-
-
 
     /**
      * Return a {@link List} of {@link ENTITY_DTO} which matches the filter from the database.
