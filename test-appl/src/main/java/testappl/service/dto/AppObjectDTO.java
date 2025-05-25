@@ -1,10 +1,10 @@
+// Bp:spiral5|EntityDTO.java|3.0
 package testappl.service.dto;
 
 import jakarta.persistence.Lob;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.Objects;
 import testappl.domain.enumeration.AppObjectType;
 import testappl.domain.enumeration.StandardRecordStatus;
@@ -13,7 +13,7 @@ import testappl.domain.enumeration.StandardRecordStatus;
  * A DTO for the {@link testappl.domain.AppObject} entity.
  */
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class AppObjectDTO implements Serializable {
+public class AppObjectDTO extends AbstractAuditingDTO implements Serializable {
 
     private Long id;
 
@@ -40,17 +40,7 @@ public class AppObjectDTO implements Serializable {
 
     private Instant validUntil;
 
-    private Boolean isValid;
-
-    private LocalDate creationDate;
-
     private AppObjectDTO parent;
-
-    private ProductDTO product;
-
-    private ProductDTO product2;
-
-    private ProductDTO product3;
 
     public Long getId() {
         return id;
@@ -140,52 +130,12 @@ public class AppObjectDTO implements Serializable {
         this.validUntil = validUntil;
     }
 
-    public Boolean getIsValid() {
-        return isValid;
-    }
-
-    public void setIsValid(Boolean isValid) {
-        this.isValid = isValid;
-    }
-
-    public LocalDate getCreationDate() {
-        return creationDate;
-    }
-
-    public void setCreationDate(LocalDate creationDate) {
-        this.creationDate = creationDate;
-    }
-
     public AppObjectDTO getParent() {
         return parent;
     }
 
     public void setParent(AppObjectDTO parent) {
         this.parent = parent;
-    }
-
-    public ProductDTO getProduct() {
-        return product;
-    }
-
-    public void setProduct(ProductDTO product) {
-        this.product = product;
-    }
-
-    public ProductDTO getProduct2() {
-        return product2;
-    }
-
-    public void setProduct2(ProductDTO product2) {
-        this.product2 = product2;
-    }
-
-    public ProductDTO getProduct3() {
-        return product3;
-    }
-
-    public void setProduct3(ProductDTO product3) {
-        this.product3 = product3;
     }
 
     @Override
@@ -224,12 +174,7 @@ public class AppObjectDTO implements Serializable {
             ", quantity=" + getQuantity() +
             ", validFrom='" + getValidFrom() + "'" +
             ", validUntil='" + getValidUntil() + "'" +
-            ", isValid='" + getIsValid() + "'" +
-            ", creationDate='" + getCreationDate() + "'" +
             ", parent=" + getParent() +
-            ", product=" + getProduct() +
-            ", product2=" + getProduct2() +
-            ", product3=" + getProduct3() +
             "}";
     }
 }

@@ -1,3 +1,4 @@
+// Bp:spiral5|EntityDTO.java|3.0
 package testappl.service.dto;
 
 import jakarta.persistence.Lob;
@@ -11,7 +12,7 @@ import testappl.domain.enumeration.StandardRecordStatus;
  * A DTO for the {@link testappl.domain.ProductType} entity.
  */
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class ProductTypeDTO implements Serializable {
+public class ProductTypeDTO extends AbstractAuditingDTO implements Serializable {
 
     private Long id;
 

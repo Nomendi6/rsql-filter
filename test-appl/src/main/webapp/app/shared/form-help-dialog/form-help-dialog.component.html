@@ -1,0 +1,27 @@
+@if (formHelpService.getDialogContent$() | async; as formHelpData) {
+  <p-dialog
+    [visible]="!!formHelpData"
+    [modal]="true"
+    [maximizable]="true"
+    [draggable]="true"
+    [resizable]="true"
+    [closable]="false"
+    [blockScroll]="true"
+    [style]="{ width: '80vw', height: '80vh', maxWidth: '1920px', maxHeight: '1080px' }"
+  >
+    <div class="w-full h-full flex flex-col">
+      <div class="flex-1" [innerHTML]="formHelpData.content"></div>
+
+      <div class="flex w-full justify-end mt-2">
+        <p-button type="button" label="{{ 'formHelp.actions.newTab' | translate }}" (onClick)="formHelpService.openInNewTab()"></p-button>
+        <p-button
+          type="button"
+          styleClass="ml-2"
+          severity="secondary"
+          label="{{ 'formHelp.actions.close' | translate }}"
+          (onClick)="formHelpService.closeDialog()"
+        ></p-button>
+      </div>
+    </div>
+  </p-dialog>
+}

@@ -1,6 +1,14 @@
 {
+  "aggregations": [],
+  "annotations": {
+    "changelogDate": "20250429060319"
+  },
   "applications": "*",
-  "changelogDate": "20230207132621",
+  "auditType": "basic",
+  "changelogDate": "20250429060319",
+  "clientRootFolder": "",
+  "customTemplate": false,
+  "databaseType": "sql",
   "dto": "mapstruct",
   "embedded": false,
   "entityTableName": "product",
@@ -8,57 +16,123 @@
     {
       "fieldName": "code",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required"],
+      "index": 0
     },
     {
       "fieldName": "name",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required"],
+      "index": 1
     },
     {
       "fieldName": "description",
-      "fieldType": "byte[]",
-      "fieldTypeBlobContent": "text"
+      "fieldType": "TextBlob",
+      "index": 2
     },
     {
       "fieldName": "seq",
-      "fieldType": "Long"
+      "fieldType": "Long",
+      "index": 3
     },
     {
       "fieldName": "status",
       "fieldType": "StandardRecordStatus",
-      "fieldValues": "NOT_ACTIVE,ACTIVE"
+      "fieldValues": "ACTIVE,NOT_ACTIVE",
+      "index": 4
     },
     {
       "fieldName": "validFrom",
-      "fieldType": "Instant"
+      "fieldType": "Instant",
+      "index": 5
     },
     {
       "fieldName": "validUntil",
-      "fieldType": "Instant"
+      "fieldType": "Instant",
+      "index": 6
     }
   ],
   "fluentMethods": true,
-  "jpaMetamodelFiltering": true,
+  "genJavaConstructors": false,
+  "hasAggregations": false,
+  "importFakeData": true,
+  "importRealData": false,
+  "jpaMetamodelFiltering": false,
+  "lazyRelationships": false,
+  "lockingType": "none",
+  "messages": {
+    "createLabel": {
+      "fieldName": "name",
+      "key": "new-product",
+      "messageType": "NAME",
+      "text": "New Product"
+    },
+    "createOrEditLabel": {
+      "fieldName": "name",
+      "key": "create-or-edit-product",
+      "messageType": "NAME",
+      "text": "Create or Edit Product"
+    },
+    "created": {
+      "fieldName": "name",
+      "key": "a-new-product-{{-param-}}-has-be13b7d3d1",
+      "messageType": "NAME",
+      "text": "A new Product '{{ param }}' has been created."
+    },
+    "deleteQuestion": {
+      "fieldName": "name",
+      "key": "are-you-sure-you-want-to-delete-b20ec841",
+      "messageType": "NAME",
+      "text": "Are you sure you want to delete Product '{{ param }}'?"
+    },
+    "deleted": {
+      "fieldName": "name",
+      "key": "the-product-{{-param-}}-has-been333f4a7",
+      "messageType": "NAME",
+      "text": "The Product '{{ param }}' has been successfully deleted."
+    },
+    "frozen": false,
+    "notFound": {
+      "fieldName": "name",
+      "key": "no-products-found",
+      "messageType": "NAME",
+      "text": "No Products found."
+    },
+    "updated": {
+      "fieldName": "name",
+      "key": "the-product-{{-param-}}-has-been98d0a549",
+      "messageType": "NAME",
+      "text": "The Product '{{ param }}' has been successfully updated."
+    }
+  },
   "name": "Product",
   "pagination": "pagination",
   "readOnly": false,
   "relationships": [
     {
+      "index": 0,
       "otherEntityField": "name",
       "otherEntityName": "productType",
       "relationshipName": "tproduct",
+      "relationshipSide": "left",
       "relationshipType": "many-to-one"
     },
     {
+      "index": 1,
       "otherEntityField": "name",
       "otherEntityName": "product",
       "relationshipName": "parent",
+      "relationshipSide": "left",
       "relationshipType": "many-to-one"
     }
   ],
+  "searchEngine": "no",
   "secure": {
     "securityType": "none"
   },
-  "service": "serviceClass"
+  "service": "serviceClass",
+  "skipServer": false,
+  "specifyDbFields": false,
+  "useDedicatedSequence": false,
+  "version": "2.0.0"
 }

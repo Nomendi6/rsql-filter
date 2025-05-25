@@ -1,19 +1,28 @@
+import { expect } from '@jest/globals';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { DynamicDialogConfig, DynamicDialogRef } from 'primeng/dynamicdialog';
+import { MissingTranslationHandler, TranslateModule, TranslateService } from '@ngx-translate/core';
+import { missingTranslationHandler } from 'app/config/translation.config';
 import { HealthModalComponent } from './health-modal.component';
 
 describe('HealthModalComponent', () => {
   let comp: HealthModalComponent;
   let fixture: ComponentFixture<HealthModalComponent>;
-  let mockActiveModal: NgbActiveModal;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      declarations: [HealthModalComponent],
-      providers: [NgbActiveModal],
+      imports: [
+        HealthModalComponent,
+        TranslateModule.forRoot({
+          missingTranslationHandler: {
+            provide: MissingTranslationHandler,
+            useFactory: missingTranslationHandler,
+          },
+        }),
+      ],
+      providers: [provideHttpClient(), provideHttpClientTesting(), DynamicDialogRef, DynamicDialogConfig, TranslateService],
     })
       .overrideTemplate(HealthModalComponent, '')
       .compileComponents();
@@ -22,7 +31,6 @@ describe('HealthModalComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(HealthModalComponent);
     comp = fixture.componentInstance;
-    mockActiveModal = TestBed.inject(NgbActiveModal);
   });
 
   describe('readableValue', () => {
@@ -94,19 +102,6 @@ describe('HealthModalComponent', () => {
 
       // THEN
       expect(result).toEqual('1234');
-    });
-  });
-
-  describe('dismiss', () => {
-    it('should call dismiss when dismiss modal is called', () => {
-      // GIVEN
-      const spy = jest.spyOn(mockActiveModal, 'dismiss');
-
-      // WHEN
-      comp.dismiss();
-
-      // THEN
-      expect(spy).toHaveBeenCalled();
     });
   });
 });

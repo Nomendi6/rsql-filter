@@ -1,0 +1,12 @@
+{
+  "formHelp": {
+    "button": {
+      "label": "Help",
+      "tooltip": "Show help"
+    },
+    "actions": {
+      "newTab": "Open in new tab",
+      "close": "Close"
+    }
+  }
+}

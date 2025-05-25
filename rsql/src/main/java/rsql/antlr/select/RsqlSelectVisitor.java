@@ -1,4 +1,4 @@
-// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter/rsql/src/main/antlr/RsqlSelect.g4 by ANTLR 4.13.1
+// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter-mvn/rsql/src/main/antlr/RsqlSelect.g4 by ANTLR 4.13.2
 package rsql.antlr.select;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 

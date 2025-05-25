@@ -1,8 +1,0 @@
-{
-  "@spiralup/generator-jhipster:7.9.2-C0021": {
-    "promptValues": {
-      "packageName": "testappl",
-      "nativeLanguage": "en"
-    }
-  }
-}

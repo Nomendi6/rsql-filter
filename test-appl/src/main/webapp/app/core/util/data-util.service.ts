@@ -70,7 +70,7 @@ export class DataUtils {
           };
           observer.error(error);
         } else {
-          const fieldContentType: string = field + 'ContentType';
+          const fieldContentType = `${field}ContentType`;
           this.toBase64(file, (base64Data: string) => {
             editForm.patchValue({
               [field]: base64Data,
@@ -94,7 +94,7 @@ export class DataUtils {
   /**
    * Method to convert the file to base64
    */
-  private toBase64(file: File, callback: (base64Data: string) => void): void {
+  toBase64(file: File, callback: (base64Data: string) => void): void {
     const fileReader: FileReader = new FileReader();
     fileReader.onload = (e: ProgressEvent<FileReader>) => {
       if (typeof e.target?.result === 'string') {
@@ -124,6 +124,6 @@ export class DataUtils {
   }
 
   private formatAsBytes(size: number): string {
-    return size.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' bytes';
+    return `${size.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} bytes`; // NOSONAR
   }
 }

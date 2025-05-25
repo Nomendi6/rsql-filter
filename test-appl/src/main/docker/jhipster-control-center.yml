@@ -2,7 +2,7 @@
 # To allow JHCC to reach JHipster application from a docker container note that we set the host as host.docker.internal
 # To reach the application from a browser, you need to add '127.0.0.1 host.docker.internal' to your hosts file.
 ### Discovery mode
-# JHCC support 3 kinds of discovery mode: Consul, Eureka and static
+# JHCC supports 3 kinds of discovery mode: Consul, Eureka and static
 # In order to use one, please set SPRING_PROFILES_ACTIVE to one (and only one) of this values: consul,eureka,static
 ### Discovery properties
 # According to the discovery mode choose as Spring profile, you have to set the right properties
@@ -24,11 +24,11 @@
 #### IMPORTANT
 # If you choose Consul or Eureka mode:
 # Do not forget to remove the prefix "127.0.0.1" in front of their port in order to expose them.
-# This is required because JHCC need to communicate with Consul or Eureka.
+# This is required because JHCC needs to communicate with Consul or Eureka.
 # - In Consul mode, the ports are in the consul.yml file.
 # - In Eureka mode, the ports are in the jhipster-registry.yml file.
 
-version: '3.8'
+name: testappl
 services:
   jhipster-control-center:
     image: 'jhipster/jhipster-control-center:v0.5.0'
@@ -40,10 +40,9 @@ services:
     environment:
       - _JAVA_OPTIONS=-Xmx512m -Xms256m
       - SPRING_PROFILES_ACTIVE=prod,api-docs,static
-      - JHIPSTER_SLEEP=30 # gives time for other services to boot before the application
       - SPRING_SECURITY_USER_PASSWORD=admin
       # The token should have the same value than the one declared in you Spring configuration under the jhipster.security.authentication.jwt.base64-secret configuration's entry
-      - JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET=YTU3NzkyMTBjMmY4OGE0MTQ3NWMzN2Y4NjY4Y2NhOTVjMTNhM2FjNmQ4NzEwYzk1YTI1MjkzYzhkNjEwYjBhNWNmZTJmYWMwNGM5MTJhNWUwMzNhNjgxOTQ3ZjY3ZDhmNjY4YTRlZGVkMGQ2OGY0YzcyNjBkZDZjYzE2YzUwYmE=
+      - JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET=219cc757688babebcd9d66c6b87de1d9d875b5d0156a437482a983999a0c3b2bbb4cb9138d49bfdff30fd87fbdd417a79db2019f11e6343796209d6187e2c527
       - SPRING_CLOUD_DISCOVERY_CLIENT_SIMPLE_INSTANCES_TESTAPPL_0_URI=http://host.docker.internal:8080
       - LOGGING_FILE_NAME=/tmp/jhipster-control-center.log
     # If you want to expose these ports outside your dev PC,

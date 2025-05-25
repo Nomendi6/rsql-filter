@@ -1,24 +1,26 @@
 <h3 id="endpointsRequestsMetrics">Endpoints requests (time in millisecond)</h3>
 
 <div class="table-responsive" *ngIf="!updating && endpointsRequestsMetrics">
-  <table class="table table-striped" aria-describedby="endpointsRequestsMetrics">
-    <thead>
+  <p-table data-cy="MetricsEndpointRequestsTable" [value]="[]">
+    <ng-template pTemplate="header">
       <tr>
-        <th scope="col">Method</th>
-        <th scope="col">Endpoint url</th>
-        <th scope="col" class="text-end">Count</th>
-        <th scope="col" class="text-end">Mean</th>
+        <th id="h_method">Method</th>
+        <th id="h_url">Endpoint url</th>
+        <th id="h_count" class="text-end">Count</th>
+        <th id="h_mean" class="text-end">Mean</th>
       </tr>
-    </thead>
-    <tbody>
-      <ng-container *ngFor="let entry of endpointsRequestsMetrics | keyvalue">
-        <tr *ngFor="let method of entry.value | keyvalue">
-          <td>{{ method.key }}</td>
-          <td>{{ entry.key }}</td>
-          <td class="text-end">{{ method.value!.count }}</td>
-          <td class="text-end">{{ method.value!.mean | number: '1.0-3' }}</td>
-        </tr>
-      </ng-container>
-    </tbody>
-  </table>
+    </ng-template>
+    <ng-template pTemplate="body" let-entry>
+      @for (entry of endpointsRequestsMetrics() | keyvalue; track entry.key) {
+        @for (method of entry.value | keyvalue; track method.key) {
+          <tr>
+            <td>{{ method.key }}</td>
+            <td>{{ entry.key }}</td>
+            <td class="text-end">{{ method.value!.count }}</td>
+            <td class="text-end">{{ method.value!.mean | number: '1.0-3' }}</td>
+          </tr>
+        }
+      }
+    </ng-template>
+  </p-table>
 </div>

@@ -1,0 +1,62 @@
+{
+  "entity": {
+    "values": {
+      "boolean": {
+        "true": "Yes",
+        "false": "No"
+      }
+    }
+  },
+  "form": {
+    "messages": {
+      "refreshLabel": "Refresh",
+      "homeDetailsLabel": "Details",
+      "searchLabel": "Search",
+      "saveDialogTitle": "Confirm Save",
+      "saveQuestion": "Data is changed. Do you want to save it?"
+    },
+    "filters": {
+      "after": "After",
+      "any": "Any",
+      "before": "Before",
+      "between": "Between",
+      "contains": "Contains",
+      "dateAfter": "Date is after",
+      "dateBefore": "Date is before",
+      "dateIs": "Date is",
+      "dateIsNot": "Date is not",
+      "endsWith": "Ends with",
+      "equals": "Equals",
+      "gt": "Greater than",
+      "gte": "Greater than or equal to",
+      "in": "In",
+      "is": "Is",
+      "isNot": "Is not",
+      "lt": "Less than",
+      "lte": "Less than or equal to",
+      "notContains": "Not contains",
+      "notEquals": "Not equals",
+      "startsWith": "Starts with"
+    },
+    "action": {
+      "addblob": "Add blob",
+      "addimage": "Add image",
+      "back": "Back",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "open": "Open",
+      "save": "Save",
+      "view": "View",
+      "show": "Show",
+      "prev": "Previous",
+      "next": "Next",
+      "globalSearch": "Search",
+      "apply": "Apply",
+      "clear": "Clear",
+      "filter": "Filter",
+      "create": "Create",
+      "details": "Details"
+    }
+  }
+}

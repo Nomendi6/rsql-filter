@@ -1,4 +1,4 @@
 /**
- * Spring Security configuration.
+ * Application security utilities.
  */
 package testappl.security;

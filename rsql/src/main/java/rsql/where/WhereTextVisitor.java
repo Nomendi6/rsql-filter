@@ -126,11 +126,25 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
     }
 
     private String getFullPath(NavigablePath navigablePath) {
+        // return navigablePath.getLocalName();
+
         String rootPath = getRootPath(navigablePath);
         int rootPathLength = rootPath.length();
-        String fullPath = navigablePath.getIdentifierForTableGroup().toString().substring(rootPathLength+1);
+        String fullIdentifier = navigablePath.getIdentifierForTableGroup().toString();
+        String localName = navigablePath.getLocalName();
+        // Find the next dot after the root path
+        int nextDotPosition = fullIdentifier.indexOf('.', rootPathLength);
+
+        // If there is no dot after the root path, return an empty string
+        if (nextDotPosition == -1) {
+            return "";
+        }
+
+        // Extract the path from after the dot
+        String fullPath = fullIdentifier.substring(nextDotPosition + 1);
 
         return fullPath;
+
     }
 
     private String getRootPath(NavigablePath navigablePath) {

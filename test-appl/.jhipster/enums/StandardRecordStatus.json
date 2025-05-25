@@ -1,0 +1,5 @@
+{
+  "name": "StandardRecordStatus",
+  "values": ["ACTIVE", "NOT_ACTIVE"],
+  "defaultValue": "ACTIVE"
+}

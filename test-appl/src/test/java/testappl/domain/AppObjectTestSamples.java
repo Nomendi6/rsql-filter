@@ -10,18 +10,18 @@ public class AppObjectTestSamples {
     private static final AtomicLong longCount = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
 
     public static AppObject getAppObjectSample1() {
-        return new AppObject().id(1L).code("code1").name("name1").seq(1L);
+        return new AppObject().withId(1L).withCode("code1").withName("name1").withSeq(1L);
     }
 
     public static AppObject getAppObjectSample2() {
-        return new AppObject().id(2L).code("code2").name("name2").seq(2L);
+        return new AppObject().withId(2L).withCode("code2").withName("name2").withSeq(2L);
     }
 
     public static AppObject getAppObjectRandomSampleGenerator() {
         return new AppObject()
-            .id(longCount.incrementAndGet())
-            .code(UUID.randomUUID().toString())
-            .name(UUID.randomUUID().toString())
-            .seq(longCount.incrementAndGet());
+            .withId(longCount.incrementAndGet())
+            .withCode(UUID.randomUUID().toString())
+            .withName(UUID.randomUUID().toString())
+            .withSeq(longCount.incrementAndGet());
     }
 }

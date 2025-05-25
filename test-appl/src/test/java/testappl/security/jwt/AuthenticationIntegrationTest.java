@@ -5,7 +5,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import tech.jhipster.config.JHipsterProperties;
 import testappl.config.SecurityConfiguration;
 import testappl.config.SecurityJwtConfiguration;
@@ -30,6 +29,5 @@ import testappl.web.rest.AuthenticateController;
         JwtAuthenticationTestUtils.class,
     }
 )
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public @interface AuthenticationIntegrationTest {
 }

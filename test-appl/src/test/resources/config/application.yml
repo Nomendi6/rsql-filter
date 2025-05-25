@@ -28,6 +28,12 @@ spring:
     allow-bean-definition-overriding: true
   messages:
     basename: i18n/messages
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          authority-prefix: ''
+          authorities-claim-name: auth
   task:
     execution:
       thread-name-prefix: testappl-task-
@@ -69,7 +75,7 @@ jhipster:
     authentication:
       jwt:
         # This token must be encoded using Base64 (you can type `echo 'secret-key'|base64` on your command line)
-        base64-secret: YTU3NzkyMTBjMmY4OGE0MTQ3NWMzN2Y4NjY4Y2NhOTVjMTNhM2FjNmQ4NzEwYzk1YTI1MjkzYzhkNjEwYjBhNWNmZTJmYWMwNGM5MTJhNWUwMzNhNjgxOTQ3ZjY3ZDhmNjY4YTRlZGVkMGQ2OGY0YzcyNjBkZDZjYzE2YzUwYmE=
+        base64-secret: 219cc757688babebcd9d66c6b87de1d9d875b5d0156a437482a983999a0c3b2bbb4cb9138d49bfdff30fd87fbdd417a79db2019f11e6343796209d6187e2c527
         # Token is valid 24 hours
         token-validity-in-seconds: 86400
         token-validity-in-seconds-for-remember-me: 86400

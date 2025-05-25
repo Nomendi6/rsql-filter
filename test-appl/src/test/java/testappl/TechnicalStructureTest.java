@@ -30,6 +30,7 @@ class TechnicalStructureTest {
         .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Service", "Security", "Web", "Config")
         .whereLayer("Domain").mayOnlyBeAccessedByLayers("Persistence", "Service", "Security", "Web", "Config")
 
+
         .ignoreDependency(belongToAnyOf(TestapplApp.class), alwaysTrue())
         .ignoreDependency(alwaysTrue(), belongToAnyOf(
             testappl.config.Constants.class,

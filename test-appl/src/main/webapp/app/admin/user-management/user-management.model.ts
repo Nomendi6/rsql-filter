@@ -1,5 +1,7 @@
+import dayjs from 'dayjs/esm';
+
 export interface IUser {
-  id: number | null;
+  id?: number | null;
   login?: string;
   firstName?: string | null;
   lastName?: string | null;
@@ -8,14 +10,14 @@ export interface IUser {
   langKey?: string;
   authorities?: string[];
   createdBy?: string;
-  createdDate?: Date;
+  createdDate?: dayjs.Dayjs;
   lastModifiedBy?: string;
-  lastModifiedDate?: Date;
+  lastModifiedDate?: dayjs.Dayjs;
 }
 
 export class User implements IUser {
   constructor(
-    public id: number | null,
+    public id?: number | null,
     public login?: string,
     public firstName?: string | null,
     public lastName?: string | null,
@@ -24,8 +26,8 @@ export class User implements IUser {
     public langKey?: string,
     public authorities?: string[],
     public createdBy?: string,
-    public createdDate?: Date,
+    public createdDate?: dayjs.Dayjs,
     public lastModifiedBy?: string,
-    public lastModifiedDate?: Date
+    public lastModifiedDate?: dayjs.Dayjs,
   ) {}
 }

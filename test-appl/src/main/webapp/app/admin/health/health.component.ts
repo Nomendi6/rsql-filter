@@ -1,44 +1,76 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { DialogService } from 'primeng/dynamicdialog';
+import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
+import { TranslateService } from '@ngx-translate/core';
+import { finalize } from 'rxjs';
 
+import SharedModule from 'app/shared/shared.module';
 import { HealthService } from './health.service';
 import { Health, HealthDetails, HealthStatus } from './health.model';
 import { HealthModalComponent } from './modal/health-modal.component';
 
 @Component({
-  selector: 'jhi-health',
+  standalone: true,
+  selector: 'app-health',
   templateUrl: './health.component.html',
+  imports: [SharedModule, HealthModalComponent, ButtonModule, DialogModule],
 })
-export class HealthComponent implements OnInit {
-  health?: Health;
+export default class HealthComponent implements OnInit {
+  public health?: Health;
+  public displayHealthDialog = false;
+  public loading = false;
 
-  constructor(private modalService: NgbModal, private healthService: HealthService) {}
+  private dialogService = inject(DialogService);
+  private healthService = inject(HealthService);
+  private translateService = inject(TranslateService);
 
-  ngOnInit(): void {
+  public ngOnInit(): void {
     this.refresh();
   }
 
-  getBadgeClass(statusState: HealthStatus): string {
+  public getBadgeClass(statusState: HealthStatus): string {
     if (statusState === 'UP') {
-      return 'bg-success';
+      return 'badge-success';
     }
-    return 'bg-danger';
+    return 'badge-danger';
   }
 
-  refresh(): void {
-    this.healthService.checkHealth().subscribe({
-      next: health => (this.health = health),
-      error: (error: HttpErrorResponse) => {
-        if (error.status === 503) {
-          this.health = error.error;
-        }
+  public refresh(): void {
+    this.loading = true;
+    this.healthService
+      .checkHealth()
+      .pipe(
+        finalize(() => {
+          this.loading = false;
+        }),
+      )
+      .subscribe({
+        next: health => (this.health = health),
+        error: (error: HttpErrorResponse) => {
+          if (error.status === 503) {
+            this.health = error.error;
+          }
+        },
+      });
+  }
+
+  public showHealth(health: { key: string; value: HealthDetails }): void {
+    this.dialogService.open(HealthModalComponent, {
+      data: {
+        health,
       },
+      header: this.translateService.instant(`health.indicator.${health.key}`),
+      width: '70%',
     });
   }
 
-  showHealth(health: { key: string; value: HealthDetails }): void {
-    const modalRef = this.modalService.open(HealthModalComponent);
-    modalRef.componentInstance.health = health;
-  }
+  // getProps2(components: Record<string, HealthDetails>): HealthComponentStatus[] {
+  //   const properties: HealthComponentStatus[] = [];
+  //   for (const [key, value] of Object.entries(components)) {
+  //      properties.push({ name: key, status: value.status, details: value.details });
+  //   }
+  //   return properties;
+  // }
 }

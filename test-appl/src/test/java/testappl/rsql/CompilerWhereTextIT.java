@@ -71,57 +71,57 @@ public class CompilerWhereTextIT {
     private void setupData() {
         if (appObjectRepository.count()<1) {
             AppObject a = new AppObject()
-                .name("AAAAA")
-                .code("AAAAA")
-                .status(StandardRecordStatus.ACTIVE)
-                .validFrom(Instant.now().minus(1, DAYS));
+                .withName("AAAAA")
+                .withCode("AAAAA")
+                .withStatus(StandardRecordStatus.ACTIVE)
+                .withValidFrom(Instant.now().minus(1, DAYS));
 
             appObjectRepository.save(a);
             AppObject b = new AppObject()
-                .name("BBBB")
-                .code("BBBB")
-                .status(StandardRecordStatus.NOT_ACTIVE)
-                .validFrom(Instant.now())
-                .parent(a);
+                .withName("BBBB")
+                .withCode("BBBB")
+                .withStatus(StandardRecordStatus.NOT_ACTIVE)
+                .withValidFrom(Instant.now())
+                .withParent(a);
             appObjectRepository.save(b);
             ProductType t1 = new ProductType()
-                .code("T1")
-                .name("T1")
+                .withCode("T1")
+                .withName("T1")
                 ;
             productTypeRepository.save(t1);
 
             ProductType t2 = new ProductType()
-                .code("T2")
-                .name("T2")
+                .withCode("T2")
+                .withName("T2")
                 ;
             productTypeRepository.save(t2);
 
             ProductType t3 = new ProductType()
-                .code("T3")
-                .name("T3")
+                .withCode("T3")
+                .withName("T3")
                 ;
             productTypeRepository.save(t3);
 
             Product p1 = new Product()
-                .code ("P1")
-                .name ("P1")
-                .tproduct(t1)
+                .withCode("P1")
+                .withName("P1")
+                .withTproduct(t1)
                 ;
             productRepository.save(p1);
 
             Product p2 = new Product()
-                .code ("P2")
-                .name ("P2")
-                .parent(p1)
-                .tproduct(t2)
+                .withCode("P2")
+                .withName("P2")
+                .withParent(p1)
+                .withTproduct(t2)
                 ;
             productRepository.save(p2);
 
             Product p3 = new Product()
-                .code ("P3")
-                .name ("P3")
-                .parent(p2)
-                .tproduct(t3)
+                .withCode("P3")
+                .withName("P3")
+                .withParent(p2)
+                .withTproduct(t3)
                 ;
             productRepository.save(p3);
 

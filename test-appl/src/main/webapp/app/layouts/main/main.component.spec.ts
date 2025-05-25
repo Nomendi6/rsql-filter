@@ -1,37 +1,33 @@
 jest.mock('app/core/auth/account.service');
 
-import { waitForAsync, ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, RouterEvent, NavigationEnd, NavigationStart } from '@angular/router';
+import { ComponentFixture, TestBed, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
+import { Router, TitleStrategy } from '@angular/router';
 import { Title } from '@angular/platform-browser';
-import { Subject, of } from 'rxjs';
+import { DOCUMENT } from '@angular/common';
+import { Component, NgZone } from '@angular/core';
+import { of } from 'rxjs';
+import { LangChangeEvent, TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AccountService } from 'app/core/auth/account.service';
 
-import { MainComponent } from './main.component';
+import { AppPageTitleStrategy } from 'app/app-page-title-strategy';
+import MainComponent from './main.component';
 
 describe('MainComponent', () => {
   let comp: MainComponent;
   let fixture: ComponentFixture<MainComponent>;
   let titleService: Title;
+  let translateService: TranslateService;
   let mockAccountService: AccountService;
-  const routerEventsSubject = new Subject<RouterEvent>();
+  let ngZone: NgZone;
   const routerState: any = { snapshot: { root: { data: {} } } };
-  class MockRouter {
-    events = routerEventsSubject;
-    routerState = routerState;
-  }
+  let router: Router;
+  let document: Document;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [MainComponent],
-      providers: [
-        Title,
-        AccountService,
-        {
-          provide: Router,
-          useClass: MockRouter,
-        },
-      ],
+      imports: [TranslateModule.forRoot(), MainComponent],
+      providers: [Title, AccountService, { provide: TitleStrategy, useClass: AppPageTitleStrategy }],
     })
       .overrideTemplate(MainComponent, '')
       .compileComponents();
@@ -41,77 +37,194 @@ describe('MainComponent', () => {
     fixture = TestBed.createComponent(MainComponent);
     comp = fixture.componentInstance;
     titleService = TestBed.inject(Title);
+    translateService = TestBed.inject(TranslateService);
     mockAccountService = TestBed.inject(AccountService);
     mockAccountService.identity = jest.fn(() => of(null));
     mockAccountService.getAuthenticationState = jest.fn(() => of(null));
+    ngZone = TestBed.inject(NgZone);
+    router = TestBed.inject(Router);
+    document = TestBed.inject(DOCUMENT);
   });
 
   describe('page title', () => {
-    const defaultPageTitle = 'Testappl';
+    const defaultPageTitle = 'global.title';
     const parentRoutePageTitle = 'parentTitle';
     const childRoutePageTitle = 'childTitle';
-    const navigationEnd = new NavigationEnd(1, '', '');
-    const navigationStart = new NavigationStart(1, '');
+    const langChangeEvent: LangChangeEvent = { lang: 'en', translations: {} };
 
     beforeEach(() => {
       routerState.snapshot.root = { data: {} };
+      jest.spyOn(translateService, 'get').mockImplementation((key: string | string[]) => of(`${key as string} translated`));
+      translateService.currentLang = 'en';
       jest.spyOn(titleService, 'setTitle');
       comp.ngOnInit();
     });
 
     describe('navigation end', () => {
-      it('should set page title to default title if pageTitle is missing on routes', () => {
+      it('should set page title to default title if pageTitle is missing on routes', fakeAsync(() => {
         // WHEN
-        routerEventsSubject.next(navigationEnd);
+        ngZone.run(() => router.navigateByUrl(''));
+        tick();
 
         // THEN
-        expect(titleService.setTitle).toHaveBeenCalledWith(defaultPageTitle);
-      });
+        expect(document.title).toBe(`${defaultPageTitle} translated`);
+      }));
 
-      it('should set page title to root route pageTitle if there is no child routes', () => {
+      it('should set page title to root route pageTitle if there is no child routes', fakeAsync(() => {
         // GIVEN
-        routerState.snapshot.root.data = { pageTitle: parentRoutePageTitle };
+        router.resetConfig([{ path: '', title: parentRoutePageTitle, component: BlankComponent }]);
 
         // WHEN
-        routerEventsSubject.next(navigationEnd);
+        ngZone.run(() => router.navigateByUrl(''));
+        tick();
 
         // THEN
-        expect(titleService.setTitle).toHaveBeenCalledWith(parentRoutePageTitle);
-      });
+        expect(document.title).toBe(`${parentRoutePageTitle} translated`);
+      }));
 
-      it('should set page title to child route pageTitle if child routes exist and pageTitle is set for child route', () => {
+      it('should set page title to child route pageTitle if child routes exist and pageTitle is set for child route', fakeAsync(() => {
         // GIVEN
-        routerState.snapshot.root.data = { pageTitle: parentRoutePageTitle };
-        routerState.snapshot.root.firstChild = { data: { pageTitle: childRoutePageTitle } };
+        router.resetConfig([
+          {
+            path: 'home',
+            title: parentRoutePageTitle,
+            children: [{ path: '', title: childRoutePageTitle, component: BlankComponent }],
+          },
+        ]);
 
         // WHEN
-        routerEventsSubject.next(navigationEnd);
+        ngZone.run(() => router.navigateByUrl('home'));
+        tick();
 
         // THEN
-        expect(titleService.setTitle).toHaveBeenCalledWith(childRoutePageTitle);
-      });
+        expect(document.title).toBe(`${childRoutePageTitle} translated`);
+      }));
 
-      it('should set page title to parent route pageTitle if child routes exists but pageTitle is not set for child route data', () => {
+      it('should set page title to parent route pageTitle if child routes exists but pageTitle is not set for child route data', fakeAsync(() => {
         // GIVEN
-        routerState.snapshot.root.data = { pageTitle: parentRoutePageTitle };
-        routerState.snapshot.root.firstChild = { data: {} };
+        router.resetConfig([
+          {
+            path: 'home',
+            title: parentRoutePageTitle,
+            children: [{ path: '', component: BlankComponent }],
+          },
+        ]);
 
         // WHEN
-        routerEventsSubject.next(navigationEnd);
+        ngZone.run(() => router.navigateByUrl('home'));
+        tick();
 
         // THEN
-        expect(titleService.setTitle).toHaveBeenCalledWith(parentRoutePageTitle);
-      });
+        expect(document.title).toBe(`${parentRoutePageTitle} translated`);
+      }));
     });
 
-    describe('navigation start', () => {
-      it('should not set page title on navigation start', () => {
+    describe('language change', () => {
+      it('should set page title to default title if pageTitle is missing on routes', () => {
         // WHEN
-        routerEventsSubject.next(navigationStart);
+        translateService.onLangChange.emit(langChangeEvent);
 
         // THEN
-        expect(titleService.setTitle).not.toHaveBeenCalled();
+        expect(document.title).toBe(`${defaultPageTitle} translated`);
       });
+
+      it('should set page title to root route pageTitle if there is no child routes', fakeAsync(() => {
+        // GIVEN
+        routerState.snapshot.root.data = { pageTitle: parentRoutePageTitle };
+        router.resetConfig([{ path: '', title: parentRoutePageTitle, component: BlankComponent }]);
+
+        // WHEN
+        ngZone.run(() => router.navigateByUrl(''));
+        tick();
+
+        // THEN
+        expect(document.title).toBe(`${parentRoutePageTitle} translated`);
+
+        // GIVEN
+        document.title = 'other title';
+
+        // WHEN
+        translateService.onLangChange.emit(langChangeEvent);
+
+        // THEN
+        expect(document.title).toBe(`${parentRoutePageTitle} translated`);
+      }));
+
+      it('should set page title to child route pageTitle if child routes exist and pageTitle is set for child route', fakeAsync(() => {
+        // GIVEN
+        router.resetConfig([
+          {
+            path: 'home',
+            title: parentRoutePageTitle,
+            children: [{ path: '', title: childRoutePageTitle, component: BlankComponent }],
+          },
+        ]);
+
+        // WHEN
+        ngZone.run(() => router.navigateByUrl('home'));
+        tick();
+
+        // THEN
+        expect(document.title).toBe(`${childRoutePageTitle} translated`);
+
+        // GIVEN
+        document.title = 'other title';
+
+        // WHEN
+        translateService.onLangChange.emit(langChangeEvent);
+
+        // THEN
+        expect(document.title).toBe(`${childRoutePageTitle} translated`);
+      }));
+
+      it('should set page title to parent route pageTitle if child routes exists but pageTitle is not set for child route data', fakeAsync(() => {
+        // GIVEN
+        router.resetConfig([
+          {
+            path: 'home',
+            title: parentRoutePageTitle,
+            children: [{ path: '', component: BlankComponent }],
+          },
+        ]);
+
+        // WHEN
+        ngZone.run(() => router.navigateByUrl('home'));
+        tick();
+
+        // THEN
+        expect(document.title).toBe(`${parentRoutePageTitle} translated`);
+
+        // GIVEN
+        document.title = 'other title';
+
+        // WHEN
+        translateService.onLangChange.emit(langChangeEvent);
+
+        // THEN
+        expect(document.title).toBe(`${parentRoutePageTitle} translated`);
+      }));
+    });
+  });
+
+  describe('page language attribute', () => {
+    it('should change page language attribute on language change', () => {
+      // GIVEN
+      comp.ngOnInit();
+
+      // WHEN
+      translateService.onLangChange.emit({ lang: 'lang1', translations: {} });
+
+      // THEN
+      expect(document.querySelector('html')?.getAttribute('lang')).toEqual('lang1');
+
+      // WHEN
+      translateService.onLangChange.emit({ lang: 'lang2', translations: {} });
+
+      // THEN
+      expect(document.querySelector('html')?.getAttribute('lang')).toEqual('lang2');
     });
   });
 });
+
+@Component({ template: '' })
+export class BlankComponent {}

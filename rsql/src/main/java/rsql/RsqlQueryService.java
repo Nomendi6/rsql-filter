@@ -98,25 +98,61 @@ public class RsqlQueryService<
         return entityClass;
     }
 
+    /**
+     * Sets the JPQL 'SELECT ... FROM ...' query string to be used for retrieving
+     * all entities and determines the select alias from the provided query.
+     * This method also enables the use of JPQL select functionality.
+     *
+     * @param jpqlSelectAllFromEntity the JPQL 'SELECT ... FROM ...' query string
+     *                                representing the entity selection. This query
+     *                                must define the structure for entity retrieval
+     *                                and the parameter alias.
+     */
     public void setJpqlSelectAllFromEntity(String jpqlSelectAllFromEntity) {
         this.jpqlSelectAllFromEntity = jpqlSelectAllFromEntity;
         this.selectAlias = findAliasFromJpqlSelectString(jpqlSelectAllFromEntity);
         this.useJpqlSelect = true;
     }
 
+    /**
+     * Sets the JPQL select count from entity query string and determines the count alias
+     * from the provided query. This method updates the internal JPQL select count structure
+     * for subsequent operations.
+     *
+     * @param jpqlSelectCountFromEntity the JPQL 'SELECT ... FROM ...' query string used to count
+     *                                  the entities. This query must define the necessary structure
+     *                                  to retrieve the entity count and alias.
+     */
     public void setJpqlSelectCountFromEntity(String jpqlSelectCountFromEntity) {
         this.jpqlSelectCountFromEntity = jpqlSelectCountFromEntity;
         this.countAlias = findAliasFromJpqlSelectString(jpqlSelectCountFromEntity);
     }
 
+    /**
+     * Sets whether JPQL queries should use the specified select statement.
+     *
+     * @param useJpqlSelect a boolean value indicating whether JPQL queries
+     *                      should utilize the select operation. True to enable,
+     *                      false to disable.
+     */
     public void setUseJpqlSelect(boolean useJpqlSelect) {
         this.useJpqlSelect = useJpqlSelect;
     }
 
+    /**
+     * Determines whether JPQL queries are configured to use a specific select operation.
+     *
+     * @return true if JPQL queries should use the specified select operation; false otherwise.
+     */
     public boolean getUseJpqlSelect() {
         return this.useJpqlSelect;
     }
 
+    /**
+     * Sets the alias to be used for selecting entities in JPQL queries.
+     *
+     * @param selectAlias the alias to be used for the select query as a String
+     */
     public void setSelectAlias(String selectAlias) {
         this.selectAlias = selectAlias;
         this.rsqlContext.root.alias(this.selectAlias);
@@ -126,15 +162,23 @@ public class RsqlQueryService<
         return this.selectAlias;
     }
 
+    /**
+     * Sets the alias used for counting entities in JPQL queries.
+     *
+     * @param countAlias the alias to be used for the count query as a String
+     */
     public void setCountAlias(String countAlias) {
         this.countAlias = countAlias;
     }
 
+    /**
+     * Retrieves the alias used for counting entities in JPQL queries.
+     *
+     * @return the alias used for the count query as a String.
+     */
     public String getCountAlias() {
         return this.countAlias;
     }
-
-
 
     /**
      * Return a {@link List} of {@link ENTITY_DTO} which matches the filter from the database.
@@ -161,6 +205,31 @@ public class RsqlQueryService<
     }
 
     /**
+     * Return a {@link List} of {@link ENTITY} which matches the filter from the database.
+     * This method returns the entities directly without mapping them to DTOs.
+     * @param filter Filter containing RSQL where statement, which the entities should match.
+     * @return the matching entities.
+     */
+    @Transactional(readOnly = true)
+    public List<ENTITY> findEntitiesByFilter(String filter) {
+        log.debug("find entities by filter : {}", filter);
+
+        if (useJpqlSelect) {
+            return SimpleQueryExecutor.getJpqlQueryResult(
+                entityClass,
+                entityClass,
+                this.jpqlSelectAllFromEntity,
+                selectAlias, filter,
+                null,
+                rsqlContext,
+                rsqlCompiler);
+        } else {
+            final Specification<ENTITY> specification = createSpecification(filter);
+            return appObjectRepository.findAll(specification);
+        }
+    }
+
+    /**
      * Return a specification which matches the filter from the database.
      *
      * @param filter Filter containing RSQL where statement, which the entities should match.
@@ -178,7 +247,7 @@ public class RsqlQueryService<
      */
     @Transactional(readOnly = true)
     public List<ENTITY_DTO> findByFilterAndSort(String filter, Pageable sortOrder) {
-        log.debug("find by filter : {}, page: {}", filter, sortOrder);
+        log.debug("find by filter and sort : {}, page: {}", filter, sortOrder);
         Sort sort;
         if (sortOrder == null) {
             sort = null;
@@ -198,6 +267,40 @@ public class RsqlQueryService<
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
             return appObjectRepository.findAll(specification, sort).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
+        }
+    }
+
+    /**
+     * Finds and retrieves a list of entities based on the specified filter and sorting order.
+     * The query may use JPQL or a JPA Specification for filtering and sorting the data.
+     *
+     * @param filter the filtering criteria to apply when retrieving the entities.
+     * @param sortOrder the sorting parameters, including page and sort details.
+     *                  If null, no sorting will be applied.
+     * @return a list of entities that match the given filter and sort order.
+     */
+    @Transactional(readOnly = true)
+    public List<ENTITY> findEntitiesByFilterAndSort(String filter, Pageable sortOrder) {
+        log.debug("find entities by filter and sort: {}, page: {}", filter, sortOrder);
+        Sort sort;
+        if (sortOrder == null) {
+            sort = null;
+        } else {
+            sort = sortOrder.getSort();
+        }
+
+        if (useJpqlSelect) {
+            return SimpleQueryExecutor.getJpqlQueryResult(
+                    entityClass,
+                    entityClass,
+                    this.jpqlSelectAllFromEntity,
+                    selectAlias, filter,
+                    sortOrder,
+                    rsqlContext,
+                    rsqlCompiler);
+        } else {
+            final Specification<ENTITY> specification = createSpecification(filter);
+            return appObjectRepository.findAll(specification, sort);
         }
     }
 
@@ -229,6 +332,42 @@ public class RsqlQueryService<
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
             return appObjectRepository.findAll(specification, page).map(appObjectMapper::toDto);
+        }
+    }
+
+    /**
+     * Finds entities using a specified filter and pageable request.
+     *
+     * This method supports dynamic filtering and performs either a JPQL-based
+     * query or uses a Specification-based query depending on the configuration.
+     *
+     * @param filter the string filter used to apply dynamic conditions to the query
+     * @param page the pageable request containing pagination and sorting information;
+     *             if null, a default PageRequest with page 0 and size 20 is used
+     * @return a Page containing the list of entities that match the specified filter
+     */
+    @Transactional(readOnly = true)
+    public Page<ENTITY> findEntitiesByFilter(String filter, Pageable page) {
+        log.debug("find by filter : {}, page: {}", filter, page);
+        if (page == null) {
+            page = PageRequest.of(0, 20);
+        }
+        if (useJpqlSelect) {
+             Page<ENTITY>  entityPage = SimpleQueryExecutor.getJpqlQueryResultAsPage(
+                entityClass,
+                entityClass,
+                this.jpqlSelectAllFromEntity,
+                     selectAlias, this.jpqlSelectCountFromEntity,
+                     countAlias, filter,
+                page,
+                rsqlContext,
+                rsqlCompiler);
+
+                return entityPage;
+
+        } else {
+            final Specification<ENTITY> specification = createSpecification(filter);
+            return appObjectRepository.findAll(specification, page);
         }
     }
 
@@ -293,41 +432,23 @@ public class RsqlQueryService<
     @Transactional(readOnly = true)
     public List<LovDTO> getLOV(String filter, Pageable pageable,
                                String idField, String codeField, String nameField) {
-        if (codeField != null && nameField != null) {
-            return getQueryResult(
-                    entityClass,
-                    LovDTO.class,
-                    new String[] { idField, codeField, nameField },
-                    filter,
-                    pageable,
-                    rsqlContext,
-                    rsqlCompiler
-            );
-        } else if (nameField != null) {
-            return getQueryResult(
-                    entityClass,
-                    LovDTO.class,
-                    new String[] { idField, nameField },
-                    filter,
-                    pageable,
-                    rsqlContext,
-                    rsqlCompiler
-            );
-        } else if (codeField != null) {
-            return getQueryResult(
-                    entityClass,
-                    LovDTO.class,
-                    new String[] { idField, codeField },
-                    filter,
-                    pageable,
-                    rsqlContext,
-                    rsqlCompiler
-            );
+        List<String> fieldsList = new java.util.ArrayList<>();
+        fieldsList.add(idField);
+
+        // Add optional fields when not null
+        if (codeField != null) {
+            fieldsList.add(codeField);
         }
+        if (nameField != null) {
+            fieldsList.add(nameField);
+        }
+
+        // Convert to array and execute query
+        String[] fields = fieldsList.toArray(new String[0]);
         return getQueryResult(
                 entityClass,
                 LovDTO.class,
-                new String[] { idField },
+                fields,
                 filter,
                 pageable,
                 rsqlContext,
@@ -365,6 +486,14 @@ public class RsqlQueryService<
         );
     }
 
+    /**
+     * Retrieves a list of tuples based on the provided filter, pageable, and fields.
+     *
+     * @param filter a string representing the filter condition for the query
+     * @param pageable an object specifying pagination and sorting information
+     * @param fields an array of field names to include in the result tuple
+     * @return a list of tuples matching the specified filter, pageable, and fields
+     */
     @Transactional(readOnly = true)
     public List<Tuple> getTuple(String filter, Pageable pageable, String[] fields) {
         return getQueryResult(
@@ -378,6 +507,14 @@ public class RsqlQueryService<
         );
     }
 
+    /**
+     * Executes a JPQL query with filtering and pagination, and returns the result as a list of DTOs.
+     *
+     * @param jpqlSelectQuery the JPQL select query string to be executed
+     * @param filter the filter string to refine the query results
+     * @param page the pagination information, including page number, size, and sort order
+     * @return a list of DTOs that match the query and filters
+     */
     @Transactional(readOnly = true)
     public List<ENTITY_DTO> getJpqlQueryResult(String jpqlSelectQuery, String filter, Pageable page) {
         String alias = findAliasFromJpqlSelectString(jpqlSelectQuery);
@@ -391,6 +528,14 @@ public class RsqlQueryService<
             rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
     }
 
+    /**
+     * Executes a JPQL select query and retrieves the result as a list of {@code Tuple} objects.
+     *
+     * @param jpqlSelectQuery the JPQL select query string to be executed
+     * @param filter an optional filter to apply to the query
+     * @param page the pagination and sorting information for the query
+     * @return a list of {@code Tuple} objects containing the results of the query
+     */
     @Transactional(readOnly = true)
     public List<Tuple> getJpqlQueryResultAsTuple(String jpqlSelectQuery, String filter, Pageable page) {
         String alias = findAliasFromJpqlSelectString(jpqlSelectQuery);
@@ -404,6 +549,16 @@ public class RsqlQueryService<
             rsqlCompiler);
     }
 
+    /**
+     * Executes the provided JPQL select and count queries with the given filter and pagination information,
+     * returning a paginated result transformed to DTOs.
+     *
+     * @param jpqlSelectQuery the JPQL select query to fetch the entities
+     * @param jpqlCountQuery the JPQL count query to calculate the total number of entities
+     * @param filter a filter string to apply additional conditions to the query results
+     * @param page the pagination information encapsulating page number, size, and sorting
+     * @return a paginated result of DTOs wrapping the entities fetched using the JPQL query
+     */
     @Transactional(readOnly = true)
     public Page<ENTITY_DTO> getJpqlQueryResultAsPage(String jpqlSelectQuery, String jpqlCountQuery, String filter, Pageable page) {
         Page<ENTITY>  entityPage = SimpleQueryExecutor.getJpqlQueryResultAsPage(
@@ -417,6 +572,27 @@ public class RsqlQueryService<
             rsqlCompiler);
 
         return entityPage.map(appObjectMapper::toDto);
+    }
+
+    /**
+     * Executes a JPQL query with the given filter and pagination, returning entity objects.
+     * 
+     * @param jpqlSelectQuery The JPQL select query to execute
+     * @param filter The RSQL filter to apply
+     * @param page Pagination information
+     * @return List of entity objects matching the query and filter
+     */
+    @Transactional(readOnly = true)
+    public List<ENTITY> getJpqlQueryEntities(String jpqlSelectQuery, String filter, Pageable page) {
+        String alias = findAliasFromJpqlSelectString(jpqlSelectQuery);
+        return SimpleQueryExecutor.getJpqlQueryResult(
+            entityClass,
+            entityClass,
+            jpqlSelectQuery,
+            alias, filter,
+            page,
+            rsqlContext,
+            rsqlCompiler);
     }
 
     /**
@@ -449,6 +625,14 @@ public class RsqlQueryService<
         return mappedResults;
     }
 
+    /**
+     * Extracts the alias used in a JPQL select string. If no alias is found,
+     * the method returns a default alias value.
+     *
+     * @param jpqlSelect the JPQL select string to parse for the alias; must not be null or empty.
+     * @return the alias name found within the JPQL string, or "a0" if no alias is detected
+     *         or an exception occurs during parsing.
+     */
     public String findAliasFromJpqlSelectString(String jpqlSelect) {
         String alias = "a0"; // pretpostavljeni defaultni alias
 

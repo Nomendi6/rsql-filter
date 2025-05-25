@@ -1,111 +1,412 @@
-import { Component, OnInit } from '@angular/core';
-import { HttpResponse, HttpHeaders } from '@angular/common/http';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { HttpHeaders, HttpResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { combineLatest } from 'rxjs';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { Subscription, combineLatest, take } from 'rxjs';
+import { ConfirmationService, SortMeta } from 'primeng/api';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { TooltipModule } from 'primeng/tooltip';
+import { TranslateService } from '@ngx-translate/core';
 
+import SharedModule from 'app/shared/shared.module';
+import { EventManager, EventWithContent } from 'app/core/util/event-manager.service';
+import { BreadcrumbService } from 'app/layouts/main/breadcrumb.service';
+import { andRsql, filterToRsql, getTableSort } from 'app/shared/util/request-util';
 import { ITEMS_PER_PAGE } from 'app/config/pagination.constants';
-import { ASC, DESC, SORT } from 'app/config/navigation.constants';
-import { AccountService } from 'app/core/auth/account.service';
-import { Account } from 'app/core/auth/account.model';
-import { UserManagementService } from '../service/user-management.service';
+import { FormHelpDialogService } from 'app/shared/form-help-dialog/form-help-dialog.service';
+import { UserManagementStoreService } from '../store/user-management-store.service';
 import { User } from '../user-management.model';
-import { UserManagementDeleteDialogComponent } from '../delete/user-management-delete-dialog.component';
+import UserManagement$AComponent from '../user-management-a/layout/user-management-a.component';
 
 @Component({
-  selector: 'jhi-user-mgmt',
+  standalone: true,
+  selector: 'app-user-management',
   templateUrl: './user-management.component.html',
+  imports: [SharedModule, UserManagement$AComponent, TableModule, ButtonModule, InputTextModule, TooltipModule],
 })
-export class UserManagementComponent implements OnInit {
-  currentAccount: Account | null = null;
-  users: User[] | null = null;
+export default class UserManagementComponent implements OnInit, OnDestroy {
+  @ViewChild('newUserTable', { static: false })
+  newUserTable!: Table;
+
+  @Output() currentRecord = new EventEmitter<User>();
+
+  @Input()
+  set tag(tag: any) {
+    this.parentTag = tag;
+  }
+
+  public parentTag?: any;
+  public _parentRecord?: any;
+  public currentRowIndex = 0;
+  public _currentRecord?: User;
+  public selectedRecord?: User;
+  public tableFilters: any = {};
+  public tableSort: string[] = [];
+  public multiSortMeta: SortMeta[] = [];
+  public isEditing = false;
+  public initialFilter = '';
+  public routeFilter = '';
+  public globalSearchTerm = '';
+  public selectedAll = false;
+  public filterTypes: any = {
+    id: 'number',
+    email: 'string',
+    createdAt: 'date',
+    login: 'string',
+    profiles: 'string',
+    language: 'string',
+    modifiedBy: 'string',
+    modifiedDate: 'date',
+  };
+
+  users: User[] = [];
+  eventSubscriptions: Subscription[] = [];
   isLoading = false;
   totalItems = 0;
   itemsPerPage = ITEMS_PER_PAGE;
-  page!: number;
-  predicate!: string;
-  ascending!: boolean;
+  first = 0;
+  loading = true;
+  page?: number;
+  addingNewRecord = false;
+  showForm = true;
 
   constructor(
-    private userService: UserManagementService,
-    private accountService: AccountService,
-    private activatedRoute: ActivatedRoute,
-    private router: Router,
-    private modalService: NgbModal
+    protected store: UserManagementStoreService,
+    protected activatedRoute: ActivatedRoute,
+    protected router: Router,
+    protected translateService: TranslateService,
+    protected eventManager: EventManager,
+    protected confirmationService: ConfirmationService,
+    public formHelpDialogService: FormHelpDialogService,
+    private breadcrumbService: BreadcrumbService,
   ) {}
 
-  ngOnInit(): void {
-    this.accountService.identity().subscribe(account => (this.currentAccount = account));
-    this.handleNavigation();
+  setBreadcrumb(): void {
+    this.breadcrumbService.setItems([
+      { label: this.translateService.instant('global.menu.home') },
+      {
+        label: this.translateService.instant('global.menu.entities.newUser'),
+        routerLink: ['admin/user-management'],
+      },
+    ]);
   }
 
-  setActive(user: User, isActivated: boolean): void {
-    this.userService.update({ ...user, activated: isActivated }).subscribe(() => this.loadAll());
-  }
+  setParentRecord(parentRecord: any): void {
+    if (parentRecord) {
+      this.showForm = true;
+    } else {
+      this.users = [];
+      this.selectFirstRow();
 
-  trackIdentity(_index: number, item: User): number {
-    return item.id!;
-  }
+      this.showForm = false;
+      return;
+    }
 
-  deleteUser(user: User): void {
-    const modalRef = this.modalService.open(UserManagementDeleteDialogComponent, { size: 'lg', backdrop: 'static' });
-    modalRef.componentInstance.user = user;
-    // unsubscribe not needed because closed completes on modal close
-    modalRef.closed.subscribe(reason => {
-      if (reason === 'deleted') {
-        this.loadAll();
+    if (this._parentRecord?.id) {
+      if (parentRecord.id !== this._parentRecord.id) {
+        this.currentRowIndex = 0;
       }
-    });
+    }
+    this._parentRecord = parentRecord;
+
+    this.loadPage(1);
   }
 
-  loadAll(): void {
+  loadPage(page?: number, dontNavigate?: boolean, keepCurrentRecord?: boolean): void {
     this.isLoading = true;
-    this.userService
+    this.isEditing = false;
+    this.addingNewRecord = false;
+    const pageToLoad: number = page ?? this.page ?? 1;
+
+    this.store
       .query({
-        page: this.page - 1,
+        filter: this.getFilter(),
+        page: pageToLoad - 1,
         size: this.itemsPerPage,
         sort: this.sort(),
       })
       .subscribe({
         next: (res: HttpResponse<User[]>) => {
           this.isLoading = false;
-          this.onSuccess(res.body, res.headers);
+          this.onSuccess(res.body, res.headers, pageToLoad, !dontNavigate, keepCurrentRecord);
         },
-        error: () => (this.isLoading = false),
+        error: () => {
+          this.isLoading = false;
+        },
       });
   }
 
-  transition(): void {
-    this.router.navigate(['./'], {
-      relativeTo: this.activatedRoute.parent,
-      queryParams: {
-        page: this.page,
-        sort: `${this.predicate},${this.ascending ? ASC : DESC}`,
+  ngOnInit(): void {
+    this.setBreadcrumb();
+
+    this.translateService.onLangChange.subscribe((/* params: LangChangeEvent */) => {
+      this.setBreadcrumb();
+    });
+
+    this.routeFilter = this.activatedRoute.snapshot.queryParamMap.get('filter') ?? '';
+
+    this.handleNavigation();
+
+    this.eventSubscriptions.push(
+      this.eventManager.subscribe('UserRecordUpdated', event => {
+        if (typeof event !== 'string') {
+          if (event.content) {
+            Object.assign(this._currentRecord as User, event.content as User);
+          }
+          // after add new record remove the last record
+          if (this.users.length > this.itemsPerPage) {
+            this.users = this.users.slice(0, this.itemsPerPage);
+          }
+          if (this.addingNewRecord && this.users[0].id !== undefined) {
+            this.addingNewRecord = false;
+          }
+          // broadcast RecordChange event
+          this.onRowSelect();
+        }
+      }),
+    );
+
+    this.eventSubscriptions.push(
+      this.eventManager.subscribe('UserCancelAddNew', () => {
+        this.removeNewRecord();
+      }),
+    );
+
+    this.eventSubscriptions.push(
+      this.eventManager.subscribe('UserIsEdited', () => {
+        this.isEditing = true;
+      }),
+    );
+
+    this.eventSubscriptions.push(
+      this.eventManager.subscribe('UserCancelEdit', () => {
+        this.isEditing = false;
+      }),
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.eventSubscriptions.forEach(sub => {
+      this.eventManager.destroy(sub);
+    });
+  }
+
+  onLazyLoadEvent(event: TableLazyLoadEvent): void {
+    // const queryParams = lazyLoadEventToRouterQueryParams(event, this.filtersDetails);
+    // this.router.navigate(['/admin/user-management'], { queryParams });
+    this.tableFilters = event.filters;
+    this.itemsPerPage = event.rows ?? ITEMS_PER_PAGE;
+    if (event.rows && event.first && event.rows > 0 && event.first > 0) {
+      this.page = Math.floor(event.first / event.rows) + 1;
+    } else {
+      this.page = 1;
+    }
+    this.tableSort = getTableSort(event.multiSortMeta);
+    this.loadPage();
+  }
+
+  trackId(index: number, item: User): number {
+    return item.id!;
+  }
+
+  private getFilter(): string {
+    const predefinedFilter = andRsql(this.initialFilter, this.routeFilter);
+    let completeFilter = andRsql(this.getFilterForParentRecord(), predefinedFilter);
+    const filter = filterToRsql(this.tableFilters, ['login', 'email'], this.filterTypes);
+    completeFilter = andRsql(completeFilter, filter);
+    return completeFilter;
+  }
+
+  private getFilterForParentRecord(): string {
+    return '';
+  }
+
+  delete(newUser: User): void {
+    this.confirmationService.confirm({
+      key: 'UserManagementDeleteDialogHeading',
+      header: this.translateService.instant('entity.delete.title'),
+      rejectLabel: this.translateService.instant('entity.action.cancel'),
+      acceptLabel: this.translateService.instant('entity.action.delete'),
+      message: this.translateService.instant('userManagement.delete.question', { login: newUser.login }),
+      rejectIcon: 'pi pi-ban',
+      rejectButtonStyleClass: 'p-button-secondary',
+      acceptIcon: 'pi pi-check',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        if (newUser.login) {
+          this.store.delete(newUser.login).subscribe(() => {
+            this.loadPage();
+          });
+        } else {
+          this.removeNewRecord();
+        }
       },
     });
   }
 
-  private handleNavigation(): void {
-    combineLatest([this.activatedRoute.data, this.activatedRoute.queryParamMap]).subscribe(([data, params]) => {
-      const page = params.get('page');
-      this.page = +(page ?? 1);
-      const sort = (params.get(SORT) ?? data['defaultSort']).split(',');
-      this.predicate = sort[0];
-      this.ascending = sort[1] === ASC;
-      this.loadAll();
-    });
-  }
-
-  private sort(): string[] {
-    const result = [`${this.predicate},${this.ascending ? ASC : DESC}`];
-    if (this.predicate !== 'id') {
-      result.push('id');
+  protected sort(): string[] {
+    let hasId = false;
+    for (const s of this.tableSort) {
+      if (s.startsWith('id')) {
+        hasId = true;
+      }
     }
-    return result;
+    if (!hasId) {
+      this.tableSort.push('id,asc');
+    }
+    return this.tableSort;
   }
 
-  private onSuccess(users: User[] | null, headers: HttpHeaders): void {
+  protected handleNavigation(): void {
+    combineLatest([this.activatedRoute.data, this.activatedRoute.queryParamMap])
+      .pipe(take(1))
+      .subscribe(([data, params]) => {
+        const page = params.get('page') ?? 0;
+        const pageNumber = +page > 0 ? +page : 1;
+        const sort: string = params.get('sort') ?? data.defaultSort;
+        const splitSort = sort.split(',');
+        const itemsPerPage = params.get('size');
+        const itemsPerPageNumber = itemsPerPage !== null ? +itemsPerPage : ITEMS_PER_PAGE;
+
+        for (let i = 0; i < splitSort.length; i += 2) {
+          const field = splitSort[i];
+          const order = splitSort[i + 1];
+          this.tableSort.push(`${field},${order}`);
+        }
+
+        if (pageNumber !== this.page && pageNumber > 0 && itemsPerPageNumber > 0) {
+          const calculatedSort = this.sort();
+          this.multiSortMeta = calculatedSort.map(s => {
+            const field = s.split(',')[0];
+            const order = s.split(',')[1] === 'asc' ? 1 : -1;
+            return { field, order };
+          });
+
+          this.first = (pageNumber - 1) * this.itemsPerPage;
+          this.itemsPerPage = itemsPerPageNumber;
+
+          this.loadPage(pageNumber, true);
+        }
+      });
+  }
+
+  protected onSuccess(data: User[] | null, headers: HttpHeaders, page: number, navigate: boolean, keepCurrentRecord?: boolean): void {
     this.totalItems = Number(headers.get('X-Total-Count'));
-    this.users = users;
+    this.page = page;
+    const queryParams: { page: number; size: number; sort: string; filter?: string } = {
+      page: this.page,
+      size: this.itemsPerPage,
+      sort: this.sort().join(','),
+    };
+    if (this.routeFilter.length > 0) {
+      queryParams.filter = this.routeFilter;
+    }
+
+    this.users = data ?? [];
+    this.selectFirstRow();
+    if (navigate) {
+      this.router.navigate(['/admin/user-management'], {
+        queryParams,
+      });
+    }
+  }
+
+  /*
+  selectRow(tableRow: User): void {
+    if (this._currentRecord && this._currentRecord.id =tableRow.id) {
+      return;
+    }
+    this._currentRecord = tableRow;
+    this.onRowSelect();
+  }
+*/
+
+  selectFirstRow(): void {
+    if (this.users.length > 0) {
+      this._currentRecord = this.users[0];
+    } else {
+      this._currentRecord = undefined;
+    }
+    this.selectedRecord = this._currentRecord;
+    this.onRowSelect();
+  }
+
+  onRowSelect(): void {
+    this.isEditing = false;
+    this.currentRecord.emit(this._currentRecord);
+    this.eventManager.broadcast(new EventWithContent<User | undefined>('UserRecordChange', this._currentRecord));
+  }
+
+  selectCurrentRecord(): void {
+    let recordIsChanged = true;
+    if (this.users.length > 0) {
+      if (this.selectedRecord?.id) {
+        this._currentRecord = this.users.find(item => item.id === this.selectedRecord!.id);
+        if (JSON.stringify(this._currentRecord) === JSON.stringify(this.selectedRecord)) {
+          recordIsChanged = false;
+        }
+      } else {
+        this._currentRecord = this.users[0];
+      }
+    } else {
+      this._currentRecord = undefined;
+    }
+    if (recordIsChanged) {
+      this.onRowSelect();
+    }
+  }
+
+  selectRow(): void {
+    if (this.isEditing) {
+      this.confirmationService.confirm({
+        header: this.translateService.instant('entity.save.title'),
+        message: this.translateService.instant('entity.save.message'),
+        rejectLabel: this.translateService.instant('entity.action.cancel'),
+        acceptLabel: this.translateService.instant('entity.action.delete'),
+        rejectIcon: 'pi pi-ban',
+        rejectButtonStyleClass: 'p-button-secondary',
+        acceptIcon: 'pi pi-save',
+        acceptButtonStyleClass: 'p-button-primary',
+        accept: () => {
+          this.selectedRecord = this._currentRecord;
+          this.eventManager.broadcast('UserSaveRecord');
+        },
+        reject: () => {
+          this._currentRecord = this.selectedRecord;
+          this.onRowSelect();
+        },
+      });
+    } else {
+      this._currentRecord = this.selectedRecord;
+      this.onRowSelect();
+    }
+  }
+
+  createRecord(): void {
+    // create a new record and make it a current record
+    const newRecord: User = new User();
+
+    this.users.unshift(newRecord);
+    this.addingNewRecord = true;
+    this.selectFirstRow();
+  }
+
+  removeNewRecord(): void {
+    if (this.users.length > 0) {
+      if (this.users[0].id === undefined) {
+        this.users = this.users.slice(1);
+        this.addingNewRecord = false;
+        this.selectFirstRow();
+      }
+    }
+  }
+
+  globalSearch(): void {
+    this.newUserTable.filterGlobal(this.globalSearchTerm, 'contains');
+  }
+
+  onSelectAllClick(): void {
+    this.selectedAll = !this.selectedAll;
   }
 }

@@ -10,18 +10,18 @@ public class ProductTestSamples {
     private static final AtomicLong longCount = new AtomicLong(random.nextInt() + (2 * Integer.MAX_VALUE));
 
     public static Product getProductSample1() {
-        return new Product().id(1L).code("code1").name("name1").seq(1L);
+        return new Product().withId(1L).withCode("code1").withName("name1").withSeq(1L);
     }
 
     public static Product getProductSample2() {
-        return new Product().id(2L).code("code2").name("name2").seq(2L);
+        return new Product().withId(2L).withCode("code2").withName("name2").withSeq(2L);
     }
 
     public static Product getProductRandomSampleGenerator() {
         return new Product()
-            .id(longCount.incrementAndGet())
-            .code(UUID.randomUUID().toString())
-            .name(UUID.randomUUID().toString())
-            .seq(longCount.incrementAndGet());
+            .withId(longCount.incrementAndGet())
+            .withCode(UUID.randomUUID().toString())
+            .withName(UUID.randomUUID().toString())
+            .withSeq(longCount.incrementAndGet());
     }
 }

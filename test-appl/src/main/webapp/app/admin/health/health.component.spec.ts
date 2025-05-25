@@ -1,9 +1,10 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { HttpErrorResponse } from '@angular/common/http';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
+import { TranslateModule } from '@ngx-translate/core';
 
-import { HealthComponent } from './health.component';
+import HealthComponent from './health.component';
 import { HealthService } from './health.service';
 import { Health } from './health.model';
 
@@ -14,8 +15,8 @@ describe('HealthComponent', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      declarations: [HealthComponent],
+      imports: [HealthComponent, TranslateModule.forRoot()],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     })
       .overrideTemplate(HealthComponent, '')
       .compileComponents();
@@ -31,8 +32,8 @@ describe('HealthComponent', () => {
     it('should get badge class', () => {
       const upBadgeClass = comp.getBadgeClass('UP');
       const downBadgeClass = comp.getBadgeClass('DOWN');
-      expect(upBadgeClass).toEqual('bg-success');
-      expect(downBadgeClass).toEqual('bg-danger');
+      expect(upBadgeClass).toEqual('badge-success');
+      expect(downBadgeClass).toEqual('badge-danger');
     });
   });
 
@@ -53,7 +54,7 @@ describe('HealthComponent', () => {
     it('should handle a 503 on refreshing health data', () => {
       // GIVEN
       const health: Health = { status: 'DOWN', components: { mail: { status: 'DOWN' } } };
-      jest.spyOn(service, 'checkHealth').mockReturnValue(throwError(new HttpErrorResponse({ status: 503, error: health })));
+      jest.spyOn(service, 'checkHealth').mockReturnValue(throwError(() => new HttpErrorResponse({ status: 503, error: health })));
 
       // WHEN
       comp.refresh();

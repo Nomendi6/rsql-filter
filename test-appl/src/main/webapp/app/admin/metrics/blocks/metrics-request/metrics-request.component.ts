@@ -1,23 +1,28 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { TableModule } from 'primeng/table';
+import { ProgressBarModule } from 'primeng/progressbar';
 
+import SharedModule from 'app/shared/shared.module';
 import { HttpServerRequests } from 'app/admin/metrics/metrics.model';
 import { filterNaN } from 'app/core/util/operators';
 
 @Component({
-  selector: 'jhi-metrics-request',
+  standalone: true,
+  selector: 'app-metrics-request',
   templateUrl: './metrics-request.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [SharedModule, TableModule, ProgressBarModule],
 })
 export class MetricsRequestComponent {
   /**
    * object containing http request related metrics
    */
-  @Input() requestMetrics?: HttpServerRequests;
+  requestMetrics = input<HttpServerRequests>();
 
   /**
    * boolean field saying if the metrics are in the process of being updated
    */
-  @Input() updating?: boolean;
+  updating = input<boolean>();
 
-  filterNaN = (input: number): number => filterNaN(input);
+  filterNaN = (n: number): number => filterNaN(n);
 }

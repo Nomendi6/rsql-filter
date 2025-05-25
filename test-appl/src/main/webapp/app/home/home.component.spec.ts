@@ -1,20 +1,26 @@
 jest.mock('app/core/auth/account.service');
 
+import { expect, jest } from '@jest/globals';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { Router } from '@angular/router';
-import { RouterTestingModule } from '@angular/router/testing';
-import { of, Subject } from 'rxjs';
-
+import { Router, provideRouter } from '@angular/router';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { MissingTranslationHandler, TranslateModule, TranslateService } from '@ngx-translate/core';
+import { Subject, of } from 'rxjs';
 import { AccountService } from 'app/core/auth/account.service';
 import { Account } from 'app/core/auth/account.model';
-
-import { HomeComponent } from './home.component';
+import { LoginService } from 'app/login/login.service';
+import { BreadcrumbService } from '../layouts/main/breadcrumb.service';
+import { missingTranslationHandler } from '../config/translation.config';
+import HomeComponent from './home.component';
 
 describe('Home Component', () => {
   let comp: HomeComponent;
   let fixture: ComponentFixture<HomeComponent>;
   let mockAccountService: AccountService;
   let mockRouter: Router;
+  let translateService: TranslateService;
+
   const account: Account = {
     activated: true,
     authorities: [],
@@ -28,12 +34,31 @@ describe('Home Component', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule.withRoutes([])],
-      declarations: [HomeComponent],
-      providers: [AccountService],
+      imports: [
+        HomeComponent,
+        TranslateModule.forRoot({
+          missingTranslationHandler: {
+            provide: MissingTranslationHandler,
+            useFactory: missingTranslationHandler,
+          },
+        }),
+      ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        AccountService,
+        LoginService,
+        BreadcrumbService,
+        TranslateService,
+      ],
     })
       .overrideTemplate(HomeComponent, '')
       .compileComponents();
+
+    translateService = TestBed.inject(TranslateService);
+    translateService.setDefaultLang('en');
+    TestBed.inject(BreadcrumbService);
   }));
 
   beforeEach(() => {
@@ -57,19 +82,19 @@ describe('Home Component', () => {
       comp.ngOnInit();
 
       // THEN
-      expect(comp.account).toBeNull();
+      expect(comp.account()).toBeNull();
 
       // WHEN
       authenticationState.next(account);
 
       // THEN
-      expect(comp.account).toEqual(account);
+      expect(comp.account()).toEqual(account);
 
       // WHEN
       authenticationState.next(null);
 
       // THEN
-      expect(comp.account).toBeNull();
+      expect(comp.account()).toBeNull();
     });
   });
 
@@ -93,20 +118,20 @@ describe('Home Component', () => {
       comp.ngOnInit();
 
       // THEN
-      expect(comp.account).toBeNull();
+      expect(comp.account()).toBeNull();
 
       // WHEN
       authenticationState.next(account);
 
       // THEN
-      expect(comp.account).toEqual(account);
+      expect(comp.account()).toEqual(account);
 
       // WHEN
       comp.ngOnDestroy();
       authenticationState.next(null);
 
       // THEN
-      expect(comp.account).toEqual(account);
+      expect(comp.account()).toEqual(account);
     });
   });
 });

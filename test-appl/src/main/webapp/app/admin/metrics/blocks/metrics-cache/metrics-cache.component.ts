@@ -1,23 +1,27 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { TableModule } from 'primeng/table';
 
+import SharedModule from 'app/shared/shared.module';
 import { CacheMetrics } from 'app/admin/metrics/metrics.model';
 import { filterNaN } from 'app/core/util/operators';
 
 @Component({
-  selector: 'jhi-metrics-cache',
+  standalone: true,
+  selector: 'app-metrics-cache',
   templateUrl: './metrics-cache.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [SharedModule, TableModule],
 })
 export class MetricsCacheComponent {
   /**
    * object containing all cache related metrics
    */
-  @Input() cacheMetrics?: { [key: string]: CacheMetrics };
+  cacheMetrics = input<Record<string, CacheMetrics>>();
 
   /**
    * boolean field saying if the metrics are in the process of being updated
    */
-  @Input() updating?: boolean;
+  updating = input<boolean>();
 
-  filterNaN = (input: number): number => filterNaN(input);
+  filterNaN = (n: number): number => filterNaN(n);
 }

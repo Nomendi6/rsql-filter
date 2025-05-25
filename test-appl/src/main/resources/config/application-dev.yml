@@ -18,6 +18,8 @@ logging:
     ROOT: DEBUG
     tech.jhipster: DEBUG
     org.hibernate.SQL: DEBUG
+    javax.management: ERROR
+    org.hibernate.orm.incubating: ERROR
     testappl: DEBUG
 
 spring:
@@ -40,8 +42,8 @@ spring:
       auto-commit: false
   h2:
     console:
-      # disable spring boot built-in h2-console since we start it manually with correct configuration
-      enabled: false
+      # JHipster uses a custom h2-console initializer
+      enabled: true
   liquibase:
     # Remove 'faker' if you do not want the sample data to be loaded automatically
     contexts: dev, faker
@@ -57,6 +59,8 @@ spring:
 
 server:
   port: 8080
+  # make sure requests the proxy uri instead of the server one
+  forward-headers-strategy: native
 
 # ===================================================================
 # JHipster specific properties
@@ -84,7 +88,7 @@ jhipster:
     authentication:
       jwt:
         # This token must be encoded using Base64 and be at least 256 bits long (you can type `openssl rand -base64 64` on your command line to generate a 512 bits one)
-        base64-secret: YTU3NzkyMTBjMmY4OGE0MTQ3NWMzN2Y4NjY4Y2NhOTVjMTNhM2FjNmQ4NzEwYzk1YTI1MjkzYzhkNjEwYjBhNWNmZTJmYWMwNGM5MTJhNWUwMzNhNjgxOTQ3ZjY3ZDhmNjY4YTRlZGVkMGQ2OGY0YzcyNjBkZDZjYzE2YzUwYmE=
+        base64-secret: 219cc757688babebcd9d66c6b87de1d9d875b5d0156a437482a983999a0c3b2bbb4cb9138d49bfdff30fd87fbdd417a79db2019f11e6343796209d6187e2c527
         # Token is valid 24 hours
         token-validity-in-seconds: 86400
         token-validity-in-seconds-for-remember-me: 2592000

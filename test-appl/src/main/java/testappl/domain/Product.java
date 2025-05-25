@@ -1,3 +1,4 @@
+// Bp:Spiral5|Entity.java|4.1
 package testappl.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -15,8 +16,7 @@ import testappl.domain.enumeration.StandardRecordStatus;
 @Entity
 @Table(name = "product")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-@SuppressWarnings("common-java:DuplicatedBlocks")
-public class Product implements Serializable {
+public class Product extends AbstractAuditingEntity<Long> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -34,8 +34,7 @@ public class Product implements Serializable {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Lob
-    @Column(name = "description")
+    @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
     @Column(name = "seq")
@@ -51,34 +50,33 @@ public class Product implements Serializable {
     @Column(name = "valid_until")
     private Instant validUntil;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     private ProductType tproduct;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JsonIgnoreProperties(value = { "tproduct", "parent" }, allowSetters = true)
     private Product parent;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
-
     public Long getId() {
-        return this.id;
-    }
-
-    public Product id(Long id) {
-        this.setId(id);
-        return this;
+        return id;
     }
 
     public void setId(Long id) {
         this.id = id;
     }
 
+    public Product withId(Long id) {
+        this.id = id;
+        return this;
+    }
+
     public String getCode() {
         return this.code;
     }
 
-    public Product code(String code) {
-        this.setCode(code);
+    public Product withCode(String code) {
+        this.code = code;
         return this;
     }
 
@@ -90,8 +88,8 @@ public class Product implements Serializable {
         return this.name;
     }
 
-    public Product name(String name) {
-        this.setName(name);
+    public Product withName(String name) {
+        this.name = name;
         return this;
     }
 
@@ -103,8 +101,8 @@ public class Product implements Serializable {
         return this.description;
     }
 
-    public Product description(String description) {
-        this.setDescription(description);
+    public Product withDescription(String description) {
+        this.description = description;
         return this;
     }
 
@@ -116,8 +114,8 @@ public class Product implements Serializable {
         return this.seq;
     }
 
-    public Product seq(Long seq) {
-        this.setSeq(seq);
+    public Product withSeq(Long seq) {
+        this.seq = seq;
         return this;
     }
 
@@ -129,8 +127,8 @@ public class Product implements Serializable {
         return this.status;
     }
 
-    public Product status(StandardRecordStatus status) {
-        this.setStatus(status);
+    public Product withStatus(StandardRecordStatus status) {
+        this.status = status;
         return this;
     }
 
@@ -142,8 +140,8 @@ public class Product implements Serializable {
         return this.validFrom;
     }
 
-    public Product validFrom(Instant validFrom) {
-        this.setValidFrom(validFrom);
+    public Product withValidFrom(Instant validFrom) {
+        this.validFrom = validFrom;
         return this;
     }
 
@@ -155,8 +153,8 @@ public class Product implements Serializable {
         return this.validUntil;
     }
 
-    public Product validUntil(Instant validUntil) {
-        this.setValidUntil(validUntil);
+    public Product withValidUntil(Instant validUntil) {
+        this.validUntil = validUntil;
         return this;
     }
 
@@ -168,26 +166,26 @@ public class Product implements Serializable {
         return this.tproduct;
     }
 
-    public void setTproduct(ProductType productType) {
-        this.tproduct = productType;
-    }
-
-    public Product tproduct(ProductType productType) {
+    public Product withTproduct(ProductType productType) {
         this.setTproduct(productType);
         return this;
+    }
+
+    public void setTproduct(ProductType productType) {
+        this.tproduct = productType;
     }
 
     public Product getParent() {
         return this.parent;
     }
 
-    public void setParent(Product product) {
-        this.parent = product;
-    }
-
-    public Product parent(Product product) {
+    public Product withParent(Product product) {
         this.setParent(product);
         return this;
+    }
+
+    public void setParent(Product product) {
+        this.parent = product;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
@@ -200,7 +198,7 @@ public class Product implements Serializable {
         if (!(o instanceof Product)) {
             return false;
         }
-        return getId() != null && getId().equals(((Product) o).getId());
+        return id != null && id.equals(((Product) o).id);
     }
 
     @Override
