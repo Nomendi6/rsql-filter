@@ -3,6 +3,7 @@ package rsql.where;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath;
+import org.hibernate.spi.DotIdentifierSequence;
 import org.hibernate.spi.NavigablePath;
 import rsql.antlr.where.RsqlWhereBaseVisitor;
 import rsql.antlr.where.RsqlWhereParser;
@@ -125,7 +126,7 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
 //        String pathString = getFullPath(navigablePath);
     }
 
-    private String getFullPath(NavigablePath navigablePath) {
+    public String getFullPathOld(NavigablePath navigablePath) {
         // return navigablePath.getLocalName();
 
         String rootPath = getRootPath(navigablePath);
@@ -145,6 +146,29 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
 
         return fullPath;
 
+    }
+
+    public String getFullPath(NavigablePath navigablePath) {
+        DotIdentifierSequence[] parts = navigablePath.getParts();
+        if (parts.length == 0) {
+            return "";
+        }
+
+        // Skip the first part (root) and join the rest with dots
+        if (parts.length > 1) {
+            StringBuilder fullPath = new StringBuilder();
+            for (int i = 1; i < parts.length; i++) {
+                if (!fullPath.isEmpty()) {
+                    fullPath.append(".");
+                }
+                fullPath.append(parts[i].getLocalName());
+
+            }
+            return fullPath.toString();
+        } else {
+            // If there's only one part (root), return the local name
+            return navigablePath.getLocalName();
+        }
     }
 
     private String getRootPath(NavigablePath navigablePath) {
