@@ -57,6 +57,17 @@ public class Product extends AbstractAuditingEntity<Long> implements Serializabl
     @JsonIgnoreProperties(value = { "tproduct", "parent" }, allowSetters = true)
     private Product parent;
 
+    public Product() {
+    }
+
+    public Product(Long id, String code, String name, String tproductName) {
+        this.id = id;
+        this.code = code;
+        this.name = name;
+        this.tproduct = new ProductType().withName(tproductName);
+        this.tproduct.setId(1L);
+    }
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
     public Long getId() {
         return id;
