@@ -84,7 +84,7 @@
         <!-- Dependency on rsql library module -->
         <dependency>
             <groupId>com.nomendi6</groupId>
-            <artifactId>rsql-filter</artifactId>
+            <artifactId>rsql-filter-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
 
