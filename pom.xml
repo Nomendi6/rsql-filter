@@ -38,7 +38,6 @@
         <module>rsql-filter-core</module>
         <module>rsql-filter-integration-tests</module>
         <module>rsql-filter-demo</module>
-        <module>test-appl</module>
     </modules>
 
     <properties>
