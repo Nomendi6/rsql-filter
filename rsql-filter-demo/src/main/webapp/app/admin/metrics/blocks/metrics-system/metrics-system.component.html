@@ -1,0 +1,59 @@
+<h4>System</h4>
+
+@if (!updating() && systemMetrics()) {
+  <div class="p-grid">
+    <div class="p-col-4">Uptime</div>
+    <div class="p-col-8 text-end">{{ convertMillisecondsToDuration(systemMetrics()!['process.uptime']) }}</div>
+  </div>
+
+  <div class="p-grid">
+    <div class="p-col-4">Start time</div>
+    <div class="p-col-8 text-end">{{ systemMetrics()!['process.start.time'] | date: 'full' }}</div>
+  </div>
+
+  <div class="p-grid">
+    <div class="p-col-9">Process CPU usage</div>
+    <div class="p-col-3 text-end">{{ 100 * systemMetrics()!['process.cpu.usage'] | number: '1.0-2' }} %</div>
+  </div>
+
+  <p-progressBar
+    [value]="100 * systemMetrics()!['process.cpu.usage'] | number: '1.0-2'"
+    [mode]="'determinate'"
+    [showValue]="true"
+    [style]="{ height: '20px' }"
+    class="p-mt-2"
+  ></p-progressBar>
+
+  <div class="p-grid">
+    <div class="p-col-9">System CPU usage</div>
+    <div class="p-col-3 text-end">{{ 100 * systemMetrics()!['system.cpu.usage'] | number: '1.0-2' }} %</div>
+  </div>
+
+  <p-progressBar
+    [value]="100 * systemMetrics()!['system.cpu.usage'] | number: '1.0-2'"
+    [mode]="'determinate'"
+    [showValue]="true"
+    [style]="{ height: '20px' }"
+    class="p-mt-2"
+  ></p-progressBar>
+
+  <div class="p-grid">
+    <div class="p-col-9">System CPU count</div>
+    <div class="p-col-3 text-end">{{ systemMetrics()!['system.cpu.count'] }}</div>
+  </div>
+
+  <div class="p-grid">
+    <div class="p-col-9">System 1m Load average</div>
+    <div class="p-col-3 text-end">{{ systemMetrics()!['system.load.average.1m'] | number: '1.0-2' }}</div>
+  </div>
+
+  <div class="p-grid">
+    <div class="p-col-9">Process files max</div>
+    <div class="p-col-3 text-end">{{ systemMetrics()!['process.files.max'] | number: '1.0-0' }}</div>
+  </div>
+
+  <div class="p-grid">
+    <div class="p-col-9">Process files open</div>
+    <div class="p-col-3 text-end">{{ systemMetrics()!['process.files.open'] | number: '1.0-0' }}</div>
+  </div>
+}

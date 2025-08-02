@@ -1,0 +1,8 @@
+{
+  "StandardRecordStatus": {
+    "undefined": "",
+    "null": "",
+    "ACTIVE": "Active",
+    "NOT_ACTIVE": "Not Active"
+  }
+}

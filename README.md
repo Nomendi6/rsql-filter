@@ -1,8 +1,63 @@
-# **Rsql-filter**
+# RSQL Filter
 
-Rsql-filter is a Java library for Spring Boot JPA applications that provides a simple and convenient way to transfer filter parameters in REST GET requests. The library makes it easy to build RESTful APIs that allow clients to filter data based on specific criteria.
+[![Maven Central](https://img.shields.io/maven-central/v/com.nomendi6/rsql-filter.svg)](https://maven-badges.herokuapp.com/maven-central/com.nomendi6/rsql-filter)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Java CI](https://github.com/nomendi6/rsql-filter/workflows/Java%20CI/badge.svg)](https://github.com/nomendi6/rsql-filter/actions)
 
-## **Usage**
+RSQL Filter is a Java library for Spring Boot JPA applications that provides a simple and convenient way to filter data in REST APIs using RSQL (RESTful Service Query Language) syntax.
+
+## What is RSQL?
+
+RSQL (RESTful Service Query Language) is a query language for parametrized filtering of entries in RESTful APIs. It's based on FIQL (Feed Item Query Language) – an URI-friendly syntax for expressing filters across the entries in an Atom Feed.
+
+RSQL provides a simple and intuitive syntax that allows clients to filter data without exposing the underlying database structure.
+
+## Quick Start
+
+1. Add the dependency to your project
+2. Extend your repository with `JpaSpecificationExecutor`
+3. Create a `RsqlQueryService` in your service
+4. Use the filter parameter in your REST endpoints
+
+See the [complete example](#example-rest-controller) below.
+
+For detailed API documentation, see [API.md](API.md).
+
+## Installation
+
+### Maven
+```xml
+<dependency>
+    <groupId>com.nomendi6</groupId>
+    <artifactId>rsql-filter</artifactId>
+    <version>0.6.2</version>
+</dependency>
+```
+
+### Gradle
+```gradle
+implementation 'com.nomendi6:rsql-filter:0.6.2'
+```
+
+### Requirements
+- Java 17 or higher
+- Spring Boot 3.x
+- Hibernate 6.x
+
+## Features
+
+- **Simple Query Language**: Intuitive syntax for filtering data
+- **Type Safety**: Automatic type conversion and validation
+- **JPA Integration**: Seamless integration with Spring Data JPA
+- **Rich Set of Operators**: Comprehensive set of comparison operators
+- **Complex Queries**: Support for nested queries with AND/OR logic
+- **Sorting**: Built-in support for sorting results
+- **Pagination**: Full Spring Data pagination support
+- **LOV Queries**: List of Values queries for dropdowns/autocomplete
+- **ANTLR Based**: Robust parser built with ANTLR4
+- **Error Handling**: Detailed error messages for invalid queries
+
+## Usage
 
 To use Rsql-filter in your application, you simply need to pass a **`filter`** parameter in your REST GET request. The value of the filter parameter should be a string that specifies the filtering criteria.
 
@@ -128,20 +183,173 @@ public interface ProductTypeRepository extends JpaRepository<ProductType, Long>,
 }
 ```
 
-Complete example application can be found [here](./test-appl).
+Complete example application can be found [here](./rsql-filter-demo).
 
-## Spring Boot integration
+## Advanced Usage
 
-This library is designed to work with Spring Boot JPA applications. It provides a convenient way to transfer filter parameters in REST GET requests. The library makes it easy to build RESTful APIs that allow clients to filter data based on specific criteria.
+### Sorting
+Add sort parameter to your requests:
+```
+GET /api/products?filter=price=gt=100&sort=name,asc&sort=price,desc
+```
 
-This specific version is working with Spring Boot 3 (3.3.5) and Hibernate version 6 (6.5.3.Final).   
+### Complex Queries
+Use parentheses for grouping and `;` (AND) or `,` (OR) for combining:
+```
+GET /api/products?filter=(category.name=='Electronics',category.name=='Books');price=lt=50
+```
 
-## **References**
+Instead of `;` you can use 'and', and istead of `,` you can use 'or':
+```
+GET /api/products?filter=(category.name=='Electronics'%20and%20category.name=='Books')&price=lt=50
+```
 
-This work is based on the following projects:
-- RSQL / FIQL parser by Jakub Jirutka: [https://github.com/jirutka/rsql-parser](https://github.com/jirutka/rsql-parser)
-- Perplexhub/rsql-jpa-specification by Perplexhub: [https://github.com/perplexhub/rsql-jpa-specification](https://github.com/perplexhub/rsql-jpa-specification)
+### Nested Properties
+Access nested entity properties using dot notation:
+```
+GET /api/orders?filter=customer.email=='john@example.com';orderDate=ge=#2024-01-01#
+```
 
-## **Conclusion**
+### List of Values (LOV) Queries
+For autocomplete/dropdown functionality:
+```java
+List<LovDTO> lovs = queryService.findLovByFilter(
+    "name=like='*search*'", 
+    "id", "name", 10
+);
+```
 
-Rsql-filter is a simple and convenient library for Spring Boot JPA applications that makes it easy to transfer filter parameters in REST GET requests. Whether you are building a new RESTful API or adding filtering to an existing one, Rsql-filter is an excellent choice for your filtering needs.
+### Custom JPQL Queries
+For complex scenarios, you can provide custom JPQL:
+```java
+String selectQuery = "SELECT DISTINCT p FROM Product p LEFT JOIN p.categories c";
+String countQuery = "SELECT COUNT(DISTINCT p) FROM Product p LEFT JOIN p.categories c";
+
+RsqlQueryService queryService = new RsqlQueryService<>(
+    repository, mapper, entityManager, Product.class, 
+    selectQuery, countQuery
+);
+```
+
+## Error Handling
+
+The library provides detailed error messages for invalid queries:
+
+- **Syntax Errors**: Invalid RSQL syntax
+- **Type Mismatch**: Wrong data type for field
+- **Unknown Field**: Field doesn't exist in entity
+- **Invalid Operator**: Operator not supported for field type
+
+Example error response:
+```json
+{
+  "error": "SyntaxErrorException",
+  "message": "Unexpected character '&' at position 15",
+  "details": "Invalid RSQL expression: name=='John' & age>30"
+}
+```
+
+## Architecture
+
+The library consists of several key components:
+
+- **RsqlCompiler**: Compiles RSQL strings into JPA Specifications
+- **RsqlQueryService**: Generic service for executing RSQL queries
+- **ANTLR Grammar**: Defines the RSQL syntax (RsqlWhere.g4, RsqlSelect.g4)
+- **Visitors**: Convert parse trees to JPA Specifications or JPQL
+
+For complete method documentation and parameters, see [API.md](API.md).
+
+## Configuration
+
+### Basic Configuration
+```java
+@Service
+@Transactional
+public class ProductService {
+    private RsqlQueryService<Product, ProductDTO, ProductRepository, ProductMapper> queryService;
+
+    public RsqlQueryService<Product, ProductDTO, ProductRepository, ProductMapper> getQueryService() {
+        if (this.queryService == null) {
+            this.queryService = new RsqlQueryService<>(repository, mapper, entityManager, Product.class);
+        }
+        return this.queryService;
+    }
+}
+```
+
+### Custom Query Configuration
+```java
+@Configuration
+public class RsqlConfiguration {
+    
+    @Bean
+    public RsqlQueryService<Product, ProductDTO, ProductRepository, ProductMapper> 
+           productQueryService(ProductRepository repository, 
+                              ProductMapper mapper, 
+                              EntityManager entityManager) {
+        return new RsqlQueryService<>(repository, mapper, entityManager, Product.class);
+    }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Q: Getting "Unknown property" errors?**  
+A: Ensure your entity fields are properly mapped and accessible. Check for @JsonIgnore or missing getters.
+
+**Q: Date filtering not working?**  
+A: Use ISO format with # delimiters: `date=ge=#2024-01-01#` or `datetime=le=#2024-01-01T23:59:59#`
+
+**Q: How to filter by enum?**  
+A: Use # delimiters: `status==#ACTIVE#` or `status=in=(#ACTIVE#,#PENDING#)`
+
+**Q: Getting SQL syntax errors?**  
+A: Check that field names match your entity properties exactly (case-sensitive)
+
+**Q: How to handle special characters in string values?**  
+A: Use URL encoding for special characters or different quote types: `name=="John's"` or `name=='John"s'`
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+1. Clone the repository
+2. Run `mvn clean install` to build
+3. Run integration tests: `mvn test -pl rsql-filter-integration-tests`
+
+### Running the Demo Application
+```bash
+cd rsql-filter-demo
+./mvnw spring-boot:run
+```
+Access the application at http://localhost:8080
+
+### Submitting Changes
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Compatibility
+
+| rsql-filter | Spring Boot | Hibernate | Java |
+|-------------|-------------|-----------|------|
+| 0.6.x       | 3.x         | 6.x       | 17+  |
+| 0.5.x       | 2.7.x       | 5.x       | 11+  |
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+This library is inspired by and builds upon:
+- [RSQL Parser](https://github.com/jirutka/rsql-parser) by Jakub Jirutka
+- [RSQL JPA Specification](https://github.com/perplexhub/rsql-jpa-specification) by Perplexhub
+
+Special thanks to the Spring Boot and ANTLR communities.

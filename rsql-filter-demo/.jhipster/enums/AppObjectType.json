@@ -1,0 +1,5 @@
+{
+  "name" : "AppObjectType",
+  "values" : [ "FUNCTIONAL_MODULE", "FORM", "REPORT", "ENTITY" ],
+  "defaultValue" : "FUNCTIONAL_MODULE"
+}

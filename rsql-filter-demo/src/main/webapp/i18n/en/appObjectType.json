@@ -1,0 +1,10 @@
+{
+  "AppObjectType": {
+    "undefined": "",
+    "null": "",
+    "FUNCTIONAL_MODULE": "Functional Module",
+    "FORM": "Form",
+    "REPORT": "Report",
+    "ENTITY": "Entity"
+  }
+}

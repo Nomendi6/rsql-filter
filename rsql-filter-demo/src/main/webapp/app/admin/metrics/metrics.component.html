@@ -1,0 +1,73 @@
+<div class="p-grid p-justify-center">
+  <div class="p-col-12 p-xl-10">
+    <p-card>
+      <h1 class="text-2xl font-bold" id="metrics-page-heading" data-cy="metricsPageHeading" appTranslate="metrics.title">
+        Application Metrics
+      </h1>
+
+      <div class="flex justify-between mb-1">
+        <div>
+          <p-button
+            styleClass="mr-2"
+            (onClick)="refresh()"
+            label="{{ 'health.refresh.button' | translate }}"
+            icon="pi pi-refresh"
+            iconPos="left"
+          ></p-button>
+        </div>
+      </div>
+
+      <h3 appTranslate="metrics.jvm.title">JVM Metrics</h3>
+
+      @if (metrics() && !updatingMetrics()) {
+        <div class="p-grid">
+          <div class="p-col-12 p-md-4">
+            <app-jvm-memory class="col-md-4" [updating]="updatingMetrics()" [jvmMemoryMetrics]="metrics()?.jvm"></app-jvm-memory>
+          </div>
+
+          <div class="p-col-12 p-md-4">
+            <app-jvm-threads class="col-md-4" [threads]="threads()"></app-jvm-threads>
+          </div>
+
+          <div class="p-col-12 p-md-4">
+            <app-metrics-system
+              class="col-md-4"
+              [updating]="updatingMetrics()"
+              [systemMetrics]="metrics()?.processMetrics"
+            ></app-metrics-system>
+          </div>
+        </div>
+      }
+
+      @if (metrics() && metricsKeyExists('garbageCollector')) {
+        <app-metrics-garbagecollector
+          [updating]="updatingMetrics()"
+          [garbageCollectorMetrics]="metrics()?.garbageCollector"
+        ></app-metrics-garbagecollector>
+      }
+
+      @if (updatingMetrics()) {
+        <div class="p-text-center p-text-lg" *ngIf="updatingMetrics" appTranslate="metrics.updating">Updating...</div>
+      }
+
+      @if (metrics() && metricsKeyExists('http.server.requests')) {
+        <app-metrics-request [updating]="updatingMetrics()" [requestMetrics]="metrics()?.['http.server.requests']"></app-metrics-request>
+      }
+
+      @if (metrics() && metricsKeyExists('services')) {
+        <app-metrics-endpoints-requests
+          [updating]="updatingMetrics()"
+          [endpointsRequestsMetrics]="metrics()?.services"
+        ></app-metrics-endpoints-requests>
+      }
+
+      @if (metrics() && metricsKeyExists('cache')) {
+        <app-metrics-cache [updating]="updatingMetrics()" [cacheMetrics]="metrics()?.cache"></app-metrics-cache>
+      }
+
+      @if (metrics() && metricsKeyExistsAndObjectNotEmpty('databases')) {
+        <app-metrics-datasource [updating]="updatingMetrics()" [datasourceMetrics]="metrics()?.databases"></app-metrics-datasource>
+      }
+    </p-card>
+  </div>
+</div>

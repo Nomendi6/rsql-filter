@@ -1,0 +1,31 @@
+@if (isAuthenticated()) {
+  <app-menu></app-menu>
+  <div class="p-8">
+    <p-toast></p-toast>
+    <router-outlet></router-outlet>
+    <p-confirmDialog [style]="{ width: '50vw' }" #cd>
+      <ng-template pTemplate="rejecticon">
+        @if (cd.option('rejectIcon')) {
+          <i [class]="cd.option('rejectIcon') + ' mr-1'"></i>
+        } @else {
+          <i class="pi pi-times mr-1"></i>
+        }
+      </ng-template>
+      <ng-template pTemplate="accepticon">
+        @if (cd.option('acceptIcon')) {
+          <i [class]="cd.option('acceptIcon') + ' mr-1'"></i>
+        } @else {
+          <i class="pi pi-check mr-1"></i>
+        }
+      </ng-template>
+    </p-confirmDialog>
+    <app-form-help-dialog></app-form-help-dialog>
+  </div>
+} @else if (!isLoadingUser) {
+  <div class="h-screen bg-gradient-to-b from-green-300 to-blue-50 dark:from-emerald-700 dark:to-slate-900 transition-colors duration-300">
+    <div class="px-6 py-20 md:px-12 lg:px-20 flex items-center justify-center">
+      <p-toast></p-toast>
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+}

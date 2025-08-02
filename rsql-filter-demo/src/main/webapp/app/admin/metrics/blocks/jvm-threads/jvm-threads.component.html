@@ -1,0 +1,70 @@
+<h4 appTranslate="metrics.jvm.threads.title">Threads</h4>
+
+<span><span appTranslate="metrics.jvm.threads.runnable">Runnable</span> {{ threadStats.threadDumpRunnable }}</span>
+
+<p-progressBar
+  [value]="(threadStats.threadDumpRunnable / threadStats.threadDumpAll) * 100"
+  mode="determinate"
+  [style]="{ 'background-color': '#f0f0f0', height: '20px' }"
+  class="p-mt-1"
+  styleClass="rounded-md "
+>
+  <ng-template let-value>
+    <div class="p-grid p-nogutter p-justify-between">
+      <div class="p-col">{{ (value * 100) / threadStats.threadDumpAll | number: '1.0-0' }}%</div>
+    </div>
+  </ng-template>
+</p-progressBar>
+
+<span><span appTranslate="metrics.jvm.threads.timedwaiting">Timed waiting</span> ({{ threadStats.threadDumpTimedWaiting }})</span>
+
+<p-progressBar
+  [value]="(threadStats.threadDumpTimedWaiting / threadStats.threadDumpAll) * 100"
+  mode="determinate"
+  [style]="{ 'background-color': '#f0f0f0', height: '20px' }"
+  class="p-mt-1"
+>
+  <ng-template let-value>
+    <div class="p-grid p-nogutter p-justify-between">
+      <div class="p-col">{{ (value * 100) / threadStats.threadDumpAll | number: '1.0-0' }}%</div>
+    </div>
+  </ng-template>
+</p-progressBar>
+
+<span><span appTranslate="metrics.jvm.threads.waiting">Waiting</span> ({{ threadStats.threadDumpWaiting }})</span>
+
+<p-progressBar
+  [value]="(threadStats.threadDumpWaiting / threadStats.threadDumpAll) * 100"
+  mode="determinate"
+  [style]="{ 'background-color': '#f0f0f0', height: '20px' }"
+  class="p-mt-1"
+  [styleClass]="'p-progress-bar-warning'"
+>
+  <ng-template let-value>
+    <div class="p-grid p-nogutter p-justify-between">
+      <div class="p-col">{{ (value * 100) / threadStats.threadDumpAll | number: '1.0-0' }}%</div>
+    </div>
+  </ng-template>
+</p-progressBar>
+
+<span><span appTranslate="metrics.jvm.threads.blocked">Blocked</span> ({{ threadStats.threadDumpBlocked }})</span>
+
+<p-progressBar
+  [value]="(threadStats.threadDumpBlocked / threadStats.threadDumpAll) * 100"
+  mode="determinate"
+  [style]="{ 'background-color': '#f0f0f0', height: '20px' }"
+  class="p-mt-1"
+  [styleClass]="'p-progress-bar-success'"
+>
+  <ng-template let-value>
+    <div class="p-grid p-nogutter p-justify-between">
+      <div class="p-col">{{ (value * 100) / threadStats.threadDumpAll | number: '1.0-0' }}%</div>
+    </div>
+  </ng-template>
+</p-progressBar>
+
+<div>Total: {{ threadStats.threadDumpAll }}</div>
+
+<p-button type="button" size="small" (onClick)="open()">
+  <span>Expand</span>
+</p-button>

@@ -1,0 +1,99 @@
+<div class="p-grid p-justify-center">
+  <div class="p-col-12 p-xl-10">
+    <p-card>
+      @if (loggers()) {
+        <div class="table-responsive">
+          <h1 class="text-2xl font-bold" id="logs-page-heading" data-cy="logsPageHeading" appTranslate="logs.title">Logs</h1>
+
+          <p appTranslate="logs.nbloggers" [translateValues]="{ total: loggers()?.length }">There are {{ loggers()?.length }} loggers.</p>
+
+          <span appTranslate="logs.filter">Filter</span>
+
+          <div class="ml-auto">
+            <p-iconfield>
+              <p-inputicon styleClass="pi pi-search" />
+              <input pInputText type="text" class="w-full" [ngModel]="filter" (ngModelChange)="filter.set($event)" />
+            </p-iconfield>
+          </div>
+
+          <p-table data-cy="LogsTable" [value]="filteredAndOrderedLoggers() ?? []" styleClass="p-datatable-sm p-datatable-striped">
+            <ng-template pTemplate="header">
+              <tr>
+                <th id="h_name" pSortableColumn="name">
+                  <span appTranslate="logs.table.name">Name</span>
+                  <p-sortIcon field="name"></p-sortIcon>
+                </th>
+                <th id="h_level" pSortableColumn="level">
+                  <span appTranslate="logs.table.level">Level</span>
+                  <p-sortIcon field="level"></p-sortIcon>
+                </th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-logger>
+              <tr [attr.data-cy]="'LogsTableRow_' + logger.id">
+                <td>
+                  <small>{{ logger.name | slice: 0 : 140 }}</small>
+                </td>
+                <td>
+                  <p-button
+                    type="button"
+                    (onClick)="changeLevel(logger.name, 'TRACE')"
+                    [severity]="logger.level === 'TRACE' ? 'primary' : 'secondary'"
+                    [outlined]="logger.level !== 'TRACE'"
+                    size="small"
+                    label="TRACE"
+                  ></p-button>
+
+                  <p-button
+                    type="button"
+                    (onClick)="changeLevel(logger.name, 'DEBUG')"
+                    [severity]="logger.level === 'DEBUG' ? 'success' : 'secondary'"
+                    [outlined]="logger.level !== 'DEBUG'"
+                    size="small"
+                    label="DEBUG"
+                  ></p-button>
+
+                  <p-button
+                    type="button"
+                    (onClick)="changeLevel(logger.name, 'INFO')"
+                    [severity]="logger.level === 'INFO' ? 'info' : 'secondary'"
+                    [outlined]="logger.level !== 'INFO'"
+                    size="small"
+                    label="INFO"
+                  ></p-button>
+
+                  <p-button
+                    type="button"
+                    (onClick)="changeLevel(logger.name, 'WARN')"
+                    [severity]="logger.level === 'WARN' ? 'warn' : 'secondary'"
+                    [outlined]="logger.level !== 'WARN'"
+                    size="small"
+                    label="WARN"
+                  ></p-button>
+
+                  <p-button
+                    type="button"
+                    (onClick)="changeLevel(logger.name, 'ERROR')"
+                    [severity]="logger.level === 'ERROR' ? 'danger' : 'secondary'"
+                    [outlined]="logger.level !== 'ERROR'"
+                    size="small"
+                    label="ERROR"
+                  ></p-button>
+
+                  <p-button
+                    type="button"
+                    (onClick)="changeLevel(logger.name, 'OFF')"
+                    [severity]="logger.level === 'OFF' ? 'secondary' : 'secondary'"
+                    [outlined]="logger.level !== 'OFF'"
+                    size="small"
+                    label="OFF"
+                  ></p-button>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    </p-card>
+  </div>
+</div>

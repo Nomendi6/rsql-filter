@@ -1,0 +1,11 @@
+{
+  "appObject": {
+    "createLabel": "New App Object",
+    "createOrEditLabel": "Create or Edit App Object",
+    "created": "A new App Object '{{ param }}' has been created.",
+    "deleteQuestion": "Are you sure you want to delete App Object '{{ param }}'?",
+    "deleted": "The App Object '{{ param }}' has been successfully deleted.",
+    "notFound": "No App Objects found.",
+    "updated": "The App Object '{{ param }}' has been successfully updated."
+  }
+}

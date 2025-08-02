@@ -1,0 +1,160 @@
+<div class="grid grid-cols-12 gap-4 justify-center">
+  <div class="col-span-12 xl:col-start-2 xl:col-span-10">
+    <div *ngIf="fg.hasCurrentRecord">
+      <form name="editForm" role="form" novalidate (ngSubmit)="save()" [formGroup]="fg.editForm">
+        <div class="p-fluid grid grid-cols-12 gap-4">
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4" [hidden]="fg.editForm.get('id')!.value == null">
+            <label for="f3_id" appTranslate="global.field.id">ID</label>
+            <input pInputText class="w-full" type="number" name="id" id="f3_id" data-cy="id" formControlName="id" [readonly]="true" />
+          </div>
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4">
+            <label for="f3_login" appTranslate="userManagement.login">Login</label>
+            <input pInputText class="w-full" type="text" name="login" id="f3_login" data-cy="login" formControlName="login" />
+            @if (fg.editForm.get('login')!.invalid && (fg.editForm.get('login')!.dirty || fg.editForm.get('login')!.touched)) {
+              <div>
+                @if (fg.editForm.get('login')?.errors?.required) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.required">This field is required.</small>
+                }
+
+                @if (fg.editForm.get('login')?.errors?.maxlength) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.maxlength" [translateValues]="{ max: '50' }"
+                    >This field cannot be longer than 50 characters.</small
+                  >
+                }
+
+                @if (fg.editForm.get('login')?.errors?.pattern) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.patternLogin"
+                    >This field can only contain letters, digits and e-mail addresses.</small
+                  >
+                }
+              </div>
+            }
+          </div>
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4">
+            <label for="f3_firstName" appTranslate="userManagement.firstName">First name</label>
+            <input
+              pInputText
+              class="w-full"
+              type="text"
+              name="firstName"
+              id="f3_firstName"
+              data-cy="firstName"
+              formControlName="firstName"
+            />
+            @if (fg.editForm.get('firstName')!.invalid && (fg.editForm.get('firstName')!.dirty || fg.editForm.get('firstName')!.touched)) {
+              <div>
+                @if (fg.editForm.get('firstName')?.errors?.maxlength) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.maxlength" [translateValues]="{ max: '50' }"
+                    >This field cannot be longer than 50 characters.</small
+                  >
+                }
+              </div>
+            }
+          </div>
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4">
+            <label for="f3_lastName" appTranslate="userManagement.lastName">Last name</label>
+            <input pInputText class="w-full" type="text" name="lastName" id="f3_lastName" data-cy="lastName" formControlName="lastName" />
+            @if (fg.editForm.get('lastName')!.invalid && (fg.editForm.get('lastName')!.dirty || fg.editForm.get('lastName')!.touched)) {
+              <div>
+                @if (fg.editForm.get('lastName')?.errors?.maxlength) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.maxlength" [translateValues]="{ max: '50' }"
+                    >This field cannot be longer than 50 characters.</small
+                  >
+                }
+              </div>
+            }
+          </div>
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4">
+            <label for="f3_email" appTranslate="userManagement.email">Email</label>
+            <input pInputText class="w-full" type="text" name="email" id="f3_email" data-cy="email" formControlName="email" />
+            @if (fg.editForm.get('email')!.invalid && (fg.editForm.get('email')!.dirty || fg.editForm.get('email')!.touched)) {
+              <div>
+                @if (fg.editForm.get('email')?.errors?.required) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.required">This field is required.</small>
+                }
+
+                @if (fg.editForm.get('email')?.errors?.maxlength) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.maxlength" [translateValues]="{ max: '100' }"
+                    >This field cannot be longer than 100 characters.</small
+                  >
+                }
+
+                @if (fg.editForm.get('email')?.errors?.minlength) {
+                  <small class="form-text text-danger" appTranslate="entity.validation.minlength" [translateValues]="{ min: '5' }"
+                    >This field is required to be at least 5 characters.</small
+                  >
+                }
+
+                @if (fg.editForm.get('email')?.errors?.email) {
+                  <small class="form-text text-danger" appTranslate="global.messages.validate.email.invalid">Your email is invalid.</small>
+                }
+              </div>
+            }
+          </div>
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4" *ngIf="fg.languages && fg.languages.length > 0">
+            <label appTranslate="userManagement.langKey">Language</label>
+            <p-select
+              [options]="fg.languages"
+              styleClass="w-full"
+              id="langKey"
+              name="langKey"
+              formControlName="langKey"
+              appendTo="body"
+            ></p-select>
+            <div *ngIf="fg.editForm.get('langKey')!.invalid && (fg.editForm.get('langKey')!.dirty || fg.editForm.get('langKey')!.touched)">
+              <small
+                class="form-text text-danger"
+                *ngIf="fg.editForm.get('langKey')?.errors?.required"
+                appTranslate="entity.validation.required"
+              >
+                This field is required.
+              </small>
+            </div>
+          </div>
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4">
+            <label appTranslate="userManagement.profiles">Profiles</label>
+            <p-multiSelect
+              styleClass="w-full"
+              inputId="profiles"
+              optionLabel="name"
+              optionValue="name"
+              [options]="fg.authorities"
+              name="authority"
+              formControlName="authorities"
+              appendTo="body"
+            ></p-multiSelect>
+          </div>
+          <div class="field col-span-12 md:col-span-6 xl:col-span-4 flex items-center">
+            <p-checkbox [binary]="true" formControlName="activated" inputId="activated"></p-checkbox>
+            <label for="activated" class="m-0 ml-2">
+              <span appTranslate="userManagement.activated">Activated</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field col-span-12 mt-4">
+          <p-button
+            type="button"
+            id="userManagement$D$1CancelSave"
+            data-cy="NewUser$D$1FormCancelButton"
+            severity="secondary"
+            (onClick)="previousState()"
+            icon="pi pi-ban"
+            label="{{ 'entity.action.cancel' | translate }}"
+          >
+          </p-button>
+          <p-button
+            type="submit"
+            id="userManagement$D$1SaveEntity"
+            data-cy="NewUser$D$1SaveButton"
+            [disabled]="fg.editForm.invalid || isSaving || fg.editForm.pristine"
+            severity="primary"
+            icon="pi pi-save"
+            label="{{ 'entity.action.save' | translate }}"
+          >
+          </p-button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

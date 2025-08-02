@@ -1,0 +1,199 @@
+<div class="grid grid-cols-12 gap-4 justify-center">
+  <div class="col-span-12">
+    <p-card *ngIf="showForm">
+      <div class="flex justify-between items-center py-2">
+        <h1 class="text-2xl font-bold" id="page-heading" data-cy="userManagementPageHeading" appTranslate="userManagement.home.title">
+          Users
+        </h1>
+
+        <p-button
+          icon="pi pi-question"
+          variant="outlined"
+          [ariaLabel]="'formHelp.button.tooltip' | translate"
+          data-cy="UserHelpButton"
+          id="user-form-help-button"
+          pTooltip="{{ 'formHelp.button.tooltip' | translate }}"
+          tooltipPosition="left"
+          styleClass="!size-8"
+          [rounded]="true"
+          (click)="formHelpDialogService.showHelpForForm('new-user')"
+        />
+      </div>
+
+      <div class="flex justify-between mb-1">
+        <div>
+          <p-button
+            data-cy="UserRefreshButton"
+            severity="secondary"
+            (onClick)="loadPage()"
+            [disabled]="isLoading"
+            [loading]="isLoading"
+            label="{{ 'userManagement.home.refreshListLabel' | translate }}"
+            icon="pi pi-refresh"
+            iconPos="left"
+          >
+          </p-button>
+          <p-button
+            id="jh-create-entity"
+            data-cy="UserCreateButton"
+            class="jh-create-entity create-new-user"
+            (onClick)="createRecord()"
+            label="{{ 'userManagement.home.createLabel' | translate }}"
+            icon="pi pi-plus"
+            iconPos="left"
+            [disabled]="addingNewRecord"
+          ></p-button>
+        </div>
+        <div>
+          <p-iconfield>
+            <p-inputicon styleClass="pi pi-search" />
+            <input
+              pInputText
+              class="w-full"
+              data-cy="UserSearchInput"
+              type="text"
+              [(ngModel)]="globalSearchTerm"
+              (input)="globalSearch()"
+              placeholder="{{ 'form.action.globalSearch' | translate }}"
+            />
+          </p-iconfield>
+        </div>
+      </div>
+
+      <div class="table-responsive" id="user->entities">
+        <p-table
+          data-cy="UserTable"
+          #newUserTable
+          [value]="users"
+          [rowTrackBy]="trackId"
+          [lazy]="true"
+          [rows]="itemsPerPage"
+          [totalRecords]="totalItems"
+          styleClass="p-datatable-gridlines"
+          [resizableColumns]="true"
+          columnResizeMode="expand"
+          sortMode="multiple"
+          [lazyLoadOnInit]="false"
+          [paginator]="true"
+          (onLazyLoad)="onLazyLoadEvent($event)"
+          paginatorDropdownAppendTo="body"
+          [showCurrentPageReport]="true"
+          [rowsPerPageOptions]="[5, 10, 25, 50]"
+          currentPageReportTemplate="{first} - {last} | {totalRecords}"
+          selectionMode="single"
+          [(selection)]="selectedRecord"
+          dataKey="id"
+          [selectAll]="false"
+          [scrollable]="true"
+          (onRowSelect)="selectRow()"
+          [globalFilterFields]="['login', 'email']"
+          [multiSortMeta]="multiSortMeta"
+          [first]="first"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="id" pResizableColumn style="min-width: 120px">
+                <span appTranslate="global.field.id">ID</span>
+                <p-sortIcon field="id"></p-sortIcon>
+                <p-columnFilter type="numeric" field="id" display="menu"></p-columnFilter>
+              </th>
+              <th pSortableColumn="login" pResizableColumn style="min-width: 200px">
+                <span appTranslate="userManagement.login">Login</span>
+                <p-sortIcon field="login"></p-sortIcon>
+                <p-columnFilter type="text" field="login" display="menu"></p-columnFilter>
+              </th>
+              <th pSortableColumn="email" pResizableColumn style="min-width: 200px">
+                <span appTranslate="userManagement.email">Email</span>
+                <p-sortIcon field="email"></p-sortIcon>
+                <p-columnFilter type="text" field="email" display="menu"></p-columnFilter>
+              </th>
+              <th pSortableColumn="langKey" pResizableColumn style="min-width: 200px">
+                <span appTranslate="userManagement.langKey">Language</span>
+                <p-sortIcon field="langKey"></p-sortIcon>
+                <p-columnFilter type="text" field="langKey" display="menu"></p-columnFilter>
+              </th>
+              <th pSortableColumn="profiles" pResizableColumn style="min-width: 200px">
+                <span appTranslate="userManagement.profiles">Profiles</span>
+                <p-sortIcon field="profiles"></p-sortIcon>
+                <p-columnFilter type="text" field="profiles" display="menu"></p-columnFilter>
+              </th>
+              <th pSortableColumn="createdDate" pResizableColumn style="min-width: 200px">
+                <span appTranslate="userManagement.createdDate">Created date</span>
+                <p-sortIcon field="createdDate"></p-sortIcon>
+                <p-columnFilter type="date" field="createdDate" display="menu"></p-columnFilter>
+              </th>
+              <th pSortableColumn="lastModifiedBy" pResizableColumn style="min-width: 200px">
+                <span appTranslate="userManagement.lastModifiedBy">Modified by</span>
+                <p-sortIcon field="lastModifiedBy"></p-sortIcon>
+                <p-columnFilter type="text" field="lastModifiedBy" display="menu"></p-columnFilter>
+              </th>
+              <th pSortableColumn="lastModifiedDate" pResizableColumn style="min-width: 200px">
+                <span appTranslate="userManagement.lastModifiedDate">Modified date</span>
+                <p-sortIcon field="lastModifiedDate"></p-sortIcon>
+                <p-columnFilter type="date" field="lastModifiedDate" display="menu"></p-columnFilter>
+              </th>
+              <th style="width: 140px"></th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-user>
+            <tr [pSelectableRow]="user" [attr.data-cy]="'UserTableRow' + user.id">
+              <td>{{ user.id }}</td>
+              <td>{{ user.login }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.langKey }}</td>
+              <td>
+                <div *ngFor="let authority of user.authorities">
+                  <span class="badge bg-info">{{ authority }}</span>
+                </div>
+              </td>
+              <td>{{ user.createdDate | formatMediumDate }}</td>
+              <td>{{ user.lastModifiedBy }}</td>
+              <td>{{ user.lastModifiedDate | formatMediumDate }}</td>
+              <td>
+                <div class="btn-group flex-btn-group-container">
+                  <p-button
+                    type="button"
+                    (onClick)="delete(user)"
+                    [rounded]="true"
+                    severity="danger"
+                    [text]="true"
+                    icon="pi pi-trash"
+                    data-cy="UserDeleteButton"
+                  ></p-button>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+        <!--{{ isEditing ? 'Editing' : 'Not editing' }}-->
+      </div>
+    </p-card>
+  </div>
+</div>
+
+<p-confirmDialog key="UserManagementDeleteDialogHeading" #cd [style]="{ width: '50vw' }" data-cy="UserDeleteDialogHeading">
+  <p-footer>
+    <button
+      type="button"
+      pButton
+      [icon]="cd.option('rejectIcon')"
+      [label]="cd.rejectButtonLabel"
+      (click)="cd.onReject()"
+      [ngClass]="cd.option('rejectButtonStyleClass')"
+      data-cy="UserRejectDeleteButton"
+    ></button>
+    <button
+      type="button"
+      pButton
+      [icon]="cd.option('acceptIcon')"
+      [label]="cd.acceptButtonLabel"
+      (click)="cd.onAccept()"
+      [ngClass]="cd.option('acceptButtonStyleClass')"
+      data-cy="UserConfirmDeleteButton"
+    ></button>
+  </p-footer>
+</p-confirmDialog>
+
+<div *ngIf="currentRecord">
+  <app-user-management-a></app-user-management-a>
+</div>

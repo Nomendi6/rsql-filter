@@ -1,0 +1,11 @@
+{
+  "product": {
+    "createLabel": "New Product",
+    "createOrEditLabel": "Create or Edit Product",
+    "created": "A new Product '{{ param }}' has been created.",
+    "deleteQuestion": "Are you sure you want to delete Product '{{ param }}'?",
+    "deleted": "The Product '{{ param }}' has been successfully deleted.",
+    "notFound": "No Products found.",
+    "updated": "The Product '{{ param }}' has been successfully updated."
+  }
+}

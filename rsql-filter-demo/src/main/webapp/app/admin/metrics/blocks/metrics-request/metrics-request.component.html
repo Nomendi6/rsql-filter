@@ -1,0 +1,31 @@
+<h3 id="requestMetrics" appTranslate="metrics.jvm.http.title">HTTP requests (time in millisecond)</h3>
+
+<p-table data-cy="MetricsRequestTable" [value]="[]">
+  <ng-template pTemplate="header">
+    <tr>
+      <th scope="col" appTranslate="metrics.jvm.http.table.code">Code</th>
+      <th scope="col" appTranslate="metrics.jvm.http.table.count">Count</th>
+      <th scope="col" class="text-end" appTranslate="metrics.jvm.http.table.mean">Mean</th>
+      <th scope="col" class="text-end" appTranslate="metrics.jvm.http.table.max">Max</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-entry>
+    @for (entry of requestMetrics()!['percode'] | keyvalue; track entry.key) {
+      <tr [attr.data-cy]="'MetricsRequestTableRow_' + entry.key">
+        <td>{{ entry.key }}</td>
+        <td>
+          <p-progressBar
+            [value]="(entry.value.count / requestMetrics()!['all'].count) * 100"
+            mode="determinate"
+            styleClass="p-progress-success"
+            [showValue]="true"
+          ></p-progressBar>
+        </td>
+        <td class="text-end">
+          {{ filterNaN(entry.value.mean) | number: '1.0-2' }}
+        </td>
+        <td class="text-end">{{ entry.value.max | number: '1.0-2' }}</td>
+      </tr>
+    }
+  </ng-template>
+</p-table>

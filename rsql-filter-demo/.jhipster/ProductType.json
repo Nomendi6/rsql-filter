@@ -1,0 +1,121 @@
+{
+  "aggregations": [],
+  "annotations": {
+    "changelogDate": "20250429060219"
+  },
+  "applications": "*",
+  "auditType": "basic",
+  "changelogDate": "20250429060219",
+  "clientRootFolder": "",
+  "customTemplate": false,
+  "databaseType": "sql",
+  "dto": "mapstruct",
+  "embedded": false,
+  "entityTableName": "product_type",
+  "fields": [
+    {
+      "fieldName": "code",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"],
+      "index": 0
+    },
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"],
+      "index": 1
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "TextBlob",
+      "index": 2
+    },
+    {
+      "fieldName": "seq",
+      "fieldType": "Long",
+      "index": 3
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "StandardRecordStatus",
+      "fieldValues": "ACTIVE,NOT_ACTIVE",
+      "index": 4
+    },
+    {
+      "fieldName": "validFrom",
+      "fieldType": "Instant",
+      "index": 5
+    },
+    {
+      "fieldName": "validUntil",
+      "fieldType": "Instant",
+      "index": 6
+    }
+  ],
+  "fluentMethods": true,
+  "genJavaConstructors": false,
+  "hasAggregations": false,
+  "importFakeData": true,
+  "importRealData": false,
+  "jpaMetamodelFiltering": false,
+  "lazyRelationships": false,
+  "lockingType": "none",
+  "messages": {
+    "createLabel": {
+      "fieldName": "name",
+      "key": "new-product-type",
+      "messageType": "NAME",
+      "text": "New Product Type"
+    },
+    "createOrEditLabel": {
+      "fieldName": "name",
+      "key": "create-or-edit-product-type",
+      "messageType": "NAME",
+      "text": "Create or Edit Product Type"
+    },
+    "created": {
+      "fieldName": "name",
+      "key": "a-new-product-type-{{-param-}}-h14f387b6",
+      "messageType": "NAME",
+      "text": "A new Product Type '{{ param }}' has been created."
+    },
+    "deleteQuestion": {
+      "fieldName": "name",
+      "key": "are-you-sure-you-want-to-delete-e1625f86",
+      "messageType": "NAME",
+      "text": "Are you sure you want to delete Product Type '{{ param }}'?"
+    },
+    "deleted": {
+      "fieldName": "name",
+      "key": "the-product-type-{{-param-}}-hasd0f3f108",
+      "messageType": "NAME",
+      "text": "The Product Type '{{ param }}' has been successfully deleted."
+    },
+    "frozen": false,
+    "notFound": {
+      "fieldName": "name",
+      "key": "no-product-types-found",
+      "messageType": "NAME",
+      "text": "No Product Types found."
+    },
+    "updated": {
+      "fieldName": "name",
+      "key": "the-product-type-{{-param-}}-has6690a1aa",
+      "messageType": "NAME",
+      "text": "The Product Type '{{ param }}' has been successfully updated."
+    }
+  },
+  "name": "ProductType",
+  "pagination": "pagination",
+  "readOnly": false,
+  "relationships": [],
+  "searchEngine": "no",
+  "secure": {
+    "securityType": "none"
+  },
+  "service": "serviceClass",
+  "skipServer": false,
+  "specifyDbFields": false,
+  "useDedicatedSequence": false,
+  "version": "2.0.0"
+}

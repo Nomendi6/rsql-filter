@@ -1,0 +1,11 @@
+{
+  "productType": {
+    "createLabel": "New Product Type",
+    "createOrEditLabel": "Create or Edit Product Type",
+    "created": "A new Product Type '{{ param }}' has been created.",
+    "deleteQuestion": "Are you sure you want to delete Product Type '{{ param }}'?",
+    "deleted": "The Product Type '{{ param }}' has been successfully deleted.",
+    "notFound": "No Product Types found.",
+    "updated": "The Product Type '{{ param }}' has been successfully updated."
+  }
+}
