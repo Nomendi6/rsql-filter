@@ -11,7 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>rsql-filter-core</artifactId>
+    <artifactId>rsql-filter</artifactId>
     <packaging>jar</packaging>
 
     <name>RSQL Filter Core Library</name>
@@ -129,7 +129,6 @@
                     <quiet>true</quiet>
                     <failOnError>false</failOnError>
                     <failOnWarnings>false</failOnWarnings>
-                    <additionalparam>-Xdoclint:none</additionalparam>
                     <additionalOptions>-Xdoclint:none</additionalOptions>
                     <additionalJOptions>
                         <additionalJOption>-Xdoclint:none</additionalJOption>

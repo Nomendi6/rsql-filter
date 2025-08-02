@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Maven multi-module project implementing RSQL (RESTful Service Query Language) filtering for Spring Boot JPA applications. The project has been restructured into three modules:
 
-1. **rsql-filter-core** - The core library providing RSQL filtering capabilities
+1. **rsql-filter** - The core library providing RSQL filtering capabilities
 2. **rsql-filter-integration-tests** - Standalone integration tests without JHipster dependencies
 3. **rsql-filter-demo** - A JHipster-based demo application (previously test-appl)
 
@@ -22,7 +22,7 @@ mvn clean install
 mvn clean install -DskipTests
 
 # Build specific module
-mvn clean install -pl rsql-filter-core
+mvn clean install -pl rsql-filter
 mvn clean install -pl rsql-filter-integration-tests
 mvn clean install -pl rsql-filter-demo
 
@@ -41,7 +41,7 @@ mvn test
 mvn verify
 
 # Run tests for specific module
-mvn test -pl rsql-filter-core
+mvn test -pl rsql-filter
 mvn test -pl rsql-filter-integration-tests
 mvn test -pl rsql-filter-demo
 
@@ -82,7 +82,7 @@ npm run prettier:check
 
 ```bash
 # Generate ANTLR code from grammar files
-mvn antlr4:antlr4 -pl rsql-filter-core
+mvn antlr4:antlr4 -pl rsql-filter
 
 # Run checkstyle
 mvn checkstyle:check
@@ -110,7 +110,7 @@ cd rsql-filter-demo && ./mvnw -Dspring.profiles.active=dev
    - Supports LOV (List of Values) queries
    - Integrates with Spring Data JPA repositories
 
-3. **ANTLR Grammar Files** (rsql-filter-core/src/main/antlr/)
+3. **ANTLR Grammar Files** (rsql-filter/src/main/antlr/)
    - RsqlCommonLexer.g4 - Defines tokens
    - RsqlWhere.g4 - Defines WHERE clause syntax
    - RsqlSelect.g4 - Defines SELECT clause syntax
@@ -156,7 +156,7 @@ public class ProductTypeService {
 
 ```
 rsql-filter-mvn/
-├── rsql-filter-core/              # Core library module
+├── rsql-filter/              # Core library module
 │   ├── src/main/antlr/           # ANTLR grammar files
 │   ├── src/main/java/rsql/       # Core library code
 │   └── src/test/                 # Library tests
@@ -193,7 +193,7 @@ mvn test -pl rsql-filter-integration-tests
 ### ANTLR Grammar Compilation
 The ANTLR grammar files need to be compiled before building. This happens automatically during build, but can be done manually:
 ```bash
-mvn antlr4:antlr4 -pl rsql-filter-core
+mvn antlr4:antlr4 -pl rsql-filter
 ```
 
 ### Package Structure Changes
@@ -204,14 +204,14 @@ The project was recently restructured:
 
 ### Key Files for Understanding the Library
 
-1. **Core Query Service**: `rsql-filter-core/src/main/java/rsql/RsqlQueryService.java`
+1. **Core Query Service**: `rsql-filter/src/main/java/rsql/RsqlQueryService.java`
    - Main entry point for executing RSQL queries
    - Supports both Specification-based and JPQL-based queries
 
-2. **RSQL Compiler**: `rsql-filter-core/src/main/java/rsql/RsqlCompiler.java`
+2. **RSQL Compiler**: `rsql-filter/src/main/java/rsql/RsqlCompiler.java`
    - Compiles RSQL strings to JPA Specifications
 
-3. **Grammar Files**: `rsql-filter-core/src/main/antlr/`
+3. **Grammar Files**: `rsql-filter/src/main/antlr/`
    - RsqlWhere.g4 - Defines the WHERE clause syntax
    - RsqlCommonLexer.g4 - Common lexer rules
 
@@ -223,7 +223,7 @@ The project was recently restructured:
 
 #### Adding a New Operator
 1. Update the grammar file (RsqlWhere.g4)
-2. Regenerate ANTLR code: `mvn antlr4:antlr4 -pl rsql-filter-core`
+2. Regenerate ANTLR code: `mvn antlr4:antlr4 -pl rsql-filter`
 3. Update WhereSpecificationVisitor to handle the new operator
 4. Add integration tests
 

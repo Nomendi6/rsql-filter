@@ -20,7 +20,7 @@
         <!-- RSQL Filter Core -->
         <dependency>
             <groupId>com.nomendi6</groupId>
-            <artifactId>rsql-filter-core</artifactId>
+            <artifactId>rsql-filter</artifactId>
             <version>${project.version}</version>
         </dependency>
 

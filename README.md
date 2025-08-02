@@ -1,6 +1,6 @@
 # RSQL Filter
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.nomendi6/rsql-filter-core.svg)](https://maven-badges.herokuapp.com/maven-central/com.nomendi6/rsql-filter-core)
+[![Maven Central](https://img.shields.io/maven-central/v/com.nomendi6/rsql-filter.svg)](https://maven-badges.herokuapp.com/maven-central/com.nomendi6/rsql-filter)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Java CI](https://github.com/nomendi6/rsql-filter/workflows/Java%20CI/badge.svg)](https://github.com/nomendi6/rsql-filter/actions)
 
@@ -29,14 +29,14 @@ For detailed API documentation, see [API.md](API.md).
 ```xml
 <dependency>
     <groupId>com.nomendi6</groupId>
-    <artifactId>rsql-filter-core</artifactId>
-    <version>0.6.1</version>
+    <artifactId>rsql-filter</artifactId>
+    <version>0.6.2</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter-core:0.6.1'
+implementation 'com.nomendi6:rsql-filter:0.6.2'
 ```
 
 ### Requirements
