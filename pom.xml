@@ -71,7 +71,7 @@
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
         <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
-        <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
+        <central-publishing-maven-plugin.version>0.7.0</central-publishing-maven-plugin.version>
         <liquibase-maven-plugin.version>${liquibase.version}</liquibase-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <spring-boot-maven-plugin.version>${spring-boot.version}</spring-boot-maven-plugin.version>
@@ -279,7 +279,6 @@
                         <quiet>true</quiet>
                         <failOnError>false</failOnError>
                         <failOnWarnings>false</failOnWarnings>
-                        <additionalparam>-Xdoclint:none</additionalparam>
                         <additionalOptions>-Xdoclint:none</additionalOptions>
                         <additionalJOptions>
                             <additionalJOption>-Xdoclint:none</additionalJOption>
@@ -301,14 +300,14 @@
                      <!-- Configuration in 'release' profile -->
                 </plugin>
                  <plugin>
-                     <groupId>org.sonatype.plugins</groupId>
-                     <artifactId>nexus-staging-maven-plugin</artifactId>
-                     <version>${nexus-staging-maven-plugin.version}</version>
+                     <groupId>org.sonatype.central</groupId>
+                     <artifactId>central-publishing-maven-plugin</artifactId>
+                     <version>${central-publishing-maven-plugin.version}</version>
                      <extensions>true</extensions>
                      <configuration>
-                         <serverId>ossrh</serverId>
-                         <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                         <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                         <publishingServerId>central</publishingServerId>
+                         <autoPublish>true</autoPublish>
+                         <waitUntil>published</waitUntil>
                      </configuration>
                  </plugin>
                 <plugin>
@@ -383,8 +382,8 @@
                         </executions>
                     </plugin>
                     <plugin>
-                         <groupId>org.sonatype.plugins</groupId>
-                         <artifactId>nexus-staging-maven-plugin</artifactId>
+                         <groupId>org.sonatype.central</groupId>
+                         <artifactId>central-publishing-maven-plugin</artifactId>
                      </plugin>
                 </plugins>
             </build>
@@ -449,15 +448,5 @@
         </pluginRepository>
     </pluginRepositories>
 
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id> <!-- Must match the ID of the server in settings.xml -->
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id> <!-- Must match the ID of the server in settings.xml -->
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
 
 </project>
