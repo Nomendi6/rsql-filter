@@ -62,7 +62,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 ```
 rsql-filter-mvn/
-├── rsql-filter-core/                 # Core library
+├── rsql-filter/                      # Core library
 ├── rsql-filter-integration-tests/    # Integration tests
 ├── rsql-filter-demo/                 # Demo application
 └── pom.xml                          # Parent POM
