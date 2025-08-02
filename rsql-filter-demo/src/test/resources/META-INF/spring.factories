@@ -1,0 +1,2 @@
+org.springframework.test.context.ContextCustomizerFactory = \
+    com.nomendi6.rsql.demo.config.SqlTestContainersSpringContextCustomizerFactory
