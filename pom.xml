@@ -278,6 +278,12 @@
                         <source>${maven.compiler.source}</source>
                         <quiet>true</quiet>
                         <failOnError>false</failOnError>
+                        <failOnWarnings>false</failOnWarnings>
+                        <additionalparam>-Xdoclint:none</additionalparam>
+                        <additionalOptions>-Xdoclint:none</additionalOptions>
+                        <additionalJOptions>
+                            <additionalJOption>-Xdoclint:none</additionalJOption>
+                        </additionalJOptions>
                     </configuration>
                     <executions>
                         <execution>
