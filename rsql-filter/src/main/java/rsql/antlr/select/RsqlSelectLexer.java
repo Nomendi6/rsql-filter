@@ -1,5 +1,6 @@
-// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter-mvn/rsql/src/main/antlr/RsqlSelect.g4 by ANTLR 4.13.2
+// Generated from RsqlSelect.g4 by ANTLR 4.13.2
 package rsql.antlr.select;
+
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;

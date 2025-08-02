@@ -2,7 +2,6 @@
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.nomendi6/rsql-filter.svg)](https://maven-badges.herokuapp.com/maven-central/com.nomendi6/rsql-filter)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Java CI](https://github.com/nomendi6/rsql-filter/workflows/Java%20CI/badge.svg)](https://github.com/nomendi6/rsql-filter/actions)
 
 RSQL Filter is a Java library for Spring Boot JPA applications that provides a simple and convenient way to filter data in REST APIs using RSQL (RESTful Service Query Language) syntax.
 
