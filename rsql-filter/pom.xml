@@ -205,6 +205,24 @@
                             </arguments>
                         </configuration>
                     </execution>
+                    <!-- RsqlHaving.g4 -->
+                    <execution>
+                        <id>antlr-having</id>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>RsqlHaving.g4</include>
+                            </includes>
+                            <outputDirectory>${project.basedir}/src/main/java/rsql/antlr/having</outputDirectory>
+                            <libDirectory>${project.basedir}/src/main/antlr</libDirectory>
+                            <arguments>
+                                <argument>-lib</argument>
+                                <argument>${project.basedir}/src/main/java/rsql/antlr/lexer</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

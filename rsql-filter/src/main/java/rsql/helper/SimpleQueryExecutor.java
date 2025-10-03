@@ -4,6 +4,8 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.springframework.data.support.PageableExecutionUtils;
 import rsql.RsqlCompiler;
+import rsql.having.HavingCompiler;
+import rsql.having.HavingContext;
 import rsql.select.SelectAggregateSelectionVisitor;
 import rsql.select.SelectAggregateVisitor;
 import rsql.select.SelectFieldSelectionVisitor;
@@ -580,12 +582,27 @@ public class SimpleQueryExecutor {
         return rsqlContext.entityManager.createQuery(query).getResultList();
     }
 
+    /**
+     * Executes an aggregate query with SELECT fields, GROUP BY, WHERE, and optional HAVING clause.
+     *
+     * @param entityClass The entity class to query
+     * @param resultClass The result class (usually Tuple.class)
+     * @param selectFields List of AggregateFields from SELECT clause (with aliases)
+     * @param groupByFields List of GROUP BY field paths
+     * @param filter RSQL filter string for WHERE clause (filters rows before aggregation)
+     * @param havingFilter RSQL filter string for HAVING clause (filters groups after aggregation)
+     * @param pageable Pagination and sorting
+     * @param rsqlContext RSQL context with EntityManager
+     * @param compiler RSQL compiler
+     * @return List of aggregate query results
+     */
     public static <ENTITY, RESULT> List<RESULT> getAggregateQueryResult(
         Class<ENTITY> entityClass,
         Class<RESULT> resultClass,
         List<AggregateField> selectFields,
         List<String> groupByFields,
         String filter,
+        String havingFilter,
         Pageable pageable,
         RsqlContext<ENTITY> rsqlContext,
         RsqlCompiler<ENTITY> compiler
@@ -644,11 +661,67 @@ public class SimpleQueryExecutor {
             query.groupBy(groupByExpressions);
         }
 
+        // Add HAVING clause
+        if (havingFilter != null && !havingFilter.trim().isEmpty()) {
+            // Create HavingContext with alias mappings from SELECT
+            HavingContext<ENTITY> havingContext = new HavingContext<>(
+                builder,
+                root,
+                selectFields,
+                joinsMap,
+                classMetadataMap,
+                rsqlContext
+            );
+
+            // Compile HAVING filter to Predicate
+            HavingCompiler havingCompiler = new HavingCompiler();
+            Predicate havingPredicate = havingCompiler.compile(
+                havingFilter,
+                havingContext,
+                rsqlContext,
+                groupByFields
+            );
+
+            if (havingPredicate != null) {
+                query.having(havingPredicate);
+            }
+        }
+
         // Add ORDER BY clause
         if (sort != null && sort.isSorted()) {
             query.orderBy(QueryUtils.toOrders(sort, root, builder));
         }
 
         return rsqlContext.entityManager.createQuery(query).getResultList();
+    }
+
+    /**
+     * Executes an aggregate query WITHOUT HAVING clause (backward compatibility).
+     * Delegates to the full method with havingFilter = null.
+     *
+     * @deprecated Use {@link #getAggregateQueryResult(Class, Class, List, List, String, String, Pageable, RsqlContext, RsqlCompiler)} instead
+     */
+    @Deprecated
+    public static <ENTITY, RESULT> List<RESULT> getAggregateQueryResult(
+        Class<ENTITY> entityClass,
+        Class<RESULT> resultClass,
+        List<AggregateField> selectFields,
+        List<String> groupByFields,
+        String filter,
+        Pageable pageable,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler
+    ) {
+        return getAggregateQueryResult(
+            entityClass,
+            resultClass,
+            selectFields,
+            groupByFields,
+            filter,
+            null,  // havingFilter = null
+            pageable,
+            rsqlContext,
+            compiler
+        );
     }
 }
