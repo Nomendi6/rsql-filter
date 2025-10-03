@@ -118,7 +118,8 @@ public class SimpleQueryExecutorAggregateIT {
             selectFields,
             groupByFields,
             "",
-            null,
+            (String) null,  // No HAVING filter
+            null,  // No Pageable
             rsqlContext,
             compiler
         );
@@ -165,7 +166,8 @@ public class SimpleQueryExecutorAggregateIT {
             selectFields,
             groupByFields,
             filter,
-            null,
+            (String) null,  // No HAVING filter
+            null,  // No Pageable
             rsqlContext,
             compiler
         );
@@ -194,7 +196,8 @@ public class SimpleQueryExecutorAggregateIT {
             selectFields,
             groupByFields,
             "",
-            null,
+            (String) null,  // No HAVING filter
+            null,  // No Pageable
             rsqlContext,
             compiler
         );
@@ -231,7 +234,8 @@ public class SimpleQueryExecutorAggregateIT {
             selectFields,
             groupByFields,
             "",
-            null,
+            (String) null,  // No HAVING filter
+            null,  // No Pageable
             rsqlContext,
             compiler
         );
@@ -261,6 +265,7 @@ public class SimpleQueryExecutorAggregateIT {
             selectFields,
             groupByFields,
             "",
+            (String) null,  // No HAVING filter
             pageable,
             rsqlContext,
             compiler
@@ -287,7 +292,8 @@ public class SimpleQueryExecutorAggregateIT {
             selectFields,
             groupByFields,
             "",
-            null,
+            (String) null,  // No HAVING filter
+            null,  // No Pageable
             rsqlContext,
             compiler
         );
@@ -314,7 +320,8 @@ public class SimpleQueryExecutorAggregateIT {
             selectFields,
             groupByFields,
             "",
-            null,
+            (String) null,  // No HAVING filter
+            null,  // No Pageable
             rsqlContext,
             compiler
         );

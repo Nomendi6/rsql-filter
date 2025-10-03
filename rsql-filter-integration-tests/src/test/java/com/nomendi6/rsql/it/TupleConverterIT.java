@@ -203,6 +203,7 @@ public class TupleConverterIT {
         List<Tuple> tuples = queryService.getAggregateResult(
             "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):average",
             "status==#ACTIVE#",
+            (String) null,  // No HAVING filter
             PageRequest.of(0, 10, Sort.by("productType.name"))
         );
 

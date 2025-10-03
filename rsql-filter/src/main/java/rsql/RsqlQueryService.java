@@ -24,10 +24,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import rsql.helper.AggregateField;
 import static rsql.helper.SimpleQueryExecutor.getQueryResult;
 import static rsql.helper.SimpleQueryExecutor.getQueryResultWithSelect;
 import static rsql.helper.SimpleQueryExecutor.getQueryResultAsPageWithSelect;
 import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultWithSelect;
+import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResult;
 
 /**
  * Service for executing complex queries for  entities in the database.
@@ -693,32 +695,35 @@ public class RsqlQueryService<
     }
 
     /**
-     * Executes an aggregate query with SELECT string syntax supporting aggregate functions and GROUP BY.
+     * Executes an aggregate query with SELECT string syntax supporting aggregate functions, GROUP BY, and HAVING.
      * Automatically extracts GROUP BY fields from the SELECT string (fields without aggregate functions).
      *
      * Supported aggregate functions: COUNT(*), COUNT(field), SUM(field), AVG(field), MIN(field), MAX(field), COUNT(DIST field)
      *
      * Example usage:
      * <pre>
-     * // Group by productType.name with aggregates
-     * getAggregateResult("productType.name:type, COUNT(*):count, SUM(price):total", "status==ACTIVE", pageable)
+     * // Group by productType.name with aggregates and HAVING filter
+     * getAggregateResult("productType.name:type, COUNT(*):count, SUM(price):total",
+     *                    "status==ACTIVE", "total=gt=50000;count=ge=10", pageable)
      *
-     * // Multiple GROUP BY fields
-     * getAggregateResult("productType.code, status, COUNT(*):count", "", pageable)
+     * // Multiple GROUP BY fields with HAVING
+     * getAggregateResult("productType.code, status, COUNT(*):count", "", "count=gt=5", pageable)
      * </pre>
      *
      * @param selectString SELECT clause with aggregate functions (e.g., "field1, COUNT(*):count, SUM(field2):total")
      * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param havingFilter RSQL filter string for HAVING clause (applied after aggregation, filters groups)
      * @param pageable pagination and sorting information
      * @return list of tuples with aggregated results
      */
     @Transactional(readOnly = true)
-    public List<Tuple> getAggregateResult(String selectString, String filter, Pageable pageable) {
+    public List<Tuple> getAggregateResult(String selectString, String filter, String havingFilter, Pageable pageable) {
         return getAggregateQueryResultWithSelect(
             entityClass,
             Tuple.class,
             selectString,
             filter,
+            havingFilter,
             pageable,
             rsqlContext,
             rsqlCompiler

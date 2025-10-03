@@ -498,14 +498,15 @@ public class SimpleQueryExecutor {
     }
 
     /**
-     * Executes an aggregate query with SELECT string parsing, supporting aliases, aggregate functions, and GROUP BY.
-     * Uses SelectAggregateSelectionVisitor for creating JPA Criteria Selections.
+     * Executes an aggregate query with SELECT string parsing, supporting aliases, aggregate functions, GROUP BY, and HAVING.
+     * Uses SelectAggregateVisitor to parse the SELECT string and delegates to getAggregateQueryResult() for execution.
      * Automatically extracts GROUP BY fields from SELECT string (fields without aggregate functions).
      *
      * @param entityClass The entity class to query
      * @param resultClass The result class (usually Tuple.class)
      * @param selectString SELECT clause string with aggregate functions (e.g., "productType.name, COUNT(*):count, SUM(price):total")
-     * @param filter RSQL filter string
+     * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param havingFilter RSQL filter string for HAVING clause (applied after aggregation)
      * @param pageable Pagination and sorting
      * @param rsqlContext RSQL context with EntityManager
      * @param compiler RSQL compiler
@@ -516,23 +517,12 @@ public class SimpleQueryExecutor {
         Class<RESULT> resultClass,
         String selectString,
         String filter,
+        String havingFilter,
         Pageable pageable,
         RsqlContext<ENTITY> rsqlContext,
         RsqlCompiler<ENTITY> compiler
     ) {
-        Sort sort;
-        if (pageable == null) {
-            sort = null;
-        } else {
-            sort = pageable.getSort();
-        }
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
-
-        CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
-        CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
-        Root<ENTITY> root = query.from(entityClass);
-
-        // First, parse SELECT string to extract GROUP BY fields using SelectAggregateVisitor
+        // Parse SELECT string to extract aggregate fields and GROUP BY fields
         SelectTreeParser selectParser = new SelectTreeParser();
         ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
 
@@ -549,37 +539,18 @@ public class SimpleQueryExecutor {
             }
         }
 
-        // Now create Selections using SelectAggregateSelectionVisitor
-        SelectAggregateSelectionVisitor selectionVisitor = new SelectAggregateSelectionVisitor();
-        selectionVisitor.setContext(rsqlContext, builder, root);
-        List<Selection<?>> selectionList = selectionVisitor.visit(tree);
-
-        query.multiselect(selectionList);
-
-        // Add WHERE clause
-        if (specification != null) {
-            Predicate predicate = specification.toPredicate(root, query, builder);
-            query.where(predicate);
-        }
-
-        // Add GROUP BY clause (reuse getPropertyPathRecursive to create proper Path objects)
-        if (!groupByFields.isEmpty()) {
-            Map<String, Path<?>> joinsMap = new HashMap<>();
-            Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
-            List<Expression<?>> groupByExpressions = new ArrayList<>();
-            for (String groupByField : groupByFields) {
-                Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, joinsMap, classMetadataMap);
-                groupByExpressions.add(groupByPath);
-            }
-            query.groupBy(groupByExpressions);
-        }
-
-        // Add ORDER BY clause
-        if (sort != null && sort.isSorted()) {
-            query.orderBy(QueryUtils.toOrders(sort, root, builder));
-        }
-
-        return rsqlContext.entityManager.createQuery(query).getResultList();
+        // Delegate to getAggregateQueryResult which has full HAVING support
+        return getAggregateQueryResult(
+            entityClass,
+            resultClass,
+            selectFields,
+            groupByFields,
+            filter,
+            havingFilter,
+            pageable,
+            rsqlContext,
+            compiler
+        );
     }
 
     /**
@@ -695,33 +666,4 @@ public class SimpleQueryExecutor {
         return rsqlContext.entityManager.createQuery(query).getResultList();
     }
 
-    /**
-     * Executes an aggregate query WITHOUT HAVING clause (backward compatibility).
-     * Delegates to the full method with havingFilter = null.
-     *
-     * @deprecated Use {@link #getAggregateQueryResult(Class, Class, List, List, String, String, Pageable, RsqlContext, RsqlCompiler)} instead
-     */
-    @Deprecated
-    public static <ENTITY, RESULT> List<RESULT> getAggregateQueryResult(
-        Class<ENTITY> entityClass,
-        Class<RESULT> resultClass,
-        List<AggregateField> selectFields,
-        List<String> groupByFields,
-        String filter,
-        Pageable pageable,
-        RsqlContext<ENTITY> rsqlContext,
-        RsqlCompiler<ENTITY> compiler
-    ) {
-        return getAggregateQueryResult(
-            entityClass,
-            resultClass,
-            selectFields,
-            groupByFields,
-            filter,
-            null,  // havingFilter = null
-            pageable,
-            rsqlContext,
-            compiler
-        );
-    }
 }
