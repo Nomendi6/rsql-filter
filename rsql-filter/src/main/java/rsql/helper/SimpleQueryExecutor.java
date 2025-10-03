@@ -395,4 +395,76 @@ public class SimpleQueryExecutor {
         }
         return key;
     }
+
+    public static <ENTITY, RESULT> List<RESULT> getAggregateQueryResult(
+        Class<ENTITY> entityClass,
+        Class<RESULT> resultClass,
+        List<AggregateField> selectFields,
+        List<String> groupByFields,
+        String filter,
+        Pageable pageable,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler
+    ) {
+        Sort sort;
+        if (pageable == null) {
+            sort = null;
+        } else {
+            sort = pageable.getSort();
+        }
+        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+
+        CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
+        CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
+        Root<ENTITY> root = query.from(entityClass);
+
+        Map<String, Path<?>> joinsMap = new HashMap<>();
+        Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
+
+        // Build select clause with aggregate functions
+        List<Selection<?>> selectionList = new ArrayList<>();
+        for (AggregateField field : selectFields) {
+            Path<?> path = getPropertyPathRecursive(field.getFieldPath(), root, rsqlContext, joinsMap, classMetadataMap);
+            Selection<?> selection;
+
+            selection = switch (field.getFunction()) {
+                case SUM -> builder.sum((Expression<Number>) path);
+                case AVG -> builder.avg((Expression<Number>) path);
+                case COUNT -> builder.count(path);
+                case COUNT_DISTINCT -> builder.countDistinct(path);
+                case MIN -> builder.least((Expression) path);
+                case MAX -> builder.greatest((Expression) path);
+                case NONE -> path;
+            };
+
+            if (field.getAlias() != null && !field.getAlias().isEmpty()) {
+                selection = selection.alias(field.getAlias());
+            }
+            selectionList.add(selection);
+        }
+        query.multiselect(selectionList);
+
+        // Add WHERE clause
+        if (specification != null) {
+            Predicate predicate = specification.toPredicate(root, query, builder);
+            query.where(predicate);
+        }
+
+        // Add GROUP BY clause
+        if (groupByFields != null && !groupByFields.isEmpty()) {
+            List<Expression<?>> groupByExpressions = new ArrayList<>();
+            for (String groupByField : groupByFields) {
+                Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, joinsMap, classMetadataMap);
+                groupByExpressions.add(groupByPath);
+            }
+            query.groupBy(groupByExpressions);
+        }
+
+        // Add ORDER BY clause
+        if (sort != null && sort.isSorted()) {
+            query.orderBy(QueryUtils.toOrders(sort, root, builder));
+        }
+
+        return rsqlContext.entityManager.createQuery(query).getResultList();
+    }
 }
