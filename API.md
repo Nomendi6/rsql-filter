@@ -8,6 +8,7 @@ This document provides detailed information about all the methods available in t
   - [Basic Query Methods](#basic-query-methods)
   - [Paginated Query Methods](#paginated-query-methods)
   - [LOV (List of Values) Methods](#lov-list-of-values-methods)
+  - [SELECT Query Methods](#select-query-methods)
   - [JPQL Query Methods](#jpql-query-methods)
   - [Utility Methods](#utility-methods)
 - [RsqlCompiler](#rsqlcompiler)
@@ -207,6 +208,227 @@ List<LovDTO> products = queryService.getLOV(
 public List<LovDTO> getLOVwithIdAndName(String filter, Pageable pageable)
 ```
 Returns a list of values with only id and name fields.
+
+### SELECT Query Methods
+
+The SELECT query methods provide powerful field selection capabilities with aliases, navigation properties, and aggregate functions. For complete SELECT syntax and detailed examples, see [SELECT.md](SELECT.md).
+
+#### getTupleWithSelect
+```java
+public List<Tuple> getTupleWithSelect(
+    String selectString,
+    String filter,
+    Pageable pageable
+)
+```
+Executes a SELECT query with field selection and returns results as Tuples.
+
+**Parameters:**
+- `selectString` - SELECT expression (e.g., "code:id, name, productType.name:type")
+- `filter` - RSQL filter expression
+- `pageable` - Pagination and sorting
+
+**Returns:** List of Tuples with selected fields
+
+**Example:**
+```java
+List<Tuple> products = queryService.getTupleWithSelect(
+    "code:productCode, name, productType.name:typeName, price",
+    "status==ACTIVE",
+    PageRequest.of(0, 20, Sort.by("name"))
+);
+
+for (Tuple row : products) {
+    String code = (String) row.get("productCode");
+    String name = (String) row.get("name");
+    String type = (String) row.get("typeName");
+    BigDecimal price = (BigDecimal) row.get("price");
+}
+```
+
+#### getTupleAsPageWithSelect
+```java
+public Page<Tuple> getTupleAsPageWithSelect(
+    String selectString,
+    String filter,
+    Pageable pageable
+)
+```
+Executes a paginated SELECT query with field selection.
+
+**Parameters:**
+- `selectString` - SELECT expression
+- `filter` - RSQL filter expression
+- `pageable` - Pagination and sorting
+
+**Returns:** Page of Tuples with selected fields
+
+**Example:**
+```java
+Page<Tuple> page = queryService.getTupleAsPageWithSelect(
+    "id, name, price",
+    "price=gt=100",
+    PageRequest.of(0, 20)
+);
+
+long total = page.getTotalElements();
+List<Tuple> results = page.getContent();
+```
+
+#### getAggregateResult
+```java
+public List<Tuple> getAggregateResult(
+    String selectString,
+    String filter,
+    Pageable pageable
+)
+```
+Executes an aggregate query with automatic GROUP BY generation.
+
+**Parameters:**
+- `selectString` - SELECT expression with aggregate functions (e.g., "category:cat, COUNT(*):count, SUM(price):total")
+- `filter` - RSQL filter expression
+- `pageable` - Pagination and sorting
+
+**Returns:** List of Tuples with aggregated results
+
+**Supported aggregate functions:**
+- `COUNT(*)` - Count all rows
+- `COUNT(field)` - Count non-null values
+- `COUNT(DIST field)` - Count distinct values
+- `SUM(field)` - Sum of numeric field
+- `AVG(field)` - Average of numeric field
+- `MIN(field)` - Minimum value
+- `MAX(field)` - Maximum value
+
+**Example:**
+```java
+// Sales statistics by product type
+List<Tuple> stats = queryService.getAggregateResult(
+    "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):avg",
+    "status==ACTIVE",
+    PageRequest.of(0, 100, Sort.by("category"))
+);
+
+for (Tuple row : stats) {
+    String category = (String) row.get("category");
+    Long count = (Long) row.get("count");
+    BigDecimal total = (BigDecimal) row.get("total");
+    Double avg = (Double) row.get("avg");
+
+    System.out.printf("%s: %d items, total $%s, avg $%.2f%n",
+        category, count, total, avg);
+}
+```
+
+#### getLOVWithSelect
+```java
+public List<LovDTO> getLOVWithSelect(
+    String selectString,
+    String filter,
+    int maxResults
+)
+```
+Returns a list of values using SELECT string syntax for field selection.
+
+**Parameters:**
+- `selectString` - SELECT expression (should select 2-3 fields: id, optional code, name)
+- `filter` - RSQL filter expression
+- `maxResults` - Maximum number of results to return
+
+**Returns:** List of LovDTO objects
+
+**Example:**
+```java
+// Select id and name from nested property
+List<LovDTO> categories = queryService.getLOVWithSelect(
+    "productType.id, productType.name",
+    "productType.active==true",
+    50
+);
+
+// Select id, code, and name with aliases
+List<LovDTO> products = queryService.getLOVWithSelect(
+    "id, code:productCode, name:productName",
+    "price=lt=100",
+    100
+);
+```
+
+#### getSelectResult
+```java
+public <RESULT> List<RESULT> getSelectResult(
+    Class<RESULT> resultClass,
+    String selectString,
+    String filter,
+    Pageable pageable
+)
+```
+Generic method for executing SELECT queries with custom result class.
+
+**Type Parameters:**
+- `RESULT` - Type of result class (e.g., custom DTO)
+
+**Parameters:**
+- `resultClass` - Class of the result type
+- `selectString` - SELECT expression
+- `filter` - RSQL filter expression
+- `pageable` - Pagination and sorting
+
+**Returns:** List of result objects
+
+**Example:**
+```java
+// Map to custom DTO
+public class ProductSummaryDTO {
+    private String code;
+    private String name;
+    private BigDecimal price;
+    // constructors, getters, setters
+}
+
+List<ProductSummaryDTO> summaries = queryService.getSelectResult(
+    ProductSummaryDTO.class,
+    "code, name, price",
+    "status==ACTIVE",
+    PageRequest.of(0, 50)
+);
+```
+
+#### getSelectResultAsPage
+```java
+public <RESULT> Page<RESULT> getSelectResultAsPage(
+    Class<RESULT> resultClass,
+    String selectString,
+    String filter,
+    Pageable pageable
+)
+```
+Generic method for executing paginated SELECT queries with custom result class.
+
+**Type Parameters:**
+- `RESULT` - Type of result class
+
+**Parameters:**
+- `resultClass` - Class of the result type
+- `selectString` - SELECT expression
+- `filter` - RSQL filter expression
+- `pageable` - Pagination and sorting
+
+**Returns:** Page of result objects
+
+**Example:**
+```java
+Page<ProductSummaryDTO> page = queryService.getSelectResultAsPage(
+    ProductSummaryDTO.class,
+    "code, name, price, productType.name:typeName",
+    "price=bt=(100,1000)",
+    PageRequest.of(0, 20, Sort.by("name"))
+);
+
+long total = page.getTotalElements();
+List<ProductSummaryDTO> results = page.getContent();
+```
 
 ### JPQL Query Methods
 

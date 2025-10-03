@@ -52,6 +52,8 @@ implementation 'com.nomendi6:rsql-filter:0.6.2'
 - **Complex Queries**: Support for nested queries with AND/OR logic
 - **Sorting**: Built-in support for sorting results
 - **Pagination**: Full Spring Data pagination support
+- **SELECT Queries**: Flexible field selection with aliases and navigation properties
+- **Aggregate Functions**: COUNT, SUM, AVG, MIN, MAX with automatic GROUP BY
 - **LOV Queries**: List of Values queries for dropdowns/autocomplete
 - **ANTLR Based**: Robust parser built with ANTLR4
 - **Error Handling**: Detailed error messages for invalid queries
@@ -218,6 +220,55 @@ List<LovDTO> lovs = queryService.findLovByFilter(
 );
 ```
 
+### SELECT Queries
+
+The library supports flexible SELECT queries with field aliases, navigation properties, and aggregate functions:
+
+```java
+// Basic SELECT with aliases
+List<Tuple> products = queryService.getTupleWithSelect(
+    "code:productCode, name, productType.name:typeName, price",
+    "status==ACTIVE",
+    pageable
+);
+
+// Access results by alias
+for (Tuple row : products) {
+    String code = (String) row.get("productCode");
+    String type = (String) row.get("typeName");  // From related entity
+}
+```
+
+**Aggregate queries with automatic GROUP BY:**
+```java
+// Sales statistics by category
+List<Tuple> stats = queryService.getAggregateResult(
+    "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):avg",
+    "status==ACTIVE",
+    pageable
+);
+
+for (Tuple row : stats) {
+    System.out.printf("%s: %d items, total $%s%n",
+        row.get("category"), row.get("count"), row.get("total")
+    );
+}
+```
+
+**Supported aggregate functions:**
+- `COUNT(*)` - Count all rows
+- `COUNT(field)` - Count non-null values
+- `COUNT(DIST field)` - Count distinct values
+- `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+
+**REST endpoint example:**
+```http
+GET /api/products?select=code:id,name,price&filter=status==ACTIVE&sort=name,asc
+GET /api/products/stats?filter=status==ACTIVE
+```
+
+For complete SELECT syntax and examples, see [SELECT.md](SELECT.md).
+
 ### Custom JPQL Queries
 For complex scenarios, you can provide custom JPQL:
 ```java
@@ -225,7 +276,7 @@ String selectQuery = "SELECT DISTINCT p FROM Product p LEFT JOIN p.categories c"
 String countQuery = "SELECT COUNT(DISTINCT p) FROM Product p LEFT JOIN p.categories c";
 
 RsqlQueryService queryService = new RsqlQueryService<>(
-    repository, mapper, entityManager, Product.class, 
+    repository, mapper, entityManager, Product.class,
     selectQuery, countQuery
 );
 ```
