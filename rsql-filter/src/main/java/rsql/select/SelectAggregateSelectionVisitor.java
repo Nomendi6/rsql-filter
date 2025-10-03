@@ -33,13 +33,13 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
     private RsqlContext<?> rsqlContext;
     private CriteriaBuilder builder;
     private Root<?> root;
-    private Map<String, Path<?>> joinsMap = new HashMap<>();
-    private Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
 
     /**
      * Sets the context for JPA Criteria API operations.
+     * Uses shared joinsMap and classMetadataMap from RsqlContext to ensure
+     * consistency across SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses.
      *
-     * @param rsqlContext The RSQL context
+     * @param rsqlContext The RSQL context with shared JOIN and metadata caches
      * @param builder The CriteriaBuilder
      * @param root The query root
      */
@@ -47,8 +47,6 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
         this.rsqlContext = rsqlContext;
         this.builder = builder;
         this.root = root;
-        this.joinsMap = new HashMap<>();
-        this.classMetadataMap = new HashMap<>();
     }
 
     @Override
@@ -89,7 +87,7 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
         String fieldPath = getFieldPath(ctx.field());
         String alias = ctx.simpleField() != null ? ctx.simpleField().getText() : null;
 
-        Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
+        Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
 
         // Set alias: use provided alias, or default to the last part of fieldPath (e.g., "productType.name" -> "name")
         String finalAlias = (alias != null && !alias.isEmpty()) ? alias : getLastFieldName(fieldPath);
@@ -140,7 +138,7 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
 
         // Extract field path
         String fieldPath = visitFunctionArgAsString(ctx.functionArg());
-        Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
+        Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
 
         // Create Selection using CriteriaBuilder
         // Same logic as SimpleQueryExecutor.getAggregateQueryResult() lines 430-438
@@ -169,7 +167,7 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
             fieldPath = visitFunctionArgAsString(ctx.functionArg());
         }
 
-        Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
+        Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
         Selection<?> selection = builder.count(path);
 
         return Arrays.asList(selection);
@@ -182,7 +180,7 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
 
         List<Selection<?>> selections = new ArrayList<>();
         for (String fieldPath : fieldPaths) {
-            Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
+            Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
             Selection<?> selection = builder.countDistinct(path);
             selections.add(selection);
         }
@@ -237,7 +235,7 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
         List<Selection<?>> selections = new ArrayList<>();
 
         for (String fieldPath : fieldPaths) {
-            Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
+            Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
             selections.add(path);
         }
 

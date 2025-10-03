@@ -20,38 +20,33 @@ import java.util.Set;
 /**
  * Context for HAVING clause that maintains mapping between SELECT aliases and their corresponding JPA Expression objects.
  * This class builds Expression objects from SELECT AggregateFields and allows HAVING visitor to retrieve them by alias.
+ * Uses shared JOIN and metadata caches from RsqlContext to ensure consistency with SELECT and WHERE clauses.
  */
 public class HavingContext<ENTITY> {
 
     private final Map<String, Expression<?>> aliasToExpression;
     private final CriteriaBuilder builder;
     private final Root<ENTITY> root;
-    private final Map<String, Path<?>> joinsMap;
-    private final Map<String, ManagedType<?>> classMetadataMap;
     private final RsqlContext<ENTITY> rsqlContext;
 
     /**
      * Constructs a HavingContext from SELECT aggregate fields.
+     * Uses shared joinsMap and classMetadataMap from RsqlContext to ensure consistency
+     * with SELECT, WHERE, and other clauses.
      *
      * @param builder CriteriaBuilder for creating expressions
      * @param root Query root
      * @param selectFields List of AggregateFields from SELECT clause
-     * @param joinsMap Shared JOIN cache (must be same instance as used in SELECT)
-     * @param classMetadataMap Shared metadata cache (must be same instance as used in SELECT)
-     * @param rsqlContext RSQL context with EntityManager
+     * @param rsqlContext RSQL context with EntityManager and shared JOIN/metadata caches
      */
     public HavingContext(
         CriteriaBuilder builder,
         Root<ENTITY> root,
         List<AggregateField> selectFields,
-        Map<String, Path<?>> joinsMap,
-        Map<String, ManagedType<?>> classMetadataMap,
         RsqlContext<ENTITY> rsqlContext
     ) {
         this.builder = builder;
         this.root = root;
-        this.joinsMap = joinsMap;
-        this.classMetadataMap = classMetadataMap;
         this.rsqlContext = rsqlContext;
         this.aliasToExpression = buildAliasMapping(selectFields);
     }
@@ -104,21 +99,21 @@ public class HavingContext<ENTITY> {
     }
 
     /**
-     * Gets the shared JOIN cache.
+     * Gets the shared JOIN cache from RsqlContext.
      *
      * @return JOIN cache map
      */
     public Map<String, Path<?>> getJoinsMap() {
-        return joinsMap;
+        return rsqlContext.joinsMap;
     }
 
     /**
-     * Gets the shared metadata cache.
+     * Gets the shared metadata cache from RsqlContext.
      *
      * @return Metadata cache map
      */
     public Map<String, ManagedType<?>> getClassMetadataMap() {
-        return classMetadataMap;
+        return rsqlContext.classMetadataMap;
     }
 
     /**
@@ -148,12 +143,13 @@ public class HavingContext<ENTITY> {
             }
 
             // Create Path for fieldPath (same logic as SimpleQueryExecutor)
+            // Uses shared joinsMap and classMetadataMap from rsqlContext
             Path<?> path = getPropertyPathRecursive(
                 field.getFieldPath(),
                 root,
                 rsqlContext,
-                joinsMap,
-                classMetadataMap
+                rsqlContext.joinsMap,
+                rsqlContext.classMetadataMap
             );
 
             // Create Expression depending on aggregate function (same logic as SimpleQueryExecutor)

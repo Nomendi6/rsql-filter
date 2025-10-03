@@ -136,8 +136,6 @@ public class SimpleQueryExecutor {
                 builder,
                 root,
                 new ArrayList<>(),
-                new HashMap<>(),
-                new HashMap<>(),
                 rsqlContext,
                 new ArrayList<>()
             );
@@ -147,6 +145,7 @@ public class SimpleQueryExecutor {
         SelectTreeParser selectParser = new SelectTreeParser();
         ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
 
+        // Extract metadata about aggregate fields (for HAVING clause)
         SelectAggregateVisitor aggregateVisitor = new SelectAggregateVisitor();
         aggregateVisitor.setContext(rsqlContext);
         List<AggregateField> selectFields = aggregateVisitor.visit(tree);
@@ -155,33 +154,15 @@ public class SimpleQueryExecutor {
             selectFields = new ArrayList<>();
         }
 
-        // Shared state for joins (ensures consistency between SELECT, GROUP BY, and HAVING)
-        // This joinsMap is CRITICAL - it's reused in HAVING clause via AggregateQueryBuilder
-        Map<String, Path<?>> joinsMap = new HashMap<>();
-        Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
+        // Build SELECT selections using visitor
+        // The visitor uses shared joinsMap and classMetadataMap from rsqlContext
+        // to ensure consistency with WHERE, GROUP BY, and HAVING clauses
+        SelectAggregateSelectionVisitor selectionVisitor = new SelectAggregateSelectionVisitor();
+        selectionVisitor.setContext(rsqlContext, builder, root);
+        List<Selection<?>> selectionList = selectionVisitor.visit(tree);
 
-        // Build SELECT selections with aggregate functions
-        // Note: We manually build selections (instead of using SelectAggregateSelectionVisitor)
-        // because we need to control and share the joinsMap with GROUP BY and HAVING clauses
-        List<Selection<?>> selectionList = new ArrayList<>();
-        for (AggregateField field : selectFields) {
-            Path<?> path = getPropertyPathRecursive(field.getFieldPath(), root, rsqlContext, joinsMap, classMetadataMap);
-            Selection<?> selection;
-
-            selection = switch (field.getFunction()) {
-                case SUM -> builder.sum((Expression<Number>) path);
-                case AVG -> builder.avg((Expression<Number>) path);
-                case COUNT -> builder.count(path);
-                case COUNT_DISTINCT -> builder.countDistinct(path);
-                case MIN -> builder.least((Expression) path);
-                case MAX -> builder.greatest((Expression) path);
-                case NONE -> path;
-            };
-
-            if (field.getAlias() != null && !field.getAlias().isEmpty()) {
-                selection = selection.alias(field.getAlias());
-            }
-            selectionList.add(selection);
+        if (selectionList == null) {
+            selectionList = new ArrayList<>();
         }
 
         // Extract GROUP BY field names (fields without aggregate functions)
@@ -193,22 +174,21 @@ public class SimpleQueryExecutor {
             }
         }
 
-        // Build GROUP BY expressions (reusing the same joinsMap for consistency)
+        // Build GROUP BY expressions (using shared joinsMap from rsqlContext for consistency)
         List<Expression<?>> groupByExpressions = new ArrayList<>();
         for (String groupByField : groupByFieldNames) {
-            Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, joinsMap, classMetadataMap);
+            Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
             groupByExpressions.add(groupByPath);
         }
 
         // Return builder with all components
+        // Note: joinsMap and classMetadataMap are now managed by rsqlContext
         return new AggregateQueryBuilder<>(
             selectionList,
             groupByExpressions,
             builder,
             root,
             selectFields,
-            joinsMap,
-            classMetadataMap,
             rsqlContext,
             groupByFieldNames
         );
@@ -748,19 +728,24 @@ public class SimpleQueryExecutor {
         } else {
             sort = pageable.getSort();
         }
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
-
         CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
         CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
         Root<ENTITY> root = query.from(entityClass);
 
-        Map<String, Path<?>> joinsMap = new HashMap<>();
-        Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
+        // Update rsqlContext with new root and clear JOIN caches
+        rsqlContext.criteriaBuilder = builder;
+        rsqlContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) query;
+        rsqlContext.root = root;
+        rsqlContext.joinsMap.clear();
+        rsqlContext.classMetadataMap.clear();
 
-        // Build select clause with aggregate functions
+        // Create WHERE specification (uses shared joinsMap from rsqlContext)
+        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+
+        // Build select clause with aggregate functions (uses shared joinsMap from rsqlContext)
         List<Selection<?>> selectionList = new ArrayList<>();
         for (AggregateField field : selectFields) {
-            Path<?> path = getPropertyPathRecursive(field.getFieldPath(), root, rsqlContext, joinsMap, classMetadataMap);
+            Path<?> path = getPropertyPathRecursive(field.getFieldPath(), root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
             Selection<?> selection;
 
             selection = switch (field.getFunction()) {
@@ -786,11 +771,11 @@ public class SimpleQueryExecutor {
             query.where(predicate);
         }
 
-        // Add GROUP BY clause
+        // Add GROUP BY clause (uses shared joinsMap from rsqlContext)
         if (groupByFields != null && !groupByFields.isEmpty()) {
             List<Expression<?>> groupByExpressions = new ArrayList<>();
             for (String groupByField : groupByFields) {
-                Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, joinsMap, classMetadataMap);
+                Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
                 groupByExpressions.add(groupByPath);
             }
             query.groupBy(groupByExpressions);
@@ -799,12 +784,11 @@ public class SimpleQueryExecutor {
         // Add HAVING clause
         if (havingFilter != null && !havingFilter.trim().isEmpty()) {
             // Create HavingContext with alias mappings from SELECT
+            // Uses shared joinsMap and classMetadataMap from rsqlContext
             HavingContext<ENTITY> havingContext = new HavingContext<>(
                 builder,
                 root,
                 selectFields,
-                joinsMap,
-                classMetadataMap,
                 rsqlContext
             );
 

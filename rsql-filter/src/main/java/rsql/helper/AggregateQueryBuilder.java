@@ -41,23 +41,21 @@ public class AggregateQueryBuilder<ENTITY> {
     private final CriteriaBuilder builder;
     private final Root<ENTITY> root;
     private final List<AggregateField> selectFields;
-    private final Map<String, Path<?>> joinsMap;
-    private final Map<String, ManagedType<?>> classMetadataMap;
     private final RsqlContext<ENTITY> rsqlContext;
     private final List<String> groupByFieldNames;
 
     /**
      * Package-private constructor. Instances should be created via
      * {@link SimpleQueryExecutor#createAggregateQuery}.
+     * Uses shared joinsMap and classMetadataMap from rsqlContext for consistency
+     * across SELECT, WHERE, GROUP BY, and HAVING clauses.
      *
      * @param selections SELECT clause selections
      * @param groupByExpressions GROUP BY clause expressions
      * @param builder CriteriaBuilder
      * @param root Query root
      * @param selectFields Parsed aggregate fields from SELECT string
-     * @param joinsMap Shared joins map
-     * @param classMetadataMap Shared class metadata map
-     * @param rsqlContext RSQL context
+     * @param rsqlContext RSQL context with shared JOIN and metadata caches
      * @param groupByFieldNames GROUP BY field names
      */
     AggregateQueryBuilder(
@@ -66,8 +64,6 @@ public class AggregateQueryBuilder<ENTITY> {
         CriteriaBuilder builder,
         Root<ENTITY> root,
         List<AggregateField> selectFields,
-        Map<String, Path<?>> joinsMap,
-        Map<String, ManagedType<?>> classMetadataMap,
         RsqlContext<ENTITY> rsqlContext,
         List<String> groupByFieldNames
     ) {
@@ -76,8 +72,6 @@ public class AggregateQueryBuilder<ENTITY> {
         this.builder = builder;
         this.root = root;
         this.selectFields = selectFields;
-        this.joinsMap = joinsMap;
-        this.classMetadataMap = classMetadataMap;
         this.rsqlContext = rsqlContext;
         this.groupByFieldNames = groupByFieldNames;
     }
@@ -122,13 +116,12 @@ public class AggregateQueryBuilder<ENTITY> {
             return null;
         }
 
-        // Create HavingContext with all the internal state
+        // Create HavingContext with internal state
+        // HavingContext will use shared joinsMap and classMetadataMap from rsqlContext
         HavingContext<ENTITY> havingContext = new HavingContext<>(
             builder,
             root,
             selectFields,
-            joinsMap,
-            classMetadataMap,
             rsqlContext
         );
 
