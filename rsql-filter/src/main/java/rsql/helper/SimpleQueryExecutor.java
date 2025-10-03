@@ -51,6 +51,170 @@ public class SimpleQueryExecutor {
     }
 
     /**
+     * Creates JPA Criteria Selections from a SELECT string (non-aggregate queries).
+     * This method is analogous to createSpecification() but for SELECT clauses.
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * List&lt;Selection&lt;?&gt;&gt; selections = SimpleQueryExecutor.createSelectionsFromString(
+     *     "code, name, productType.name:typeName",
+     *     builder, root, rsqlContext
+     * );
+     * query.multiselect(selections);
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name, productType.name:typeName")
+     * @param builder CriteriaBuilder for creating selections
+     * @param root Query root
+     * @param rsqlContext RSQL context with EntityManager
+     * @param <ENTITY> Entity type
+     * @return List of Selection<?> for use with CriteriaQuery.multiselect()
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid or contains aggregate functions
+     */
+    public static <ENTITY> List<Selection<?>> createSelectionsFromString(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root,
+        RsqlContext<ENTITY> rsqlContext
+    ) {
+        if (selectString == null || selectString.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Parse SELECT string and create Selections using SelectFieldSelectionVisitor
+        SelectTreeParser selectParser = new SelectTreeParser();
+        ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
+
+        SelectFieldSelectionVisitor visitor = new SelectFieldSelectionVisitor();
+        visitor.setContext(rsqlContext, builder, root);
+        List<Selection<?>> selectionList = visitor.visit(tree);
+
+        return selectionList != null ? selectionList : new ArrayList<>();
+    }
+
+    /**
+     * Creates an aggregate query builder from a SELECT string containing aggregate functions.
+     * This method is analogous to createSpecification() but for aggregate queries.
+     *
+     * <p>Returns an AggregateQueryBuilder containing:</p>
+     * <ul>
+     *   <li>SELECT selections (aggregate functions + grouping fields)</li>
+     *   <li>GROUP BY expressions</li>
+     *   <li>Internal state for creating HAVING predicates</li>
+     * </ul>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * AggregateQueryBuilder&lt;Product&gt; aggQuery = SimpleQueryExecutor.createAggregateQuery(
+     *     "productType.name:category, COUNT(*):count, SUM(price):total",
+     *     builder, root, rsqlContext
+     * );
+     *
+     * query.multiselect(aggQuery.getSelections());
+     * query.groupBy(aggQuery.getGroupByExpressions());
+     * query.having(aggQuery.createHavingPredicate("total=gt=50000;count=ge=10", compiler));
+     * </pre>
+     *
+     * @param selectString Aggregate SELECT clause string (e.g., "category, COUNT(*):count, SUM(price):total")
+     * @param builder CriteriaBuilder for creating selections and expressions
+     * @param root Query root
+     * @param rsqlContext RSQL context with EntityManager
+     * @param <ENTITY> Entity type
+     * @return AggregateQueryBuilder with selections, GROUP BY expressions, and HAVING state
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid
+     */
+    public static <ENTITY> AggregateQueryBuilder<ENTITY> createAggregateQuery(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root,
+        RsqlContext<ENTITY> rsqlContext
+    ) {
+        if (selectString == null || selectString.trim().isEmpty()) {
+            return new AggregateQueryBuilder<>(
+                new ArrayList<>(),
+                new ArrayList<>(),
+                builder,
+                root,
+                new ArrayList<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                rsqlContext,
+                new ArrayList<>()
+            );
+        }
+
+        // Parse SELECT string to extract aggregate field metadata
+        SelectTreeParser selectParser = new SelectTreeParser();
+        ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
+
+        SelectAggregateVisitor aggregateVisitor = new SelectAggregateVisitor();
+        aggregateVisitor.setContext(rsqlContext);
+        List<AggregateField> selectFields = aggregateVisitor.visit(tree);
+
+        if (selectFields == null) {
+            selectFields = new ArrayList<>();
+        }
+
+        // Shared state for joins (ensures consistency between SELECT, GROUP BY, and HAVING)
+        // This joinsMap is CRITICAL - it's reused in HAVING clause via AggregateQueryBuilder
+        Map<String, Path<?>> joinsMap = new HashMap<>();
+        Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
+
+        // Build SELECT selections with aggregate functions
+        // Note: We manually build selections (instead of using SelectAggregateSelectionVisitor)
+        // because we need to control and share the joinsMap with GROUP BY and HAVING clauses
+        List<Selection<?>> selectionList = new ArrayList<>();
+        for (AggregateField field : selectFields) {
+            Path<?> path = getPropertyPathRecursive(field.getFieldPath(), root, rsqlContext, joinsMap, classMetadataMap);
+            Selection<?> selection;
+
+            selection = switch (field.getFunction()) {
+                case SUM -> builder.sum((Expression<Number>) path);
+                case AVG -> builder.avg((Expression<Number>) path);
+                case COUNT -> builder.count(path);
+                case COUNT_DISTINCT -> builder.countDistinct(path);
+                case MIN -> builder.least((Expression) path);
+                case MAX -> builder.greatest((Expression) path);
+                case NONE -> path;
+            };
+
+            if (field.getAlias() != null && !field.getAlias().isEmpty()) {
+                selection = selection.alias(field.getAlias());
+            }
+            selectionList.add(selection);
+        }
+
+        // Extract GROUP BY field names (fields without aggregate functions)
+        List<String> groupByFieldNames = new ArrayList<>();
+        for (AggregateField field : selectFields) {
+            if (field.getFunction() == null ||
+                field.getFunction() == AggregateField.AggregateFunction.NONE) {
+                groupByFieldNames.add(field.getFieldPath());
+            }
+        }
+
+        // Build GROUP BY expressions (reusing the same joinsMap for consistency)
+        List<Expression<?>> groupByExpressions = new ArrayList<>();
+        for (String groupByField : groupByFieldNames) {
+            Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, joinsMap, classMetadataMap);
+            groupByExpressions.add(groupByPath);
+        }
+
+        // Return builder with all components
+        return new AggregateQueryBuilder<>(
+            selectionList,
+            groupByExpressions,
+            builder,
+            root,
+            selectFields,
+            joinsMap,
+            classMetadataMap,
+            rsqlContext,
+            groupByFieldNames
+        );
+    }
+
+    /**
      * Executes a query with SELECT properties array.
      * This method delegates to getQueryResultWithSelect for better support of navigation properties.
      *

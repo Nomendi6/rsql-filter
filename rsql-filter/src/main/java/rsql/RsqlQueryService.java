@@ -18,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Selection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -25,6 +28,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import rsql.helper.AggregateField;
+import rsql.helper.AggregateQueryBuilder;
 import static rsql.helper.SimpleQueryExecutor.getQueryResult;
 import static rsql.helper.SimpleQueryExecutor.getQueryResultWithSelect;
 import static rsql.helper.SimpleQueryExecutor.getQueryResultAsPageWithSelect;
@@ -409,6 +413,104 @@ public class RsqlQueryService<
      */
     public Specification<ENTITY> createSpecification(String filter) {
         return rsqlCompiler.compileToSpecification(filter, rsqlContext);
+    }
+
+    /**
+     * Creates JPA Criteria Selections from a SELECT string (non-aggregate queries).
+     * This method is analogous to createSpecification() but for SELECT clauses.
+     *
+     * <p>The SELECT string can include:</p>
+     * <ul>
+     *   <li>Simple fields: {@code "code, name, price"}</li>
+     *   <li>Nested properties: {@code "productType.name, productType.code"}</li>
+     *   <li>Aliases: {@code "name:productName, productType.name:typeName"}</li>
+     * </ul>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * CriteriaBuilder builder = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Tuple&gt; query = builder.createQuery(Tuple.class);
+     * Root&lt;Product&gt; root = query.from(Product.class);
+     *
+     * List&lt;Selection&lt;?&gt;&gt; selections = queryService.createSelections(
+     *     "code, name, productType.name:typeName", builder, root
+     * );
+     * query.multiselect(selections);
+     * query.where(queryService.createSpecification("status==ACTIVE")
+     *     .toPredicate(root, query, builder));
+     *
+     * List&lt;Tuple&gt; results = em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name, productType.name:typeName")
+     * @param builder CriteriaBuilder for creating selections
+     * @param root Query root
+     * @return List of Selection&lt;?&gt; for use with CriteriaQuery.multiselect()
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid or contains aggregate functions
+     */
+    public List<Selection<?>> createSelections(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root
+    ) {
+        return SimpleQueryExecutor.createSelectionsFromString(
+            selectString, builder, root, rsqlContext
+        );
+    }
+
+    /**
+     * Creates an aggregate query builder from a SELECT string containing aggregate functions.
+     * This method is analogous to createSpecification() but for aggregate queries.
+     *
+     * <p>The SELECT string can include:</p>
+     * <ul>
+     *   <li>Simple fields for GROUP BY: {@code "productType.name, status"}</li>
+     *   <li>Aggregate functions: {@code "COUNT(*):count, SUM(price):total, AVG(price):avg"}</li>
+     *   <li>Aliases for all fields: {@code "productType.name:category, COUNT(*):count"}</li>
+     *   <li>COUNT(DIST field) for COUNT DISTINCT: {@code "COUNT(DIST productType.id):typeCount"}</li>
+     * </ul>
+     *
+     * <p>The returned {@link AggregateQueryBuilder} provides:</p>
+     * <ul>
+     *   <li>{@code getSelections()} - SELECT clause selections</li>
+     *   <li>{@code getGroupByExpressions()} - GROUP BY clause expressions</li>
+     *   <li>{@code createHavingPredicate(havingFilter, compiler)} - HAVING clause predicate</li>
+     * </ul>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * CriteriaBuilder builder = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Tuple&gt; query = builder.createQuery(Tuple.class);
+     * Root&lt;Product&gt; root = query.from(Product.class);
+     *
+     * AggregateQueryBuilder&lt;Product&gt; aggQuery = queryService.createAggregateQuery(
+     *     "productType.name:category, COUNT(*):count, SUM(price):total",
+     *     builder, root
+     * );
+     *
+     * query.multiselect(aggQuery.getSelections());
+     * query.groupBy(aggQuery.getGroupByExpressions());
+     * query.where(queryService.createSpecification("status==ACTIVE")
+     *     .toPredicate(root, query, builder));
+     * query.having(aggQuery.createHavingPredicate("total=gt=50000;count=ge=10", rsqlCompiler));
+     *
+     * List&lt;Tuple&gt; results = em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param selectString Aggregate SELECT clause string (e.g., "category, COUNT(*):count, SUM(price):total")
+     * @param builder CriteriaBuilder for creating selections and expressions
+     * @param root Query root
+     * @return AggregateQueryBuilder with selections, GROUP BY expressions, and HAVING state
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid
+     */
+    public AggregateQueryBuilder<ENTITY> createAggregateQuery(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root
+    ) {
+        return SimpleQueryExecutor.createAggregateQuery(
+            selectString, builder, root, rsqlContext
+        );
     }
 
     /**

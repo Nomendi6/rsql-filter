@@ -11,6 +11,9 @@ This document provides detailed information about all the methods available in t
   - [SELECT Query Methods](#select-query-methods)
   - [JPQL Query Methods](#jpql-query-methods)
   - [Utility Methods](#utility-methods)
+- [AggregateQueryBuilder](#aggregatequerybuilder)
+  - [Overview](#overview)
+  - [Methods](#methods)
 - [RsqlCompiler](#rsqlcompiler)
   - [Compilation Methods](#compilation-methods)
   - [Parameter Binding Methods](#parameter-binding-methods)
@@ -550,10 +553,153 @@ Executes paginated JPQL queries.
 
 ### Utility Methods
 
+#### createSpecification
+```java
+public Specification<ENTITY> createSpecification(String filter)
+```
+Creates a JPA Specification from an RSQL filter string.
+
+**Parameters:**
+- `filter` - RSQL filter expression
+
+**Returns:** JPA Specification
+
+**Example:**
+```java
+Specification<Product> spec = queryService.createSpecification("price=bt=(100,500)");
+// Can be combined with other specifications
+Specification<Product> combined = spec.and(customSpec);
+```
+
+#### createSelections
+```java
+public List<Selection<?>> createSelections(
+    String selectString,
+    CriteriaBuilder builder,
+    Root<ENTITY> root
+)
+```
+Creates JPA Criteria Selections from a SELECT string (non-aggregate queries).
+This method is analogous to `createSpecification()` but for SELECT clauses.
+
+**Parameters:**
+- `selectString` - SELECT clause string (e.g., "code, name, productType.name:typeName")
+- `builder` - CriteriaBuilder for creating selections
+- `root` - Query root
+
+**Returns:** List of Selection<?> for use with CriteriaQuery.multiselect()
+
+**SELECT string syntax:**
+- Simple fields: `"code, name, price"`
+- Nested properties: `"productType.name, productType.code"`
+- Aliases: `"name:productName, productType.name:typeName"`
+
+**Example:**
+```java
+CriteriaBuilder builder = em.getCriteriaBuilder();
+CriteriaQuery<Tuple> query = builder.createQuery(Tuple.class);
+Root<Product> root = query.from(Product.class);
+
+List<Selection<?>> selections = queryService.createSelections(
+    "code, name, productType.name:typeName", builder, root
+);
+query.multiselect(selections);
+query.where(queryService.createSpecification("status==ACTIVE")
+    .toPredicate(root, query, builder));
+
+List<Tuple> results = em.createQuery(query).getResultList();
+
+// Access results
+for (Tuple row : results) {
+    String code = (String) row.get("code");
+    String name = (String) row.get("name");
+    String typeName = (String) row.get("typeName");
+}
+```
+
+#### createAggregateQuery
+```java
+public AggregateQueryBuilder<ENTITY> createAggregateQuery(
+    String selectString,
+    CriteriaBuilder builder,
+    Root<ENTITY> root
+)
+```
+Creates an aggregate query builder from a SELECT string containing aggregate functions.
+This method is analogous to `createSpecification()` but for aggregate queries.
+
+**Parameters:**
+- `selectString` - Aggregate SELECT clause string (e.g., "category, COUNT(*):count, SUM(price):total")
+- `builder` - CriteriaBuilder for creating selections and expressions
+- `root` - Query root
+
+**Returns:** AggregateQueryBuilder with selections, GROUP BY expressions, and HAVING state
+
+**SELECT string syntax:**
+- Simple fields for GROUP BY: `"productType.name, status"`
+- Aggregate functions: `"COUNT(*):count, SUM(price):total, AVG(price):avg"`
+- Aliases for all fields: `"productType.name:category, COUNT(*):count"`
+- COUNT DISTINCT: `"COUNT(DIST productType.id):typeCount"`
+
+**AggregateQueryBuilder methods:**
+- `getSelections()` - Returns SELECT clause selections
+- `getGroupByExpressions()` - Returns GROUP BY clause expressions
+- `createHavingPredicate(havingFilter, compiler)` - Creates HAVING clause predicate
+
+**Example:**
+```java
+CriteriaBuilder builder = em.getCriteriaBuilder();
+CriteriaQuery<Tuple> query = builder.createQuery(Tuple.class);
+Root<Product> root = query.from(Product.class);
+
+// Create aggregate query
+AggregateQueryBuilder<Product> aggQuery = queryService.createAggregateQuery(
+    "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):avg",
+    builder, root
+);
+
+// Build complete query
+query.multiselect(aggQuery.getSelections());
+query.groupBy(aggQuery.getGroupByExpressions());
+query.where(queryService.createSpecification("status==ACTIVE")
+    .toPredicate(root, query, builder));
+query.having(aggQuery.createHavingPredicate("total=gt=50000;count=ge=10", rsqlCompiler));
+
+List<Tuple> results = em.createQuery(query).getResultList();
+
+// Access aggregated results
+for (Tuple row : results) {
+    String category = (String) row.get("category");
+    Long count = (Long) row.get("count");
+    BigDecimal total = (BigDecimal) row.get("total");
+    Double avg = (Double) row.get("avg");
+
+    System.out.printf("%s: %d items, total $%s, avg $%.2f%n",
+        category, count, total, avg);
+}
+```
+
+**HAVING filter examples:**
+```java
+// Filter by alias from SELECT
+aggQuery.createHavingPredicate("total=gt=50000;count=ge=10", compiler)
+
+// Filter using aggregate functions directly
+aggQuery.createHavingPredicate("SUM(price)=gt=50000;COUNT(*)=ge=10", compiler)
+
+// Complex HAVING with OR and parentheses
+aggQuery.createHavingPredicate("(total=gt=100000,avg=gt=500);count=ge=5", compiler)
+
+// HAVING with BETWEEN
+aggQuery.createHavingPredicate("AVG(price)=bt=(100,500)", compiler)
+```
+
 #### getSpecification
 ```java
 public Specification<ENTITY> getSpecification(String filter)
 ```
+**Deprecated.** Use `createSpecification(String filter)` instead.
+
 Returns a JPA Specification from an RSQL filter string.
 
 **Parameters:**
@@ -612,6 +758,165 @@ List<Map<String, Object>> results = queryService.getResultAsMap(
     PageRequest.of(0, 50),
     "id", "title", "author", "price"
 );
+```
+
+## AggregateQueryBuilder
+
+The `AggregateQueryBuilder` class encapsulates all components needed for building aggregate queries with SELECT, GROUP BY, and HAVING clauses.
+
+### Overview
+
+`AggregateQueryBuilder<ENTITY>` is returned by `RsqlQueryService.createAggregateQuery()` and provides a convenient way to build complex aggregate queries. It maintains shared state (like joins maps) to ensure consistency between SELECT, GROUP BY, and HAVING clauses.
+
+This class is analogous to how `Specification` encapsulates WHERE clause logic - it encapsulates SELECT + GROUP BY + HAVING logic.
+
+### Methods
+
+#### getSelections
+```java
+public List<Selection<?>> getSelections()
+```
+Returns the SELECT clause selections for use with `CriteriaQuery.multiselect()`.
+
+**Returns:** List of selections (aggregate functions and grouping fields)
+
+**Example:**
+```java
+AggregateQueryBuilder<Product> aggQuery = queryService.createAggregateQuery(
+    "productType.name:category, COUNT(*):count, SUM(price):total",
+    builder, root
+);
+
+query.multiselect(aggQuery.getSelections());
+```
+
+#### getGroupByExpressions
+```java
+public List<Expression<?>> getGroupByExpressions()
+```
+Returns the GROUP BY clause expressions for use with `CriteriaQuery.groupBy()`.
+
+**Returns:** List of expressions representing GROUP BY fields
+
+**Example:**
+```java
+query.groupBy(aggQuery.getGroupByExpressions());
+```
+
+#### createHavingPredicate
+```java
+public Predicate createHavingPredicate(String havingFilter, RsqlCompiler<ENTITY> compiler)
+```
+Creates a HAVING clause predicate from a HAVING filter string. Uses internal state (SELECT fields, joins map, etc.) to ensure consistency with SELECT and GROUP BY clauses.
+
+**Parameters:**
+- `havingFilter` - RSQL HAVING filter string (can be null or empty)
+- `compiler` - RSQL compiler for parsing the filter
+
+**Returns:** HAVING Predicate, or null if havingFilter is null/empty
+
+**Throws:** `SyntaxErrorException` if HAVING filter has syntax errors
+
+**HAVING filter can reference:**
+- Aliases from SELECT clause: `"totalPrice=gt=10000;productCount=ge=5"`
+- Aggregate functions directly: `"SUM(price)=gt=50000;COUNT(*)=ge=10"`
+- Logical operators: `;` (AND), `,` (OR), parentheses for grouping
+- All standard RSQL operators: `==`, `!=`, `=gt=`, `=ge=`, `=lt=`, `=le=`, `=bt=`, `=in=`
+
+**Example:**
+```java
+// Filter by aliases
+Predicate having = aggQuery.createHavingPredicate("total=gt=50000;count=ge=10", compiler);
+query.having(having);
+
+// Filter by aggregate functions
+Predicate having2 = aggQuery.createHavingPredicate("SUM(price)=gt=50000;AVG(price)=bt=(100,500)", compiler);
+
+// Complex HAVING with OR
+Predicate having3 = aggQuery.createHavingPredicate("(total=gt=100000,avg=gt=500);count=ge=5", compiler);
+```
+
+#### getSelectFields
+```java
+public List<AggregateField> getSelectFields()
+```
+Returns the parsed aggregate fields from the SELECT string. This is useful for advanced scenarios where you need access to field metadata.
+
+**Returns:** List of AggregateField objects with field paths, functions, and aliases
+
+**Example:**
+```java
+List<AggregateField> fields = aggQuery.getSelectFields();
+for (AggregateField field : fields) {
+    System.out.println("Field: " + field.getFieldPath() +
+                      ", Function: " + field.getFunction() +
+                      ", Alias: " + field.getAlias());
+}
+```
+
+#### getGroupByFieldNames
+```java
+public List<String> getGroupByFieldNames()
+```
+Returns the GROUP BY field names. This is useful for debugging or for advanced HAVING filter validation.
+
+**Returns:** List of GROUP BY field paths
+
+**Example:**
+```java
+List<String> groupByFields = aggQuery.getGroupByFieldNames();
+System.out.println("Grouping by: " + String.join(", ", groupByFields));
+```
+
+### Complete Example
+
+```java
+import jakarta.persistence.criteria.*;
+import jakarta.persistence.Tuple;
+import rsql.helper.AggregateQueryBuilder;
+
+// Setup
+CriteriaBuilder builder = em.getCriteriaBuilder();
+CriteriaQuery<Tuple> query = builder.createQuery(Tuple.class);
+Root<Product> root = query.from(Product.class);
+
+// Create aggregate query builder
+AggregateQueryBuilder<Product> aggQuery = queryService.createAggregateQuery(
+    "productType.name:category, status, COUNT(*):count, SUM(price):total, AVG(price):avg",
+    builder, root
+);
+
+// Build complete query
+query.multiselect(aggQuery.getSelections());
+query.groupBy(aggQuery.getGroupByExpressions());
+
+// Add WHERE clause (filters rows BEFORE aggregation)
+Specification<Product> whereSpec = queryService.createSpecification("createdDate=ge=#2024-01-01#");
+query.where(whereSpec.toPredicate(root, query, builder));
+
+// Add HAVING clause (filters groups AFTER aggregation)
+query.having(aggQuery.createHavingPredicate(
+    "total=gt=50000;count=ge=10;avg=bt=(100,500)",
+    rsqlCompiler
+));
+
+// Add ORDER BY
+query.orderBy(builder.desc(builder.function("", Number.class)));
+
+// Execute
+List<Tuple> results = em.createQuery(query).getResultList();
+
+// Process results
+for (Tuple row : results) {
+    String category = (String) row.get("category");
+    String status = (String) row.get("status");
+    Long count = (Long) row.get("count");
+    BigDecimal total = (BigDecimal) row.get("total");
+    Double avg = (Double) row.get("avg");
+
+    System.out.printf("%s (%s): %d items, total $%s, avg $%.2f%n",
+        category, status, count, total, avg);
+}
 ```
 
 ## RsqlCompiler
