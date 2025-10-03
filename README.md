@@ -54,6 +54,7 @@ implementation 'com.nomendi6:rsql-filter:0.6.2'
 - **Pagination**: Full Spring Data pagination support
 - **SELECT Queries**: Flexible field selection with aliases and navigation properties
 - **Aggregate Functions**: COUNT, SUM, AVG, MIN, MAX with automatic GROUP BY
+- **HAVING Clause**: Filter aggregated results with full RSQL syntax support
 - **LOV Queries**: List of Values queries for dropdowns/autocomplete
 - **ANTLR Based**: Robust parser built with ANTLR4
 - **Error Handling**: Detailed error messages for invalid queries
@@ -255,6 +256,25 @@ for (Tuple row : stats) {
 }
 ```
 
+**HAVING clause for filtering aggregated results:**
+```java
+// Categories with total sales over $10,000 and at least 5 products
+List<Tuple> topCategories = queryService.getAggregateResult(
+    "productType.name:category, SUM(price):totalSales, COUNT(*):productCount",
+    "status==ACTIVE",  // WHERE filter
+    "totalSales=gt=10000;productCount=ge=5",  // HAVING filter
+    pageable
+);
+
+// Using aggregate functions directly in HAVING
+List<Tuple> stats = queryService.getAggregateResult(
+    "category, SUM(price):total, AVG(price):avg",
+    "",
+    "SUM(price)=gt=50000;AVG(price)=bt=(100,500)",  // HAVING with aggregates
+    pageable
+);
+```
+
 **Supported aggregate functions:**
 - `COUNT(*)` - Count all rows
 - `COUNT(field)` - Count non-null values
@@ -264,10 +284,12 @@ for (Tuple row : stats) {
 **REST endpoint example:**
 ```http
 GET /api/products?select=code:id,name,price&filter=status==ACTIVE&sort=name,asc
-GET /api/products/stats?filter=status==ACTIVE
+GET /api/products/stats?filter=status==ACTIVE&having=COUNT(*)=gt=5
+GET /api/sales-by-category?having=totalSales=gt=10000;productCount=ge=5
 ```
 
 For complete SELECT syntax and examples, see [SELECT.md](SELECT.md).
+For complete HAVING syntax and examples, see [HAVING.md](HAVING.md).
 
 ### Custom JPQL Queries
 For complex scenarios, you can provide custom JPQL:

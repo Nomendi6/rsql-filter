@@ -275,7 +275,34 @@ long total = page.getTotalElements();
 List<Tuple> results = page.getContent();
 ```
 
-#### getAggregateResult
+#### getAggregateResult (with HAVING)
+```java
+public List<Tuple> getAggregateResult(
+    String selectString,
+    String filter,
+    String havingFilter,
+    Pageable pageable
+)
+```
+Executes an aggregate query with automatic GROUP BY generation and HAVING clause filtering.
+
+**Parameters:**
+- `selectString` - SELECT expression with aggregate functions (e.g., "category:cat, COUNT(*):count, SUM(price):total")
+- `filter` - RSQL WHERE filter expression (applied before aggregation)
+- `havingFilter` - RSQL HAVING filter expression (applied after aggregation)
+- `pageable` - Pagination and sorting
+
+**Returns:** List of Tuples with aggregated results
+
+**HAVING Filter Syntax:**
+- Can reference SELECT aliases: `"totalSales=gt=10000;productCount=ge=5"`
+- Can use aggregate functions directly: `"SUM(price)=gt=50000;COUNT(*)=ge=5"`
+- Supports all RSQL operators: `==`, `!=`, `=gt=`, `=ge=`, `=lt=`, `=le=`, `=bt=`, `=in=`
+- Supports logical operators: `;` (AND), `,` (OR), parentheses for grouping
+
+For complete HAVING syntax documentation, see [HAVING.md](HAVING.md).
+
+#### getAggregateResult (without HAVING - backward compatible)
 ```java
 public List<Tuple> getAggregateResult(
     String selectString,
@@ -283,14 +310,16 @@ public List<Tuple> getAggregateResult(
     Pageable pageable
 )
 ```
-Executes an aggregate query with automatic GROUP BY generation.
+Executes an aggregate query with automatic GROUP BY generation (no HAVING clause).
 
 **Parameters:**
-- `selectString` - SELECT expression with aggregate functions (e.g., "category:cat, COUNT(*):count, SUM(price):total")
+- `selectString` - SELECT expression with aggregate functions
 - `filter` - RSQL filter expression
 - `pageable` - Pagination and sorting
 
 **Returns:** List of Tuples with aggregated results
+
+**Note:** This is a backward-compatible version. Use the version with `havingFilter` parameter for filtering aggregated results.
 
 **Supported aggregate functions:**
 - `COUNT(*)` - Count all rows
@@ -301,16 +330,27 @@ Executes an aggregate query with automatic GROUP BY generation.
 - `MIN(field)` - Minimum value
 - `MAX(field)` - Maximum value
 
-**Example:**
+**Example without HAVING:**
 ```java
-// Sales statistics by product type
+// Sales statistics by product type (all categories)
 List<Tuple> stats = queryService.getAggregateResult(
     "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):avg",
     "status==ACTIVE",
     PageRequest.of(0, 100, Sort.by("category"))
 );
+```
 
-for (Tuple row : stats) {
+**Example with HAVING:**
+```java
+// Top performing categories (total sales > $50,000 AND at least 10 products)
+List<Tuple> topCategories = queryService.getAggregateResult(
+    "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):avg",
+    "status==ACTIVE",  // WHERE filter
+    "total=gt=50000;count=ge=10",  // HAVING filter using aliases
+    PageRequest.of(0, 100, Sort.by("total").descending())
+);
+
+for (Tuple row : topCategories) {
     String category = (String) row.get("category");
     Long count = (Long) row.get("count");
     BigDecimal total = (BigDecimal) row.get("total");
@@ -319,6 +359,28 @@ for (Tuple row : stats) {
     System.out.printf("%s: %d items, total $%s, avg $%.2f%n",
         category, count, total, avg);
 }
+```
+
+**Example with HAVING using aggregate functions:**
+```java
+// Categories where average price is between $100-$500
+List<Tuple> midRangeCategories = queryService.getAggregateResult(
+    "productType.name:category, AVG(price):avgPrice, COUNT(*):count",
+    "status==ACTIVE",
+    "AVG(price)=bt=(100,500)",  // HAVING with aggregate function
+    pageable
+);
+```
+
+**Example with complex HAVING:**
+```java
+// High-value categories: (total > $100k OR avg > $500) AND count >= 5
+List<Tuple> results = queryService.getAggregateResult(
+    "category, SUM(price):total, AVG(price):avg, COUNT(*):count",
+    "",
+    "(total=gt=100000,avg=gt=500);count=ge=5",  // Complex HAVING
+    pageable
+);
 ```
 
 #### getLOVWithSelect
