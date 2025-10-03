@@ -25,6 +25,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static rsql.helper.SimpleQueryExecutor.getQueryResult;
+import static rsql.helper.SimpleQueryExecutor.getQueryResultWithSelect;
+import static rsql.helper.SimpleQueryExecutor.getQueryResultAsPageWithSelect;
+import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultWithSelect;
 
 /**
  * Service for executing complex queries for  entities in the database.
@@ -487,6 +490,130 @@ public class RsqlQueryService<
     }
 
     /**
+     * Retrieves a list of values (LOV) using SELECT string syntax with support for aliases and navigation properties.
+     * This method provides maximum flexibility for LOV queries by allowing any SELECT string format.
+     *
+     * The SELECT string must specify fields that map to LovDTO constructor:
+     * - First field: id (Long)
+     * - Second field (optional): code (String)
+     * - Third field (optional): name (String)
+     *
+     * Example usage:
+     * <pre>
+     * // Basic: id, code, name
+     * getLOVWithSelect("id, code, name", "status==ACTIVE", pageable)
+     *
+     * // With navigation properties: id, parent.code as code, parent.name as name
+     * getLOVWithSelect("id, parent.code, parent.name", "status==ACTIVE", pageable)
+     *
+     * // With aliases for clarity
+     * getLOVWithSelect("id, productType.code:code, productType.name:name", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause string specifying id, code, and name fields in that order
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return list of LovDTO objects matching the filter
+     */
+    @Transactional(readOnly = true)
+    public List<LovDTO> getLOVWithSelect(String selectString, String filter, Pageable pageable) {
+        return getQueryResultWithSelect(
+            entityClass,
+            LovDTO.class,
+            selectString,
+            filter,
+            pageable,
+            rsqlContext,
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Generic method to retrieve a list of results using SELECT string syntax with any result class.
+     * This is the most flexible query method that supports aliases, navigation properties, and custom result types.
+     *
+     * The SELECT string fields must match the constructor parameters of the result class in order and type.
+     *
+     * Example usage:
+     * <pre>
+     * // Using Tuple.class for flexible column access
+     * getSelectResult(Tuple.class, "code:productCode, name, price", "status==ACTIVE", pageable)
+     *
+     * // Using custom DTO class
+     * getSelectResult(ProductSummaryDTO.class, "code, name, price", "status==ACTIVE", pageable)
+     *
+     * // With navigation properties
+     * getSelectResult(Tuple.class, "code, productType.name:typeName", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param <RESULT> the result type class
+     * @param resultClass the class of the result objects
+     * @param selectString SELECT clause string (e.g., "field1, field2:alias, related.field3")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return list of result objects matching the filter
+     */
+    @Transactional(readOnly = true)
+    public <RESULT> List<RESULT> getSelectResult(
+        Class<RESULT> resultClass,
+        String selectString,
+        String filter,
+        Pageable pageable
+    ) {
+        return getQueryResultWithSelect(
+            entityClass,
+            resultClass,
+            selectString,
+            filter,
+            pageable,
+            rsqlContext,
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Generic method to retrieve a paginated list of results using SELECT string syntax with any result class.
+     * This is the paginated version of getSelectResult() with the same flexibility.
+     *
+     * Example usage:
+     * <pre>
+     * // Using Tuple.class with pagination
+     * getSelectResultAsPage(Tuple.class, "code:productCode, name, price", "status==ACTIVE", pageable)
+     *
+     * // Using custom DTO class with pagination
+     * getSelectResultAsPage(ProductSummaryDTO.class, "code, name, price", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param <RESULT> the result type class
+     * @param resultClass the class of the result objects
+     * @param selectString SELECT clause string (e.g., "field1, field2:alias, related.field3")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return page of result objects matching the filter
+     */
+    @Transactional(readOnly = true)
+    public <RESULT> Page<RESULT> getSelectResultAsPage(
+        Class<RESULT> resultClass,
+        String selectString,
+        String filter,
+        Pageable pageable
+    ) {
+        if (pageable == null) {
+            pageable = PageRequest.of(0, 20);
+        }
+        return getQueryResultAsPageWithSelect(
+            entityClass,
+            resultClass,
+            selectString,
+            filter,
+            pageable,
+            rsqlContext,
+            rsqlCompiler,
+            appObjectRepository
+        );
+    }
+
+    /**
      * Retrieves a list of tuples based on the provided filter, pageable, and fields.
      *
      * @param filter a string representing the filter condition for the query
@@ -500,6 +627,97 @@ public class RsqlQueryService<
             entityClass,
             Tuple.class,
             fields,
+            filter,
+            pageable,
+            rsqlContext,
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Retrieves a list of tuples using SELECT string syntax with support for aliases and navigation properties.
+     * This method provides more flexibility than getTuple() by allowing SELECT string parsing.
+     *
+     * Example usage:
+     * <pre>
+     * getTupleWithSelect("code:productCode, name, productType.name:typeName", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name:productName, productType.name")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return list of tuples with aliased fields matching the filter
+     */
+    @Transactional(readOnly = true)
+    public List<Tuple> getTupleWithSelect(String selectString, String filter, Pageable pageable) {
+        return getQueryResultWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            pageable,
+            rsqlContext,
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Retrieves a paginated list of tuples using SELECT string syntax with support for aliases and navigation properties.
+     * This method provides pagination support with flexible SELECT string parsing.
+     *
+     * Example usage:
+     * <pre>
+     * getTupleAsPageWithSelect("code:productCode, name, productType.name:typeName", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name:productName, productType.name")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return page of tuples with aliased fields matching the filter
+     */
+    @Transactional(readOnly = true)
+    public Page<Tuple> getTupleAsPageWithSelect(String selectString, String filter, Pageable pageable) {
+        if (pageable == null) {
+            pageable = PageRequest.of(0, 20);
+        }
+        return getQueryResultAsPageWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            pageable,
+            rsqlContext,
+            rsqlCompiler,
+            appObjectRepository
+        );
+    }
+
+    /**
+     * Executes an aggregate query with SELECT string syntax supporting aggregate functions and GROUP BY.
+     * Automatically extracts GROUP BY fields from the SELECT string (fields without aggregate functions).
+     *
+     * Supported aggregate functions: COUNT(*), COUNT(field), SUM(field), AVG(field), MIN(field), MAX(field), COUNT(DIST field)
+     *
+     * Example usage:
+     * <pre>
+     * // Group by productType.name with aggregates
+     * getAggregateResult("productType.name:type, COUNT(*):count, SUM(price):total", "status==ACTIVE", pageable)
+     *
+     * // Multiple GROUP BY fields
+     * getAggregateResult("productType.code, status, COUNT(*):count", "", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause with aggregate functions (e.g., "field1, COUNT(*):count, SUM(field2):total")
+     * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param pageable pagination and sorting information
+     * @return list of tuples with aggregated results
+     */
+    @Transactional(readOnly = true)
+    public List<Tuple> getAggregateResult(String selectString, String filter, Pageable pageable) {
+        return getAggregateQueryResultWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
             filter,
             pageable,
             rsqlContext,
