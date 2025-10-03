@@ -1,6 +1,12 @@
 package rsql;
 
 import rsql.exceptions.SyntaxErrorException;
+import rsql.helper.AggregateField;
+import rsql.helper.AggregateField.AggregateFunction;
+import rsql.select.SelectAggregateVisitor;
+import rsql.select.SelectField;
+import rsql.select.SelectFieldVisitor;
+import rsql.select.SelectTreeParser;
 import rsql.where.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -10,8 +16,11 @@ import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * This class is responsible for compiling RSQL queries into Specifications or RsqlQuery structures.
@@ -21,16 +30,22 @@ import java.util.Objects;
 public class RsqlCompiler<T> {
 
     /**
-     * The RsqlWhereTreeParser used to parse the RSQL query.
+     * The RsqlWhereTreeParser used to parse the RSQL WHERE query.
      */
     private RsqlWhereTreeParser treeParser;
 
     /**
+     * The SelectTreeParser used to parse the RSQL SELECT query.
+     */
+    private SelectTreeParser selectTreeParser;
+
+    /**
      * Default constructor for the RsqlCompiler class.
-     * It initializes the RsqlWhereTreeParser.
+     * It initializes the RsqlWhereTreeParser and SelectTreeParser.
      */
     public RsqlCompiler() {
         this.treeParser = new RsqlWhereTreeParser();
+        this.selectTreeParser = new SelectTreeParser();
     }
 
     /**
@@ -156,6 +171,110 @@ public class RsqlCompiler<T> {
     public static void fixIdsForNativeQuery(RsqlQuery query) {
         query.where = query.where.replace("Id", "_id");
         query.where = query.where.replace(".id", "_id");
+    }
+
+    // ==================== SELECT Compilation Methods ====================
+
+    /**
+     * Compiles a simple SELECT string into a list of SelectField objects (fieldPath + alias).
+     * Does not support aggregate functions.
+     *
+     * @param selectString SELECT clause (e.g., "field1, field2:alias2, productType.name")
+     * @param rsqlContext JPA context
+     * @return List of SelectField objects with fieldPath and optional alias
+     * @throws SyntaxErrorException if syntax error or aggregate function found
+     */
+    public List<SelectField> compileSelectToFields(
+        String selectString,
+        RsqlContext<T> rsqlContext
+    ) {
+        if (selectString == null || selectString.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        CharStream inputStream = CharStreams.fromString(selectString);
+        ParseTree tree = selectTreeParser.parseStream(inputStream);
+
+        SelectFieldVisitor visitor = new SelectFieldVisitor();
+        visitor.setContext(rsqlContext);
+
+        List<SelectField> fields = visitor.visit(tree);
+
+        if (fields == null) {
+            throw new SyntaxErrorException("Error parsing SELECT clause: " + selectString);
+        }
+
+        return fields;
+    }
+
+    /**
+     * Compiles a simple SELECT string into a list of field paths (without aliases).
+     * Helper method for backward compatibility with APIs that expect String[].
+     *
+     * @param selectString SELECT clause
+     * @param rsqlContext JPA context
+     * @return List of field paths (aliases ignored)
+     */
+    public List<String> compileSelectToFieldPaths(
+        String selectString,
+        RsqlContext<T> rsqlContext
+    ) {
+        List<SelectField> fields = compileSelectToFields(selectString, rsqlContext);
+        return fields.stream()
+            .map(SelectField::getFieldPath)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Compiles an aggregate SELECT string into a list of AggregateField objects.
+     * Supports both simple fields and aggregate functions.
+     *
+     * @param selectString SELECT clause (e.g., "productType.name:type, SUM(price):total")
+     * @param rsqlContext JPA context
+     * @return List of AggregateField objects
+     * @throws SyntaxErrorException if syntax error
+     */
+    public List<AggregateField> compileSelectToAggregateFields(
+        String selectString,
+        RsqlContext<T> rsqlContext
+    ) {
+        if (selectString == null || selectString.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        CharStream inputStream = CharStreams.fromString(selectString);
+        ParseTree tree = selectTreeParser.parseStream(inputStream);
+
+        SelectAggregateVisitor visitor = new SelectAggregateVisitor();
+        visitor.setContext(rsqlContext);
+
+        List<AggregateField> fields = visitor.visit(tree);
+
+        if (fields == null) {
+            throw new SyntaxErrorException("Error parsing SELECT clause: " + selectString);
+        }
+
+        return fields;
+    }
+
+    /**
+     * Extracts GROUP BY field paths from an aggregate SELECT string.
+     * Returns only non-aggregate fields (function == NONE).
+     *
+     * @param selectString SELECT clause
+     * @param rsqlContext JPA context
+     * @return List of field paths for GROUP BY
+     */
+    public List<String> compileSelectToGroupByFields(
+        String selectString,
+        RsqlContext<T> rsqlContext
+    ) {
+        List<AggregateField> fields = compileSelectToAggregateFields(selectString, rsqlContext);
+
+        return fields.stream()
+            .filter(f -> f.getFunction() == AggregateFunction.NONE)
+            .map(AggregateField::getFieldPath)
+            .collect(Collectors.toList());
     }
 
 }
