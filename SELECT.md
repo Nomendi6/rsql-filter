@@ -23,6 +23,10 @@ This document provides comprehensive documentation for SELECT query functionalit
   - [getSelectResultAsPage](#getselectresultaspage)
 - [Complete Examples](#complete-examples)
 - [Migration from String[] API](#migration-from-string-api)
+- [Converting Results to JSON](#converting-results-to-json)
+- [Best Practices](#best-practices)
+- [Limitations](#limitations)
+- [See Also](#see-also)
 
 ## Overview
 
@@ -864,6 +868,150 @@ List<Tuple> results = queryService.getTuple(
 | `getLOV(filter, pageable, id, code, name)` | `getLOVWithSelect(selectString, filter, pageable)` | Flexible field selection |
 | `getResultAsMap(filter, pageable, String...)` | `getSelectResult(Tuple.class, selectString, filter, pageable)` | Type safety, aliases |
 | N/A - Not possible before | `getAggregateResult(selectString, filter, pageable)` | Aggregate queries! |
+
+## Converting Results to JSON
+
+When building REST APIs, you often need to convert `Tuple` or `List<Tuple>` results to JSON format. The `TupleConverter` utility class provides an easy way to convert Tuple results to JSON-friendly `Map` objects.
+
+### TupleConverter Overview
+
+`TupleConverter` is a utility class that converts JPA Tuple results to `Map<String, Object>`, which can be automatically serialized to JSON by Spring Boot.
+
+**Location:** `rsql.helper.TupleConverter`
+
+### Basic Usage
+
+```java
+import rsql.helper.TupleConverter;
+
+// Convert single Tuple to Map
+Map<String, Object> map = TupleConverter.toMap(tuple);
+
+// Convert List<Tuple> to List<Map>
+List<Map<String, Object>> mapList = TupleConverter.toMapList(tuples);
+```
+
+### REST Controller Example
+
+```java
+@RestController
+@RequestMapping("/api/products")
+public class ProductController {
+
+    private final RsqlQueryService<Product, ProductDTO, ProductRepository, ProductMapper> queryService;
+
+    /**
+     * Get product summary as JSON
+     * Example: GET /api/products/summary?filter=status==ACTIVE&sort=name,asc
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<List<Map<String, Object>>> getProductSummary(
+        @RequestParam(required = false) String filter,
+        Pageable pageable
+    ) {
+        // Execute SELECT query
+        List<Tuple> tuples = queryService.getTupleWithSelect(
+            "code:id, name, price, productType.name:category",
+            filter,
+            pageable
+        );
+
+        // Convert to JSON-friendly format
+        List<Map<String, Object>> results = TupleConverter.toMapList(tuples);
+
+        return ResponseEntity.ok(results);
+    }
+
+    /**
+     * Get aggregate statistics as JSON
+     * Example: GET /api/products/stats?filter=status==ACTIVE
+     */
+    @GetMapping("/stats")
+    public ResponseEntity<List<Map<String, Object>>> getProductStats(
+        @RequestParam(required = false) String filter
+    ) {
+        List<Tuple> stats = queryService.getAggregateResult(
+            "productType.name:category, COUNT(*):count, AVG(price):avgPrice, SUM(price):total",
+            filter,
+            PageRequest.unpaged()
+        );
+
+        return ResponseEntity.ok(TupleConverter.toMapList(stats));
+    }
+}
+```
+
+### JSON Response Examples
+
+**Product Summary Response:**
+```json
+[
+  {
+    "id": "P001",
+    "name": "Laptop",
+    "price": 1000.00,
+    "category": "Electronics"
+  },
+  {
+    "id": "P002",
+    "name": "Mouse",
+    "price": 25.00,
+    "category": "Electronics"
+  }
+]
+```
+
+**Aggregate Stats Response:**
+```json
+[
+  {
+    "category": "Electronics",
+    "count": 15,
+    "avgPrice": 450.50,
+    "total": 6757.50
+  },
+  {
+    "category": "Books",
+    "count": 8,
+    "avgPrice": 35.75,
+    "total": 286.00
+  }
+]
+```
+
+### How It Works
+
+1. **Preserves Aliases**: Keys in the Map are the aliases from your SELECT string
+2. **Preserves Field Order**: Uses `LinkedHashMap` to maintain field order
+3. **Handles Null Values**: Null values are included in the Map with null as the value
+4. **Automatic JSON Serialization**: Spring Boot's Jackson automatically converts Maps to JSON
+
+### Benefits
+
+✅ **Simple API**: Two static methods for all use cases
+✅ **JSON-Ready**: Works seamlessly with Spring Boot's JSON serialization
+✅ **Type-Safe**: Returns strongly-typed `Map<String, Object>`
+✅ **Preserves Structure**: Maintains field order and handles nulls correctly
+✅ **No Dependencies**: Pure JPA and Java standard library
+
+### Alternative: Custom DTOs
+
+Instead of using `TupleConverter`, you can also map results to custom DTOs:
+
+```java
+public record ProductSummaryDTO(String code, String name, BigDecimal price, String category) {}
+
+List<ProductSummaryDTO> summaries = queryService.getSelectResult(
+    ProductSummaryDTO.class,
+    "code, name, price, productType.name",  // Order must match constructor
+    "status==ACTIVE",
+    pageable
+);
+```
+
+**When to use TupleConverter vs Custom DTOs:**
+- **Use TupleConverter** when you want flexible, dynamic queries without creating DTO classes
+- **Use Custom DTOs** when you want type safety and IDE autocomplete in your code
 
 ## Best Practices
 

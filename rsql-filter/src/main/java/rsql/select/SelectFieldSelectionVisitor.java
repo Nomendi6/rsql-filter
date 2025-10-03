@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static rsql.select.SelectHelper.getLastFieldName;
 import static rsql.where.RsqlWhereHelper.*;
 
 /**
@@ -89,10 +90,9 @@ public class SelectFieldSelectionVisitor extends RsqlSelectBaseVisitor<List<Sele
         // Create JPA Path using getPropertyPathRecursive
         Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
 
-        Selection<?> selection = path;
-        if (alias != null && !alias.isEmpty()) {
-            selection = selection.alias(alias);
-        }
+        // Set alias: use provided alias, or default to the last part of fieldPath (e.g., "productType.name" -> "name")
+        String finalAlias = (alias != null && !alias.isEmpty()) ? alias : getLastFieldName(fieldPath);
+        Selection<?> selection = path.alias(finalAlias);
 
         return Arrays.asList(selection);
     }
@@ -125,6 +125,7 @@ public class SelectFieldSelectionVisitor extends RsqlSelectBaseVisitor<List<Sele
 
         return sb.toString();
     }
+
 
     /**
      * Gets all Selection objects from root entity.

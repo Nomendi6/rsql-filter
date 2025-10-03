@@ -535,6 +535,7 @@ public class SimpleQueryExecutor {
         ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
 
         SelectAggregateVisitor aggregateVisitor = new SelectAggregateVisitor();
+        aggregateVisitor.setContext(rsqlContext);
         List<AggregateField> selectFields = aggregateVisitor.visit(tree);
 
         // Extract GROUP BY fields (fields without aggregate functions)

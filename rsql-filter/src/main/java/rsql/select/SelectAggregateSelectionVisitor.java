@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static rsql.select.SelectHelper.getLastFieldName;
 import static rsql.where.RsqlWhereHelper.*;
 
 /**
@@ -90,10 +91,9 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
 
         Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
 
-        Selection<?> selection = path;
-        if (alias != null && !alias.isEmpty()) {
-            selection = selection.alias(alias);
-        }
+        // Set alias: use provided alias, or default to the last part of fieldPath (e.g., "productType.name" -> "name")
+        String finalAlias = (alias != null && !alias.isEmpty()) ? alias : getLastFieldName(fieldPath);
+        Selection<?> selection = path.alias(finalAlias);
 
         return Arrays.asList(selection);
     }
@@ -204,6 +204,7 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
 
         return sb.toString();
     }
+
 
     /**
      * Extracts field path string from FunctionArgContext.
