@@ -18,13 +18,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Selection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import rsql.helper.AggregateField;
+import rsql.helper.AggregateQueryBuilder;
 import static rsql.helper.SimpleQueryExecutor.getQueryResult;
+import static rsql.helper.SimpleQueryExecutor.getQueryResultWithSelect;
+import static rsql.helper.SimpleQueryExecutor.getQueryResultAsPageWithSelect;
+import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultWithSelect;
+import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResult;
 
 /**
  * Service for executing complex queries for  entities in the database.
@@ -70,7 +79,7 @@ public class RsqlQueryService<
         this.entityManager = entityManager;
         this.rsqlContext = new RsqlContext<>(entityClass).defineEntityManager(entityManager);
         this.entityClass = entityClass;
-        this.rsqlContext.root.alias(this.selectAlias);
+        // Note: Don't set alias on shared rsqlContext here - it will be set on each query context
     }
 
     public RsqlQueryService(REPOS appObjectRepository, MAPPER appObjectMapper, EntityManager entityManager, Class<ENTITY> entityClass, String jpqlSelectAllFromEntity, String jpqlSelectCountFromEntity) {
@@ -82,7 +91,7 @@ public class RsqlQueryService<
 
         this.jpqlSelectAllFromEntity = jpqlSelectAllFromEntity;
         this.jpqlSelectCountFromEntity = jpqlSelectCountFromEntity;
-        this.rsqlContext.root.alias(this.selectAlias);
+        // Note: Don't set alias on shared rsqlContext here - it will be set on each query context
         this.useJpqlSelect = true;
     }
 
@@ -90,8 +99,37 @@ public class RsqlQueryService<
         return rsqlCompiler;
     }
 
+    /**
+     * Returns the template RsqlContext. This context should NOT be used directly for queries.
+     * Instead, use getQueryContext() to get a fresh instance for each query execution.
+     *
+     * @return The template RsqlContext
+     * @deprecated Use getQueryContext() instead to ensure thread-safety
+     */
+    @Deprecated
     public RsqlContext<ENTITY> getRsqlContext() {
         return rsqlContext;
+    }
+
+    /**
+     * Creates a new RsqlContext instance for query execution. This ensures thread-safety
+     * by providing each query with its own isolated context (joinsMap, classMetadataMap, etc.).
+     *
+     * <p>This method should be called at the beginning of each query execution instead of
+     * using the shared rsqlContext field directly.</p>
+     *
+     * @return A new RsqlContext instance for the current query
+     */
+    private RsqlContext<ENTITY> getQueryContext() {
+        RsqlContext<ENTITY> newContext = rsqlContext.createNewInstance();
+
+        // Apply the current selectAlias from this service instance
+        // This ensures that alias changes via setSelectAlias() are respected
+        if (selectAlias != null && !selectAlias.isEmpty()) {
+            newContext.root.alias(selectAlias);
+        }
+
+        return newContext;
     }
 
     public Class<ENTITY> getEntityClass() {
@@ -150,12 +188,14 @@ public class RsqlQueryService<
 
     /**
      * Sets the alias to be used for selecting entities in JPQL queries.
+     * This alias will be applied to each new query context created via getQueryContext().
      *
      * @param selectAlias the alias to be used for the select query as a String
      */
     public void setSelectAlias(String selectAlias) {
         this.selectAlias = selectAlias;
-        this.rsqlContext.root.alias(this.selectAlias);
+        // Note: We don't modify rsqlContext.root here to maintain thread-safety
+        // The alias will be applied when getQueryContext() creates a new instance
     }
 
     public String getSelectAlias() {
@@ -196,7 +236,7 @@ public class RsqlQueryService<
                 this.jpqlSelectAllFromEntity,
                     selectAlias, filter,
                 null,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -221,7 +261,7 @@ public class RsqlQueryService<
                 this.jpqlSelectAllFromEntity,
                 selectAlias, filter,
                 null,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -262,7 +302,7 @@ public class RsqlQueryService<
                     this.jpqlSelectAllFromEntity,
                     selectAlias, filter,
                     sortOrder,
-                    rsqlContext,
+                    getQueryContext(),
                     rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -296,7 +336,7 @@ public class RsqlQueryService<
                     this.jpqlSelectAllFromEntity,
                     selectAlias, filter,
                     sortOrder,
-                    rsqlContext,
+                    getQueryContext(),
                     rsqlCompiler);
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -324,7 +364,7 @@ public class RsqlQueryService<
                      selectAlias, this.jpqlSelectCountFromEntity,
                      countAlias, filter,
                 page,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
 
                 return entityPage.map(appObjectMapper::toDto);
@@ -360,7 +400,7 @@ public class RsqlQueryService<
                      selectAlias, this.jpqlSelectCountFromEntity,
                      countAlias, filter,
                 page,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
 
                 return entityPage;
@@ -386,7 +426,7 @@ public class RsqlQueryService<
                 this.jpqlSelectCountFromEntity,
                 countAlias,
                 filter,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -403,7 +443,105 @@ public class RsqlQueryService<
      * @return the matching {@link Specification} of the entity.
      */
     public Specification<ENTITY> createSpecification(String filter) {
-        return rsqlCompiler.compileToSpecification(filter, rsqlContext);
+        return rsqlCompiler.compileToSpecification(filter, getQueryContext());
+    }
+
+    /**
+     * Creates JPA Criteria Selections from a SELECT string (non-aggregate queries).
+     * This method is analogous to createSpecification() but for SELECT clauses.
+     *
+     * <p>The SELECT string can include:</p>
+     * <ul>
+     *   <li>Simple fields: {@code "code, name, price"}</li>
+     *   <li>Nested properties: {@code "productType.name, productType.code"}</li>
+     *   <li>Aliases: {@code "name:productName, productType.name:typeName"}</li>
+     * </ul>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * CriteriaBuilder builder = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Tuple&gt; query = builder.createQuery(Tuple.class);
+     * Root&lt;Product&gt; root = query.from(Product.class);
+     *
+     * List&lt;Selection&lt;?&gt;&gt; selections = queryService.createSelections(
+     *     "code, name, productType.name:typeName", builder, root
+     * );
+     * query.multiselect(selections);
+     * query.where(queryService.createSpecification("status==ACTIVE")
+     *     .toPredicate(root, query, builder));
+     *
+     * List&lt;Tuple&gt; results = em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name, productType.name:typeName")
+     * @param builder CriteriaBuilder for creating selections
+     * @param root Query root
+     * @return List of Selection&lt;?&gt; for use with CriteriaQuery.multiselect()
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid or contains aggregate functions
+     */
+    public List<Selection<?>> createSelections(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root
+    ) {
+        return SimpleQueryExecutor.createSelectionsFromString(
+            selectString, builder, root, getQueryContext()
+        );
+    }
+
+    /**
+     * Creates an aggregate query builder from a SELECT string containing aggregate functions.
+     * This method is analogous to createSpecification() but for aggregate queries.
+     *
+     * <p>The SELECT string can include:</p>
+     * <ul>
+     *   <li>Simple fields for GROUP BY: {@code "productType.name, status"}</li>
+     *   <li>Aggregate functions: {@code "COUNT(*):count, SUM(price):total, AVG(price):avg"}</li>
+     *   <li>Aliases for all fields: {@code "productType.name:category, COUNT(*):count"}</li>
+     *   <li>COUNT(DIST field) for COUNT DISTINCT: {@code "COUNT(DIST productType.id):typeCount"}</li>
+     * </ul>
+     *
+     * <p>The returned {@link AggregateQueryBuilder} provides:</p>
+     * <ul>
+     *   <li>{@code getSelections()} - SELECT clause selections</li>
+     *   <li>{@code getGroupByExpressions()} - GROUP BY clause expressions</li>
+     *   <li>{@code createHavingPredicate(havingFilter, compiler)} - HAVING clause predicate</li>
+     * </ul>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * CriteriaBuilder builder = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Tuple&gt; query = builder.createQuery(Tuple.class);
+     * Root&lt;Product&gt; root = query.from(Product.class);
+     *
+     * AggregateQueryBuilder&lt;Product&gt; aggQuery = queryService.createAggregateQuery(
+     *     "productType.name:category, COUNT(*):count, SUM(price):total",
+     *     builder, root
+     * );
+     *
+     * query.multiselect(aggQuery.getSelections());
+     * query.groupBy(aggQuery.getGroupByExpressions());
+     * query.where(queryService.createSpecification("status==ACTIVE")
+     *     .toPredicate(root, query, builder));
+     * query.having(aggQuery.createHavingPredicate("total=gt=50000;count=ge=10", rsqlCompiler));
+     *
+     * List&lt;Tuple&gt; results = em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param selectString Aggregate SELECT clause string (e.g., "category, COUNT(*):count, SUM(price):total")
+     * @param builder CriteriaBuilder for creating selections and expressions
+     * @param root Query root
+     * @return AggregateQueryBuilder with selections, GROUP BY expressions, and HAVING state
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid
+     */
+    public AggregateQueryBuilder<ENTITY> createAggregateQuery(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root
+    ) {
+        return SimpleQueryExecutor.createAggregateQuery(
+            selectString, builder, root, getQueryContext()
+        );
     }
 
     /**
@@ -451,7 +589,7 @@ public class RsqlQueryService<
                 fields,
                 filter,
                 pageable,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler
         );
     }
@@ -481,8 +619,132 @@ public class RsqlQueryService<
             new String[] { "id", "name" },
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler
+        );
+    }
+
+    /**
+     * Retrieves a list of values (LOV) using SELECT string syntax with support for aliases and navigation properties.
+     * This method provides maximum flexibility for LOV queries by allowing any SELECT string format.
+     *
+     * The SELECT string must specify fields that map to LovDTO constructor:
+     * - First field: id (Long)
+     * - Second field (optional): code (String)
+     * - Third field (optional): name (String)
+     *
+     * Example usage:
+     * <pre>
+     * // Basic: id, code, name
+     * getLOVWithSelect("id, code, name", "status==ACTIVE", pageable)
+     *
+     * // With navigation properties: id, parent.code as code, parent.name as name
+     * getLOVWithSelect("id, parent.code, parent.name", "status==ACTIVE", pageable)
+     *
+     * // With aliases for clarity
+     * getLOVWithSelect("id, productType.code:code, productType.name:name", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause string specifying id, code, and name fields in that order
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return list of LovDTO objects matching the filter
+     */
+    @Transactional(readOnly = true)
+    public List<LovDTO> getLOVWithSelect(String selectString, String filter, Pageable pageable) {
+        return getQueryResultWithSelect(
+            entityClass,
+            LovDTO.class,
+            selectString,
+            filter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Generic method to retrieve a list of results using SELECT string syntax with any result class.
+     * This is the most flexible query method that supports aliases, navigation properties, and custom result types.
+     *
+     * The SELECT string fields must match the constructor parameters of the result class in order and type.
+     *
+     * Example usage:
+     * <pre>
+     * // Using Tuple.class for flexible column access
+     * getSelectResult(Tuple.class, "code:productCode, name, price", "status==ACTIVE", pageable)
+     *
+     * // Using custom DTO class
+     * getSelectResult(ProductSummaryDTO.class, "code, name, price", "status==ACTIVE", pageable)
+     *
+     * // With navigation properties
+     * getSelectResult(Tuple.class, "code, productType.name:typeName", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param <RESULT> the result type class
+     * @param resultClass the class of the result objects
+     * @param selectString SELECT clause string (e.g., "field1, field2:alias, related.field3")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return list of result objects matching the filter
+     */
+    @Transactional(readOnly = true)
+    public <RESULT> List<RESULT> getSelectResult(
+        Class<RESULT> resultClass,
+        String selectString,
+        String filter,
+        Pageable pageable
+    ) {
+        return getQueryResultWithSelect(
+            entityClass,
+            resultClass,
+            selectString,
+            filter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Generic method to retrieve a paginated list of results using SELECT string syntax with any result class.
+     * This is the paginated version of getSelectResult() with the same flexibility.
+     *
+     * Example usage:
+     * <pre>
+     * // Using Tuple.class with pagination
+     * getSelectResultAsPage(Tuple.class, "code:productCode, name, price", "status==ACTIVE", pageable)
+     *
+     * // Using custom DTO class with pagination
+     * getSelectResultAsPage(ProductSummaryDTO.class, "code, name, price", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param <RESULT> the result type class
+     * @param resultClass the class of the result objects
+     * @param selectString SELECT clause string (e.g., "field1, field2:alias, related.field3")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return page of result objects matching the filter
+     */
+    @Transactional(readOnly = true)
+    public <RESULT> Page<RESULT> getSelectResultAsPage(
+        Class<RESULT> resultClass,
+        String selectString,
+        String filter,
+        Pageable pageable
+    ) {
+        if (pageable == null) {
+            pageable = PageRequest.of(0, 20);
+        }
+        return getQueryResultAsPageWithSelect(
+            entityClass,
+            resultClass,
+            selectString,
+            filter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler,
+            appObjectRepository
         );
     }
 
@@ -502,7 +764,101 @@ public class RsqlQueryService<
             fields,
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Retrieves a list of tuples using SELECT string syntax with support for aliases and navigation properties.
+     * This method provides more flexibility than getTuple() by allowing SELECT string parsing.
+     *
+     * Example usage:
+     * <pre>
+     * getTupleWithSelect("code:productCode, name, productType.name:typeName", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name:productName, productType.name")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return list of tuples with aliased fields matching the filter
+     */
+    @Transactional(readOnly = true)
+    public List<Tuple> getTupleWithSelect(String selectString, String filter, Pageable pageable) {
+        return getQueryResultWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Retrieves a paginated list of tuples using SELECT string syntax with support for aliases and navigation properties.
+     * This method provides pagination support with flexible SELECT string parsing.
+     *
+     * Example usage:
+     * <pre>
+     * getTupleAsPageWithSelect("code:productCode, name, productType.name:typeName", "status==ACTIVE", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name:productName, productType.name")
+     * @param filter RSQL filter string for WHERE clause
+     * @param pageable pagination and sorting information
+     * @return page of tuples with aliased fields matching the filter
+     */
+    @Transactional(readOnly = true)
+    public Page<Tuple> getTupleAsPageWithSelect(String selectString, String filter, Pageable pageable) {
+        if (pageable == null) {
+            pageable = PageRequest.of(0, 20);
+        }
+        return getQueryResultAsPageWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler,
+            appObjectRepository
+        );
+    }
+
+    /**
+     * Executes an aggregate query with SELECT string syntax supporting aggregate functions, GROUP BY, and HAVING.
+     * Automatically extracts GROUP BY fields from the SELECT string (fields without aggregate functions).
+     *
+     * Supported aggregate functions: COUNT(*), COUNT(field), SUM(field), AVG(field), MIN(field), MAX(field), COUNT(DIST field)
+     *
+     * Example usage:
+     * <pre>
+     * // Group by productType.name with aggregates and HAVING filter
+     * getAggregateResult("productType.name:type, COUNT(*):count, SUM(price):total",
+     *                    "status==ACTIVE", "total=gt=50000;count=ge=10", pageable)
+     *
+     * // Multiple GROUP BY fields with HAVING
+     * getAggregateResult("productType.code, status, COUNT(*):count", "", "count=gt=5", pageable)
+     * </pre>
+     *
+     * @param selectString SELECT clause with aggregate functions (e.g., "field1, COUNT(*):count, SUM(field2):total")
+     * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param havingFilter RSQL filter string for HAVING clause (applied after aggregation, filters groups)
+     * @param pageable pagination and sorting information
+     * @return list of tuples with aggregated results
+     */
+    @Transactional(readOnly = true)
+    public List<Tuple> getAggregateResult(String selectString, String filter, String havingFilter, Pageable pageable) {
+        return getAggregateQueryResultWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            havingFilter,
+            pageable,
+            getQueryContext(),
             rsqlCompiler
         );
     }
@@ -524,7 +880,7 @@ public class RsqlQueryService<
             jpqlSelectQuery,
             alias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
     }
 
@@ -545,7 +901,7 @@ public class RsqlQueryService<
             jpqlSelectQuery,
             alias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler);
     }
 
@@ -568,7 +924,7 @@ public class RsqlQueryService<
                 selectAlias, jpqlCountQuery,
                 countAlias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler);
 
         return entityPage.map(appObjectMapper::toDto);
@@ -591,7 +947,7 @@ public class RsqlQueryService<
             jpqlSelectQuery,
             alias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler);
     }
 
@@ -611,7 +967,7 @@ public class RsqlQueryService<
                 fields,
                 filter,
                 pageable,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler
         );
         List<Map<String, Object>> mappedResults = new java.util.ArrayList<>();

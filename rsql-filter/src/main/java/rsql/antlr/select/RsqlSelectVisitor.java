@@ -1,5 +1,7 @@
 // Generated from RsqlSelect.g4 by ANTLR 4.13.2
+
 package rsql.antlr.select;
+
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
 /**

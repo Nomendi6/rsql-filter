@@ -149,26 +149,63 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
     }
 
     public String getFullPath(NavigablePath navigablePath) {
-        DotIdentifierSequence[] parts = navigablePath.getParts();
-        if (parts.length == 0) {
+        // Build path by traversing from current node back to root
+        List<String> pathParts = new ArrayList<>();
+        NavigablePath current = navigablePath;
+
+        // Traverse up to the root, collecting local names
+        while (current != null) {
+            // Extract just the simple property name from the navigable path
+            // getLocalName() may return fully qualified names like "nomendi6.rsql.it.domain.AppObject(1).validFrom"
+            // We need to extract just the property name after the last dot or closing parenthesis
+            String localName = current.getLocalName();
+            String simpleName = extractSimplePropertyName(localName);
+            pathParts.add(simpleName);
+            current = current.getParent();
+        }
+
+        // The list is in reverse order (property -> ... -> root)
+        // We want to skip the root (last element) and reverse the rest
+        if (pathParts.size() <= 1) {
+            // Only root, no property
             return "";
         }
 
-        // Skip the first part (root) and join the rest with dots
-        if (parts.length > 1) {
-            StringBuilder fullPath = new StringBuilder();
-            for (int i = 1; i < parts.length; i++) {
-                if (!fullPath.isEmpty()) {
-                    fullPath.append(".");
-                }
-                fullPath.append(parts[i].getLocalName());
-
+        // Reverse and skip the last element (root), join with dots
+        Collections.reverse(pathParts);
+        StringBuilder result = new StringBuilder();
+        for (int i = 1; i < pathParts.size(); i++) {
+            if (result.length() > 0) {
+                result.append(".");
             }
-            return fullPath.toString();
-        } else {
-            // If there's only one part (root), return the local name
-            return navigablePath.getLocalName();
+            result.append(pathParts.get(i));
         }
+
+        return result.toString();
+    }
+
+    /**
+     * Extract simple property name from a potentially fully-qualified name.
+     * Examples:
+     * - "validFrom" -> "validFrom"
+     * - "nomendi6.rsql.it.domain.AppObject(1).validFrom" -> "validFrom"
+     * - "AppObject" -> "AppObject"
+     */
+    private String extractSimplePropertyName(String fullName) {
+        if (fullName == null || fullName.isEmpty()) {
+            return fullName;
+        }
+
+        // Find the last occurrence of '.' or ')'
+        int lastDot = fullName.lastIndexOf('.');
+        int lastParen = fullName.lastIndexOf(')');
+        int lastDelimiter = Math.max(lastDot, lastParen);
+
+        if (lastDelimiter >= 0 && lastDelimiter < fullName.length() - 1) {
+            return fullName.substring(lastDelimiter + 1);
+        }
+
+        return fullName;
     }
 
     private String getRootPath(NavigablePath navigablePath) {

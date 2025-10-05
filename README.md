@@ -52,6 +52,9 @@ implementation 'com.nomendi6:rsql-filter:0.6.2'
 - **Complex Queries**: Support for nested queries with AND/OR logic
 - **Sorting**: Built-in support for sorting results
 - **Pagination**: Full Spring Data pagination support
+- **SELECT Queries**: Flexible field selection with aliases and navigation properties
+- **Aggregate Functions**: COUNT, SUM, AVG, MIN, MAX with automatic GROUP BY
+- **HAVING Clause**: Filter aggregated results with full RSQL syntax support
 - **LOV Queries**: List of Values queries for dropdowns/autocomplete
 - **ANTLR Based**: Robust parser built with ANTLR4
 - **Error Handling**: Detailed error messages for invalid queries
@@ -218,6 +221,76 @@ List<LovDTO> lovs = queryService.findLovByFilter(
 );
 ```
 
+### SELECT Queries
+
+The library supports flexible SELECT queries with field aliases, navigation properties, and aggregate functions:
+
+```java
+// Basic SELECT with aliases
+List<Tuple> products = queryService.getTupleWithSelect(
+    "code:productCode, name, productType.name:typeName, price",
+    "status==ACTIVE",
+    pageable
+);
+
+// Access results by alias
+for (Tuple row : products) {
+    String code = (String) row.get("productCode");
+    String type = (String) row.get("typeName");  // From related entity
+}
+```
+
+**Aggregate queries with automatic GROUP BY:**
+```java
+// Sales statistics by category
+List<Tuple> stats = queryService.getAggregateResult(
+    "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):avg",
+    "status==ACTIVE",
+    pageable
+);
+
+for (Tuple row : stats) {
+    System.out.printf("%s: %d items, total $%s%n",
+        row.get("category"), row.get("count"), row.get("total")
+    );
+}
+```
+
+**HAVING clause for filtering aggregated results:**
+```java
+// Categories with total sales over $10,000 and at least 5 products
+List<Tuple> topCategories = queryService.getAggregateResult(
+    "productType.name:category, SUM(price):totalSales, COUNT(*):productCount",
+    "status==ACTIVE",  // WHERE filter
+    "totalSales=gt=10000;productCount=ge=5",  // HAVING filter
+    pageable
+);
+
+// Using aggregate functions directly in HAVING
+List<Tuple> stats = queryService.getAggregateResult(
+    "category, SUM(price):total, AVG(price):avg",
+    "",
+    "SUM(price)=gt=50000;AVG(price)=bt=(100,500)",  // HAVING with aggregates
+    pageable
+);
+```
+
+**Supported aggregate functions:**
+- `COUNT(*)` - Count all rows
+- `COUNT(field)` - Count non-null values
+- `COUNT(DIST field)` - Count distinct values
+- `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
+
+**REST endpoint example:**
+```http
+GET /api/products?select=code:id,name,price&filter=status==ACTIVE&sort=name,asc
+GET /api/products/stats?filter=status==ACTIVE&having=COUNT(*)=gt=5
+GET /api/sales-by-category?having=totalSales=gt=10000;productCount=ge=5
+```
+
+For complete SELECT syntax and examples, see [SELECT.md](SELECT.md).
+For complete HAVING syntax and examples, see [HAVING.md](HAVING.md).
+
 ### Custom JPQL Queries
 For complex scenarios, you can provide custom JPQL:
 ```java
@@ -225,7 +298,7 @@ String selectQuery = "SELECT DISTINCT p FROM Product p LEFT JOIN p.categories c"
 String countQuery = "SELECT COUNT(DISTINCT p) FROM Product p LEFT JOIN p.categories c";
 
 RsqlQueryService queryService = new RsqlQueryService<>(
-    repository, mapper, entityManager, Product.class, 
+    repository, mapper, entityManager, Product.class,
     selectQuery, countQuery
 );
 ```

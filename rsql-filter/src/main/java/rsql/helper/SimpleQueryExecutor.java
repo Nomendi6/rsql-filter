@@ -1,7 +1,15 @@
 package rsql.helper;
 
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.springframework.data.support.PageableExecutionUtils;
 import rsql.RsqlCompiler;
+import rsql.having.HavingCompiler;
+import rsql.having.HavingContext;
+import rsql.select.SelectAggregateSelectionVisitor;
+import rsql.select.SelectAggregateVisitor;
+import rsql.select.SelectFieldSelectionVisitor;
+import rsql.select.SelectTreeParser;
 import rsql.where.RsqlContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -42,10 +50,196 @@ public class SimpleQueryExecutor {
         return compiler.compileToRsqlQuery(filter, rsqlContext);
     }
 
+    /**
+     * Creates JPA Criteria Selections from a SELECT string (non-aggregate queries).
+     * This method is analogous to createSpecification() but for SELECT clauses.
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * List&lt;Selection&lt;?&gt;&gt; selections = SimpleQueryExecutor.createSelectionsFromString(
+     *     "code, name, productType.name:typeName",
+     *     builder, root, rsqlContext
+     * );
+     * query.multiselect(selections);
+     * </pre>
+     *
+     * @param selectString SELECT clause string (e.g., "code, name, productType.name:typeName")
+     * @param builder CriteriaBuilder for creating selections
+     * @param root Query root
+     * @param rsqlContext RSQL context with EntityManager
+     * @param <ENTITY> Entity type
+     * @return List of Selection<?> for use with CriteriaQuery.multiselect()
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid or contains aggregate functions
+     */
+    public static <ENTITY> List<Selection<?>> createSelectionsFromString(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root,
+        RsqlContext<ENTITY> rsqlContext
+    ) {
+        if (selectString == null || selectString.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Parse SELECT string and create Selections using SelectFieldSelectionVisitor
+        SelectTreeParser selectParser = new SelectTreeParser();
+        ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
+
+        SelectFieldSelectionVisitor visitor = new SelectFieldSelectionVisitor();
+        visitor.setContext(rsqlContext, builder, root);
+        List<Selection<?>> selectionList = visitor.visit(tree);
+
+        return selectionList != null ? selectionList : new ArrayList<>();
+    }
+
+    /**
+     * Creates an aggregate query builder from a SELECT string containing aggregate functions.
+     * This method is analogous to createSpecification() but for aggregate queries.
+     *
+     * <p>Returns an AggregateQueryBuilder containing:</p>
+     * <ul>
+     *   <li>SELECT selections (aggregate functions + grouping fields)</li>
+     *   <li>GROUP BY expressions</li>
+     *   <li>Internal state for creating HAVING predicates</li>
+     * </ul>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * AggregateQueryBuilder&lt;Product&gt; aggQuery = SimpleQueryExecutor.createAggregateQuery(
+     *     "productType.name:category, COUNT(*):count, SUM(price):total",
+     *     builder, root, rsqlContext
+     * );
+     *
+     * query.multiselect(aggQuery.getSelections());
+     * query.groupBy(aggQuery.getGroupByExpressions());
+     * query.having(aggQuery.createHavingPredicate("total=gt=50000;count=ge=10", compiler));
+     * </pre>
+     *
+     * @param selectString Aggregate SELECT clause string (e.g., "category, COUNT(*):count, SUM(price):total")
+     * @param builder CriteriaBuilder for creating selections and expressions
+     * @param root Query root
+     * @param rsqlContext RSQL context with EntityManager
+     * @param <ENTITY> Entity type
+     * @return AggregateQueryBuilder with selections, GROUP BY expressions, and HAVING state
+     * @throws rsql.exceptions.SyntaxErrorException if SELECT string is invalid
+     */
+    public static <ENTITY> AggregateQueryBuilder<ENTITY> createAggregateQuery(
+        String selectString,
+        CriteriaBuilder builder,
+        Root<ENTITY> root,
+        RsqlContext<ENTITY> rsqlContext
+    ) {
+        if (selectString == null || selectString.trim().isEmpty()) {
+            return new AggregateQueryBuilder<>(
+                new ArrayList<>(),
+                new ArrayList<>(),
+                builder,
+                root,
+                new ArrayList<>(),
+                rsqlContext,
+                new ArrayList<>()
+            );
+        }
+
+        // Parse SELECT string to extract aggregate field metadata
+        SelectTreeParser selectParser = new SelectTreeParser();
+        ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
+
+        // Extract metadata about aggregate fields (for HAVING clause)
+        SelectAggregateVisitor aggregateVisitor = new SelectAggregateVisitor();
+        aggregateVisitor.setContext(rsqlContext);
+        List<AggregateField> selectFields = aggregateVisitor.visit(tree);
+
+        if (selectFields == null) {
+            selectFields = new ArrayList<>();
+        }
+
+        // Build SELECT selections using visitor
+        // The visitor uses shared joinsMap and classMetadataMap from rsqlContext
+        // to ensure consistency with WHERE, GROUP BY, and HAVING clauses
+        SelectAggregateSelectionVisitor selectionVisitor = new SelectAggregateSelectionVisitor();
+        selectionVisitor.setContext(rsqlContext, builder, root);
+        List<Selection<?>> selectionList = selectionVisitor.visit(tree);
+
+        if (selectionList == null) {
+            selectionList = new ArrayList<>();
+        }
+
+        // Extract GROUP BY field names (fields without aggregate functions)
+        List<String> groupByFieldNames = new ArrayList<>();
+        for (AggregateField field : selectFields) {
+            if (field.getFunction() == null ||
+                field.getFunction() == AggregateField.AggregateFunction.NONE) {
+                groupByFieldNames.add(field.getFieldPath());
+            }
+        }
+
+        // Build GROUP BY expressions (using shared joinsMap from rsqlContext for consistency)
+        List<Expression<?>> groupByExpressions = new ArrayList<>();
+        for (String groupByField : groupByFieldNames) {
+            Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
+            groupByExpressions.add(groupByPath);
+        }
+
+        // Return builder with all components
+        // Note: joinsMap and classMetadataMap are now managed by rsqlContext
+        return new AggregateQueryBuilder<>(
+            selectionList,
+            groupByExpressions,
+            builder,
+            root,
+            selectFields,
+            rsqlContext,
+            groupByFieldNames
+        );
+    }
+
+    /**
+     * Executes a query with SELECT properties array.
+     * This method delegates to getQueryResultWithSelect for better support of navigation properties.
+     *
+     * @param entityClass The entity class to query
+     * @param resultClass The result class (usually Tuple.class)
+     * @param properties Array of property names (e.g., {"code", "name", "price"})
+     * @param filter RSQL filter string
+     * @param pageable Pagination and sorting
+     * @param rsqlContext RSQL context with EntityManager
+     * @param compiler RSQL compiler
+     * @return List of query results
+     */
     public static <ENTITY, RESULT> List<RESULT> getQueryResult(
         Class<ENTITY> entityClass,
         Class<RESULT> resultClass,
         String[] properties,
+        String filter,
+        Pageable pageable,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler
+    ) {
+        // Convert String[] to SELECT string (comma-separated list)
+        String selectString = String.join(", ", properties);
+
+        // Delegate to new method that supports navigation properties
+        return getQueryResultWithSelect(entityClass, resultClass, selectString, filter, pageable, rsqlContext, compiler);
+    }
+
+    /**
+     * Executes a query with SELECT string parsing, supporting aliases and navigation properties.
+     * Uses SelectFieldSelectionVisitor for creating JPA Criteria Selections.
+     *
+     * @param entityClass The entity class to query
+     * @param resultClass The result class (usually Tuple.class)
+     * @param selectString SELECT clause string (e.g., "code, name:productName, productType.name")
+     * @param filter RSQL filter string
+     * @param pageable Pagination and sorting
+     * @param rsqlContext RSQL context with EntityManager
+     * @param compiler RSQL compiler
+     * @return List of query results
+     */
+    public static <ENTITY, RESULT> List<RESULT> getQueryResultWithSelect(
+        Class<ENTITY> entityClass,
+        Class<RESULT> resultClass,
+        String selectString,
         String filter,
         Pageable pageable,
         RsqlContext<ENTITY> rsqlContext,
@@ -57,18 +251,38 @@ public class SimpleQueryExecutor {
         } else {
             sort = pageable.getSort();
         }
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
+        // FIRST: Create CriteriaQuery and Root
         CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
         CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
-        Root<ENTITY> root = query.from(entityClass);
 
-        List<Selection<? extends Object>> selectionList = new ArrayList<>();
-        for (String property : properties) {
-            Selection<? extends Object> selection = root.get(property);
-            selectionList.add(selection);
+        // Preserve the existing root alias (set by RsqlQueryService or user's custom JPQL)
+        String rootAlias = rsqlContext.root.getAlias();
+        if (rootAlias == null) {
+            rootAlias = "a0";  // Fallback to default alias
         }
+
+        Root<ENTITY> root = query.from(entityClass);
+        root.alias(rootAlias);  // Set the preserved alias on the new root
+
+        // SECOND: Update rsqlContext with new root and clear JOIN caches
+        // This ensures that WHERE and SELECT use the SAME root and share JOINs
+        rsqlContext.criteriaBuilder = builder;
+        rsqlContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) query;
+        rsqlContext.root = root;
+        rsqlContext.joinsMap.clear();
+        rsqlContext.classMetadataMap.clear();
+
+        // THIRD: Create WHERE specification (uses shared joinsMap from rsqlContext)
+        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+
+        // FOURTH: Create SELECT selections (reuses JOINs from WHERE clause)
+        List<Selection<?>> selectionList = createSelectionsFromString(
+            selectString, builder, root, rsqlContext
+        );
+
         query.multiselect(selectionList);
+
         if (specification != null) {
             Predicate predicate = specification.toPredicate(root, query, builder);
             query.where(predicate);
@@ -77,6 +291,94 @@ public class SimpleQueryExecutor {
             query.orderBy(QueryUtils.toOrders(sort, root, builder));
         }
         return rsqlContext.entityManager.createQuery(query).getResultList();
+    }
+
+    /**
+     * Executes a paginated query with SELECT string parsing, supporting aliases and navigation properties.
+     * Uses SelectFieldSelectionVisitor for creating JPA Criteria Selections.
+     *
+     * @param entityClass The entity class to query
+     * @param resultClass The result class (usually Tuple.class)
+     * @param selectString SELECT clause string (e.g., "code, name:productName, productType.name")
+     * @param filter RSQL filter string
+     * @param pageable Pagination and sorting
+     * @param rsqlContext RSQL context with EntityManager
+     * @param compiler RSQL compiler
+     * @param repository JPA repository for count operations
+     * @return Page of query results
+     */
+    public static <
+        ENTITY, RESULT, REPOS extends JpaRepository<ENTITY, Long> & JpaSpecificationExecutor<ENTITY>
+    > Page<RESULT> getQueryResultAsPageWithSelect(
+        Class<ENTITY> entityClass,
+        Class<RESULT> resultClass,
+        String selectString,
+        String filter,
+        Pageable pageable,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler,
+        REPOS repository
+    ) {
+        Sort sort;
+        if (pageable == null) {
+            sort = null;
+        } else {
+            sort = pageable.getSort();
+        }
+
+        // FIRST: Create CriteriaQuery and Root
+        CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
+        CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
+
+        // Preserve the existing root alias (set by RsqlQueryService or user's custom JPQL)
+        String rootAlias = rsqlContext.root.getAlias();
+        if (rootAlias == null) {
+            rootAlias = "a0";  // Fallback to default alias
+        }
+
+        Root<ENTITY> root = query.from(entityClass);
+        root.alias(rootAlias);  // Set the preserved alias on the new root
+
+        // SECOND: Update rsqlContext with new root and clear JOIN caches
+        // This ensures that WHERE and SELECT use the SAME root and share JOINs
+        rsqlContext.criteriaBuilder = builder;
+        rsqlContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) query;
+        rsqlContext.root = root;
+        rsqlContext.joinsMap.clear();
+        rsqlContext.classMetadataMap.clear();
+
+        // THIRD: Create WHERE specification (uses shared joinsMap from rsqlContext)
+        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+
+        // FOURTH: Create SELECT selections (reuses JOINs from WHERE clause)
+        List<Selection<?>> selectionList = createSelectionsFromString(
+            selectString, builder, root, rsqlContext
+        );
+
+        query.multiselect(selectionList);
+
+        Predicate predicate = null;
+        if (specification != null) {
+            predicate = specification.toPredicate(root, query, builder);
+            query.where(predicate);
+        }
+
+        if (sort != null && sort.isSorted()) {
+            query.orderBy(QueryUtils.toOrders(sort, root, builder));
+        }
+
+        if (isUnpaged(pageable)) {
+            return new PageImpl<>((List<RESULT>) rsqlContext.entityManager.createQuery(query).getResultList());
+        }
+
+        long totalRecords = 0L;
+        if (specification == null) {
+            totalRecords = repository.count();
+        } else {
+            totalRecords = repository.count(specification);
+        }
+
+        return readPage(query, pageable, predicate, rsqlContext, entityClass, totalRecords);
     }
 
     public static <ENTITY, RESULT> List<RESULT> getJpqlQueryResult(
@@ -214,6 +516,20 @@ public class SimpleQueryExecutor {
     }
 
 
+    /**
+     * Executes a paginated query with SELECT properties array.
+     * This method delegates to getQueryResultAsPageWithSelect for better support of navigation properties.
+     *
+     * @param entityClass The entity class to query
+     * @param resultClass The result class (usually Tuple.class)
+     * @param properties Array of property names (e.g., {"code", "name", "price"})
+     * @param filter RSQL filter string
+     * @param pageable Pagination and sorting
+     * @param rsqlContext RSQL context with EntityManager
+     * @param compiler RSQL compiler
+     * @param repository JPA repository for count operations
+     * @return Page of query results
+     */
     public static <
         ENTITY, RESULT, REPOS extends JpaRepository<ENTITY, Long> & JpaSpecificationExecutor<ENTITY>
     > Page<RESULT> getQueryResultAsPage(
@@ -226,50 +542,11 @@ public class SimpleQueryExecutor {
         RsqlCompiler<ENTITY> compiler,
         REPOS repository
     ) {
-        Sort sort;
-        if (pageable == null) {
-            sort = null;
-        } else {
-            sort = pageable.getSort();
-        }
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+        // Convert String[] to SELECT string (comma-separated list)
+        String selectString = String.join(", ", properties);
 
-        CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
-        CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
-        Root<ENTITY> root = query.from(entityClass);
-
-        List<Selection<? extends Object>> selectionList = new ArrayList<>();
-        Map<String, Path<?>> joinsMap = new HashMap<>();
-        Map<String, ManagedType<?>> classMetadataMap = new HashMap<>();
-        for (String property : properties) {
-            Selection<? extends Object> selection = getPropertyPathRecursive(property, root, rsqlContext, joinsMap, classMetadataMap);
-            selectionList.add(selection);
-        }
-
-        query.multiselect(selectionList);
-
-        Predicate predicate = null;
-        if (specification != null) {
-            predicate = specification.toPredicate(root, query, builder);
-            query.where(predicate);
-        }
-
-        if (sort != null && sort.isSorted()) {
-            query.orderBy(QueryUtils.toOrders(sort, root, builder));
-        }
-
-        if (isUnpaged(pageable)) {
-            return new PageImpl<>((List<RESULT>) rsqlContext.entityManager.createQuery(query).getResultList());
-        }
-        long totalRecords = 0L;
-        if (specification == null) {
-            totalRecords = repository.count();
-        } else {
-            totalRecords = repository.count(specification);
-        }
-
-        return readPage(query, pageable, predicate, rsqlContext, entityClass, totalRecords);
-        //        return rsqlContext.entityManager.createQuery(query).getResultList();
+        // Delegate to new method that supports navigation properties
+        return getQueryResultAsPageWithSelect(entityClass, resultClass, selectString, filter, pageable, rsqlContext, compiler, repository);
     }
 
     private static boolean isUnpaged(Pageable pageable) {
@@ -395,4 +672,178 @@ public class SimpleQueryExecutor {
         }
         return key;
     }
+
+    /**
+     * Executes an aggregate query with SELECT string parsing, supporting aliases, aggregate functions, GROUP BY, and HAVING.
+     * Uses SelectAggregateVisitor to parse the SELECT string and delegates to getAggregateQueryResult() for execution.
+     * Automatically extracts GROUP BY fields from SELECT string (fields without aggregate functions).
+     *
+     * @param entityClass The entity class to query
+     * @param resultClass The result class (usually Tuple.class)
+     * @param selectString SELECT clause string with aggregate functions (e.g., "productType.name, COUNT(*):count, SUM(price):total")
+     * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param havingFilter RSQL filter string for HAVING clause (applied after aggregation)
+     * @param pageable Pagination and sorting
+     * @param rsqlContext RSQL context with EntityManager
+     * @param compiler RSQL compiler
+     * @return List of aggregate query results
+     */
+    public static <ENTITY, RESULT> List<RESULT> getAggregateQueryResultWithSelect(
+        Class<ENTITY> entityClass,
+        Class<RESULT> resultClass,
+        String selectString,
+        String filter,
+        String havingFilter,
+        Pageable pageable,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler
+    ) {
+        // Parse SELECT string to extract aggregate fields and GROUP BY fields
+        SelectTreeParser selectParser = new SelectTreeParser();
+        ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
+
+        SelectAggregateVisitor aggregateVisitor = new SelectAggregateVisitor();
+        aggregateVisitor.setContext(rsqlContext);
+        List<AggregateField> selectFields = aggregateVisitor.visit(tree);
+
+        // Extract GROUP BY fields (fields without aggregate functions)
+        List<String> groupByFields = new ArrayList<>();
+        for (AggregateField field : selectFields) {
+            if (field.getFunction() == null ||
+                field.getFunction() == AggregateField.AggregateFunction.NONE) {
+                groupByFields.add(field.getFieldPath());
+            }
+        }
+
+        // Delegate to getAggregateQueryResult which has full HAVING support
+        return getAggregateQueryResult(
+            entityClass,
+            resultClass,
+            selectFields,
+            groupByFields,
+            filter,
+            havingFilter,
+            pageable,
+            rsqlContext,
+            compiler
+        );
+    }
+
+    /**
+     * Executes an aggregate query with SELECT fields, GROUP BY, WHERE, and optional HAVING clause.
+     *
+     * @param entityClass The entity class to query
+     * @param resultClass The result class (usually Tuple.class)
+     * @param selectFields List of AggregateFields from SELECT clause (with aliases)
+     * @param groupByFields List of GROUP BY field paths
+     * @param filter RSQL filter string for WHERE clause (filters rows before aggregation)
+     * @param havingFilter RSQL filter string for HAVING clause (filters groups after aggregation)
+     * @param pageable Pagination and sorting
+     * @param rsqlContext RSQL context with EntityManager
+     * @param compiler RSQL compiler
+     * @return List of aggregate query results
+     */
+    public static <ENTITY, RESULT> List<RESULT> getAggregateQueryResult(
+        Class<ENTITY> entityClass,
+        Class<RESULT> resultClass,
+        List<AggregateField> selectFields,
+        List<String> groupByFields,
+        String filter,
+        String havingFilter,
+        Pageable pageable,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler
+    ) {
+        Sort sort;
+        if (pageable == null) {
+            sort = null;
+        } else {
+            sort = pageable.getSort();
+        }
+        CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
+        CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
+        Root<ENTITY> root = query.from(entityClass);
+
+        // Update rsqlContext with new root and clear JOIN caches
+        rsqlContext.criteriaBuilder = builder;
+        rsqlContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) query;
+        rsqlContext.root = root;
+        rsqlContext.joinsMap.clear();
+        rsqlContext.classMetadataMap.clear();
+
+        // Create WHERE specification (uses shared joinsMap from rsqlContext)
+        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+
+        // Build select clause with aggregate functions (uses shared joinsMap from rsqlContext)
+        List<Selection<?>> selectionList = new ArrayList<>();
+        for (AggregateField field : selectFields) {
+            Path<?> path = getPropertyPathRecursive(field.getFieldPath(), root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
+            Selection<?> selection;
+
+            selection = switch (field.getFunction()) {
+                case SUM -> builder.sum((Expression<Number>) path);
+                case AVG -> builder.avg((Expression<Number>) path);
+                case COUNT -> builder.count(path);
+                case COUNT_DISTINCT -> builder.countDistinct(path);
+                case MIN -> builder.least((Expression) path);
+                case MAX -> builder.greatest((Expression) path);
+                case NONE -> path;
+            };
+
+            if (field.getAlias() != null && !field.getAlias().isEmpty()) {
+                selection = selection.alias(field.getAlias());
+            }
+            selectionList.add(selection);
+        }
+        query.multiselect(selectionList);
+
+        // Add WHERE clause
+        if (specification != null) {
+            Predicate predicate = specification.toPredicate(root, query, builder);
+            query.where(predicate);
+        }
+
+        // Add GROUP BY clause (uses shared joinsMap from rsqlContext)
+        if (groupByFields != null && !groupByFields.isEmpty()) {
+            List<Expression<?>> groupByExpressions = new ArrayList<>();
+            for (String groupByField : groupByFields) {
+                Path<?> groupByPath = getPropertyPathRecursive(groupByField, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
+                groupByExpressions.add(groupByPath);
+            }
+            query.groupBy(groupByExpressions);
+        }
+
+        // Add HAVING clause
+        if (havingFilter != null && !havingFilter.trim().isEmpty()) {
+            // Create HavingContext with alias mappings from SELECT
+            // Uses shared joinsMap and classMetadataMap from rsqlContext
+            HavingContext<ENTITY> havingContext = new HavingContext<>(
+                builder,
+                root,
+                selectFields,
+                rsqlContext
+            );
+
+            // Compile HAVING filter to Predicate
+            HavingCompiler havingCompiler = new HavingCompiler();
+            Predicate havingPredicate = havingCompiler.compile(
+                havingFilter,
+                havingContext,
+                rsqlContext,
+                groupByFields
+            );
+
+            if (havingPredicate != null) {
+                query.having(havingPredicate);
+            }
+        }
+
+        // Add ORDER BY clause
+        if (sort != null && sort.isSorted()) {
+            query.orderBy(QueryUtils.toOrders(sort, root, builder));
+        }
+
+        return rsqlContext.entityManager.createQuery(query).getResultList();
+    }
+
 }
