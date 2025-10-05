@@ -10,6 +10,7 @@ import rsql.exceptions.SyntaxErrorException;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.ParameterExpression;
 import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.Metamodel;
@@ -60,6 +61,7 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
     /**
      * If the field is not directly on the original class, then find the path to it.
+     * Uses shared JOIN cache from rsqlContext to ensure consistency with SELECT/HAVING clauses.
      *
      * @param fieldName Field name
      * @param startRoot Current root
@@ -73,6 +75,25 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         ManagedType<?> classMetadata = metamodel.managedType(startRoot.getJavaType());
         Path<?> root = startRoot;
 
+        // Check if we already have a cached join for this path (except last element)
+        String pathKey = "";
+        if (graph.length > 1) {
+            pathKey = joinArrayItems(graph, graph.length - 1, ".");
+            if (rsqlContext.joinsMap.containsKey(pathKey)) {
+                Path<?> pathRoot = rsqlContext.joinsMap.get(pathKey);
+                ManagedType<?> pathClassMetadata = rsqlContext.classMetadataMap.get(pathKey);
+                String property = graph[graph.length - 1];
+                root = pathRoot.get(property);
+                if (isEmbeddedType(property, pathClassMetadata)) {
+                    Class<?> embeddedType = findPropertyType(property, pathClassMetadata);
+                    classMetadata = metamodel.managedType(embeddedType);
+                }
+                return root;
+            }
+        }
+
+        // Build property path, creating and caching joins as needed
+        pathKey = "";
         for (String property : graph) {
             if (!hasPropertyName(property, classMetadata)) {
                 throw new SyntaxErrorException(
@@ -81,13 +102,29 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
             }
 
             if (isAssociationType(property, classMetadata)) {
-                Class<?> associationType = findPropertyType(property, classMetadata);
-                String previousClass = classMetadata.getJavaType().getName();
-                classMetadata = metamodel.managedType(associationType);
+                // Build path key for caching
+                if (pathKey.length() > 0) {
+                    pathKey = pathKey.concat(".").concat(property);
+                } else {
+                    pathKey = property;
+                }
 
-                log.trace("Create a join between {} and {}.", previousClass, classMetadata.getJavaType().getName());
+                // Check if join already exists in cache
+                if (rsqlContext.joinsMap.containsKey(pathKey)) {
+                    classMetadata = rsqlContext.classMetadataMap.get(pathKey);
+                    root = rsqlContext.joinsMap.get(pathKey);
+                } else {
+                    // Create new LEFT JOIN and cache it
+                    Class<?> associationType = findPropertyType(property, classMetadata);
+                    String previousClass = classMetadata.getJavaType().getName();
+                    classMetadata = metamodel.managedType(associationType);
 
-                root = ((From) root).join(property);
+                    log.trace("Create a LEFT JOIN between {} and {}.", previousClass, classMetadata.getJavaType().getName());
+
+                    root = ((From) root).join(property, JoinType.LEFT);
+                    rsqlContext.joinsMap.put(pathKey, root);
+                    rsqlContext.classMetadataMap.put(pathKey, classMetadata);
+                }
             } else {
                 log.trace("Create property path for type {} property {}.", classMetadata.getJavaType().getName(), property);
                 root = root.get(property);
@@ -98,6 +135,17 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
             }
         }
         return root;
+    }
+
+    /**
+     * Helper method to join array elements into a string.
+     */
+    private String joinArrayItems(String[] graph, int len, String delimiter) {
+        String key = graph[0];
+        for (int i = 1; i < len; i++) {
+            key = key.concat(delimiter).concat(graph[i]);
+        }
+        return key;
     }
 
     private Class<?> getFieldType(Path<?> root, String fieldName) {

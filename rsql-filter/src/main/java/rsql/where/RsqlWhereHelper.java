@@ -129,7 +129,7 @@ public class RsqlWhereHelper {
         return s;
     }
 
-    static LocalDate getLocalDateFromDateLiteral(TerminalNode dateLiteral) {
+    public static LocalDate getLocalDateFromDateLiteral(TerminalNode dateLiteral) {
         String s = dateLiteral.getText();
         if (s.length() > 1) {
             s = s.substring(1, s.length() - 1);
@@ -138,7 +138,7 @@ public class RsqlWhereHelper {
         return null;
     }
 
-    static Instant getInstantFromDatetimeLiteral(TerminalNode datetimeLiteral) {
+    public static Instant getInstantFromDatetimeLiteral(TerminalNode datetimeLiteral) {
         String s = datetimeLiteral.getText();
         if (s.length() > 1) {
             s = s.substring(1, s.length() - 1);

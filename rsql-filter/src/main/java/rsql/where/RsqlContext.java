@@ -3,11 +3,20 @@ package rsql.where;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.metamodel.ManagedType;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class represents the context for RSQL operations on a specific entity type.
  * It provides the necessary JPA components for creating and executing queries.
+ *
+ * <p>The context maintains shared JOIN and metadata caches that are used across
+ * SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses to ensure consistency
+ * and avoid duplicate JOINs.</p>
  *
  * @param <ENTITY> The type of the entity that the RSQL operations are targeting.
  */
@@ -38,6 +47,24 @@ public class RsqlContext<ENTITY> {
      */
     public CriteriaBuilder criteriaBuilder;
 
+    /**
+     * Shared cache for JOIN paths. This map ensures that JOINs created in SELECT, WHERE,
+     * or other clauses are reused instead of creating duplicate JOINs.
+     *
+     * <p>Key: dot-separated path (e.g., "productType" or "productType.category")</p>
+     * <p>Value: JPA Path object for the joined entity</p>
+     */
+    public Map<String, Path<?>> joinsMap;
+
+    /**
+     * Shared cache for entity metadata. This map stores ManagedType objects for entities
+     * accessed through JOINs, avoiding redundant metamodel lookups.
+     *
+     * <p>Key: dot-separated path (e.g., "productType" or "productType.category")</p>
+     * <p>Value: ManagedType for the entity at that path</p>
+     */
+    public Map<String, ManagedType<?>> classMetadataMap;
+
     //    public Specification<ENTITY> specification;
 
     /**
@@ -47,6 +74,8 @@ public class RsqlContext<ENTITY> {
      */
     public RsqlContext(Class<ENTITY> entityClass) {
         this.entityClass = entityClass;
+        this.joinsMap = new HashMap<>();
+        this.classMetadataMap = new HashMap<>();
     }
 
     /**
@@ -63,11 +92,52 @@ public class RsqlContext<ENTITY> {
 
     /**
      * Initializes the context by creating the CriteriaBuilder, CriteriaQuery, and Root objects.
+     * Also clears the JOIN and metadata caches to start fresh for a new query.
+     * Preserves the root alias to ensure WHERE clauses have proper alias prefixes.
      */
     public void initContext() {
+        // Preserve existing alias if root already exists
+        String existingAlias = null;
+        if (this.root != null) {
+            existingAlias = this.root.getAlias();
+        }
+
+        // If no existing alias, use default
+        if (existingAlias == null || existingAlias.isEmpty()) {
+            existingAlias = "a0";
+        }
+
         this.criteriaBuilder = entityManager.getCriteriaBuilder();
         this.criteriaQuery = criteriaBuilder.createQuery(entityClass);
         this.root = criteriaQuery.from(entityClass);
+
+        // Always set alias on new root to ensure WHERE clauses work correctly
+        this.root.alias(existingAlias);
+
+        this.joinsMap.clear();
+        this.classMetadataMap.clear();
         //        this.specification = Specification.where(null);
+    }
+
+    /**
+     * Creates a new instance of RsqlContext with the same entityClass and entityManager,
+     * but with fresh joinsMap and classMetadataMap. This ensures thread-safety by
+     * providing each query execution with its own isolated context.
+     *
+     * <p>This method should be called at the beginning of each query execution to avoid
+     * shared mutable state between concurrent requests.</p>
+     *
+     * @return A new RsqlContext instance with initialized context
+     */
+    public RsqlContext<ENTITY> createNewInstance() {
+        RsqlContext<ENTITY> newContext = new RsqlContext<>(this.entityClass);
+        newContext.defineEntityManager(this.entityManager);
+
+        // Preserve the root alias from the original context
+        if (this.root != null && this.root.getAlias() != null) {
+            newContext.root.alias(this.root.getAlias());
+        }
+
+        return newContext;
     }
 }
