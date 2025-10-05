@@ -251,19 +251,35 @@ public class SimpleQueryExecutor {
         } else {
             sort = pageable.getSort();
         }
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
+        // FIRST: Create CriteriaQuery and Root
         CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
         CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
+
+        // Preserve the existing root alias (set by RsqlQueryService or user's custom JPQL)
+        String rootAlias = rsqlContext.root.getAlias();
+        if (rootAlias == null) {
+            rootAlias = "a0";  // Fallback to default alias
+        }
+
         Root<ENTITY> root = query.from(entityClass);
+        root.alias(rootAlias);  // Set the preserved alias on the new root
 
-        // Parse SELECT string and create Selections using SelectFieldSelectionVisitor
-        SelectTreeParser selectParser = new SelectTreeParser();
-        ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
+        // SECOND: Update rsqlContext with new root and clear JOIN caches
+        // This ensures that WHERE and SELECT use the SAME root and share JOINs
+        rsqlContext.criteriaBuilder = builder;
+        rsqlContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) query;
+        rsqlContext.root = root;
+        rsqlContext.joinsMap.clear();
+        rsqlContext.classMetadataMap.clear();
 
-        SelectFieldSelectionVisitor visitor = new SelectFieldSelectionVisitor();
-        visitor.setContext(rsqlContext, builder, root);
-        List<Selection<?>> selectionList = visitor.visit(tree);
+        // THIRD: Create WHERE specification (uses shared joinsMap from rsqlContext)
+        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+
+        // FOURTH: Create SELECT selections (reuses JOINs from WHERE clause)
+        List<Selection<?>> selectionList = createSelectionsFromString(
+            selectString, builder, root, rsqlContext
+        );
 
         query.multiselect(selectionList);
 
@@ -309,19 +325,35 @@ public class SimpleQueryExecutor {
         } else {
             sort = pageable.getSort();
         }
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
+        // FIRST: Create CriteriaQuery and Root
         CriteriaBuilder builder = rsqlContext.entityManager.getCriteriaBuilder();
         CriteriaQuery<RESULT> query = builder.createQuery(resultClass);
+
+        // Preserve the existing root alias (set by RsqlQueryService or user's custom JPQL)
+        String rootAlias = rsqlContext.root.getAlias();
+        if (rootAlias == null) {
+            rootAlias = "a0";  // Fallback to default alias
+        }
+
         Root<ENTITY> root = query.from(entityClass);
+        root.alias(rootAlias);  // Set the preserved alias on the new root
 
-        // Parse SELECT string and create Selections using SelectFieldSelectionVisitor
-        SelectTreeParser selectParser = new SelectTreeParser();
-        ParseTree tree = selectParser.parseStream(CharStreams.fromString(selectString));
+        // SECOND: Update rsqlContext with new root and clear JOIN caches
+        // This ensures that WHERE and SELECT use the SAME root and share JOINs
+        rsqlContext.criteriaBuilder = builder;
+        rsqlContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) query;
+        rsqlContext.root = root;
+        rsqlContext.joinsMap.clear();
+        rsqlContext.classMetadataMap.clear();
 
-        SelectFieldSelectionVisitor visitor = new SelectFieldSelectionVisitor();
-        visitor.setContext(rsqlContext, builder, root);
-        List<Selection<?>> selectionList = visitor.visit(tree);
+        // THIRD: Create WHERE specification (uses shared joinsMap from rsqlContext)
+        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+
+        // FOURTH: Create SELECT selections (reuses JOINs from WHERE clause)
+        List<Selection<?>> selectionList = createSelectionsFromString(
+            selectString, builder, root, rsqlContext
+        );
 
         query.multiselect(selectionList);
 

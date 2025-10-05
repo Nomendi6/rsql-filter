@@ -423,7 +423,7 @@ public class CompilerWhereTextIT {
     @Test
     void fieldWithDotsEqField() {
         final RsqlQuery rsqlQuery = compilerForProduct.compileToRsqlQuery("productType.code==name", rsqlContextProduct);
-        assertThat(rsqlQuery.where).isEqualTo("productType.code=name");
+        assertThat(rsqlQuery.where).isEqualTo("a0.productType.code=a0.name");
     }
 
     @Test

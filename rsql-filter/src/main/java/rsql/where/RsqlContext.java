@@ -93,13 +93,51 @@ public class RsqlContext<ENTITY> {
     /**
      * Initializes the context by creating the CriteriaBuilder, CriteriaQuery, and Root objects.
      * Also clears the JOIN and metadata caches to start fresh for a new query.
+     * Preserves the root alias to ensure WHERE clauses have proper alias prefixes.
      */
     public void initContext() {
+        // Preserve existing alias if root already exists
+        String existingAlias = null;
+        if (this.root != null) {
+            existingAlias = this.root.getAlias();
+        }
+
+        // If no existing alias, use default
+        if (existingAlias == null || existingAlias.isEmpty()) {
+            existingAlias = "a0";
+        }
+
         this.criteriaBuilder = entityManager.getCriteriaBuilder();
         this.criteriaQuery = criteriaBuilder.createQuery(entityClass);
         this.root = criteriaQuery.from(entityClass);
+
+        // Always set alias on new root to ensure WHERE clauses work correctly
+        this.root.alias(existingAlias);
+
         this.joinsMap.clear();
         this.classMetadataMap.clear();
         //        this.specification = Specification.where(null);
+    }
+
+    /**
+     * Creates a new instance of RsqlContext with the same entityClass and entityManager,
+     * but with fresh joinsMap and classMetadataMap. This ensures thread-safety by
+     * providing each query execution with its own isolated context.
+     *
+     * <p>This method should be called at the beginning of each query execution to avoid
+     * shared mutable state between concurrent requests.</p>
+     *
+     * @return A new RsqlContext instance with initialized context
+     */
+    public RsqlContext<ENTITY> createNewInstance() {
+        RsqlContext<ENTITY> newContext = new RsqlContext<>(this.entityClass);
+        newContext.defineEntityManager(this.entityManager);
+
+        // Preserve the root alias from the original context
+        if (this.root != null && this.root.getAlias() != null) {
+            newContext.root.alias(this.root.getAlias());
+        }
+
+        return newContext;
     }
 }

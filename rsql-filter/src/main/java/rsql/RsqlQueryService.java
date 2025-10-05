@@ -79,7 +79,7 @@ public class RsqlQueryService<
         this.entityManager = entityManager;
         this.rsqlContext = new RsqlContext<>(entityClass).defineEntityManager(entityManager);
         this.entityClass = entityClass;
-        this.rsqlContext.root.alias(this.selectAlias);
+        // Note: Don't set alias on shared rsqlContext here - it will be set on each query context
     }
 
     public RsqlQueryService(REPOS appObjectRepository, MAPPER appObjectMapper, EntityManager entityManager, Class<ENTITY> entityClass, String jpqlSelectAllFromEntity, String jpqlSelectCountFromEntity) {
@@ -91,7 +91,7 @@ public class RsqlQueryService<
 
         this.jpqlSelectAllFromEntity = jpqlSelectAllFromEntity;
         this.jpqlSelectCountFromEntity = jpqlSelectCountFromEntity;
-        this.rsqlContext.root.alias(this.selectAlias);
+        // Note: Don't set alias on shared rsqlContext here - it will be set on each query context
         this.useJpqlSelect = true;
     }
 
@@ -99,8 +99,37 @@ public class RsqlQueryService<
         return rsqlCompiler;
     }
 
+    /**
+     * Returns the template RsqlContext. This context should NOT be used directly for queries.
+     * Instead, use getQueryContext() to get a fresh instance for each query execution.
+     *
+     * @return The template RsqlContext
+     * @deprecated Use getQueryContext() instead to ensure thread-safety
+     */
+    @Deprecated
     public RsqlContext<ENTITY> getRsqlContext() {
         return rsqlContext;
+    }
+
+    /**
+     * Creates a new RsqlContext instance for query execution. This ensures thread-safety
+     * by providing each query with its own isolated context (joinsMap, classMetadataMap, etc.).
+     *
+     * <p>This method should be called at the beginning of each query execution instead of
+     * using the shared rsqlContext field directly.</p>
+     *
+     * @return A new RsqlContext instance for the current query
+     */
+    private RsqlContext<ENTITY> getQueryContext() {
+        RsqlContext<ENTITY> newContext = rsqlContext.createNewInstance();
+
+        // Apply the current selectAlias from this service instance
+        // This ensures that alias changes via setSelectAlias() are respected
+        if (selectAlias != null && !selectAlias.isEmpty()) {
+            newContext.root.alias(selectAlias);
+        }
+
+        return newContext;
     }
 
     public Class<ENTITY> getEntityClass() {
@@ -159,12 +188,14 @@ public class RsqlQueryService<
 
     /**
      * Sets the alias to be used for selecting entities in JPQL queries.
+     * This alias will be applied to each new query context created via getQueryContext().
      *
      * @param selectAlias the alias to be used for the select query as a String
      */
     public void setSelectAlias(String selectAlias) {
         this.selectAlias = selectAlias;
-        this.rsqlContext.root.alias(this.selectAlias);
+        // Note: We don't modify rsqlContext.root here to maintain thread-safety
+        // The alias will be applied when getQueryContext() creates a new instance
     }
 
     public String getSelectAlias() {
@@ -205,7 +236,7 @@ public class RsqlQueryService<
                 this.jpqlSelectAllFromEntity,
                     selectAlias, filter,
                 null,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -230,7 +261,7 @@ public class RsqlQueryService<
                 this.jpqlSelectAllFromEntity,
                 selectAlias, filter,
                 null,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -271,7 +302,7 @@ public class RsqlQueryService<
                     this.jpqlSelectAllFromEntity,
                     selectAlias, filter,
                     sortOrder,
-                    rsqlContext,
+                    getQueryContext(),
                     rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -305,7 +336,7 @@ public class RsqlQueryService<
                     this.jpqlSelectAllFromEntity,
                     selectAlias, filter,
                     sortOrder,
-                    rsqlContext,
+                    getQueryContext(),
                     rsqlCompiler);
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -333,7 +364,7 @@ public class RsqlQueryService<
                      selectAlias, this.jpqlSelectCountFromEntity,
                      countAlias, filter,
                 page,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
 
                 return entityPage.map(appObjectMapper::toDto);
@@ -369,7 +400,7 @@ public class RsqlQueryService<
                      selectAlias, this.jpqlSelectCountFromEntity,
                      countAlias, filter,
                 page,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
 
                 return entityPage;
@@ -395,7 +426,7 @@ public class RsqlQueryService<
                 this.jpqlSelectCountFromEntity,
                 countAlias,
                 filter,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler);
         } else {
             final Specification<ENTITY> specification = createSpecification(filter);
@@ -412,7 +443,7 @@ public class RsqlQueryService<
      * @return the matching {@link Specification} of the entity.
      */
     public Specification<ENTITY> createSpecification(String filter) {
-        return rsqlCompiler.compileToSpecification(filter, rsqlContext);
+        return rsqlCompiler.compileToSpecification(filter, getQueryContext());
     }
 
     /**
@@ -454,7 +485,7 @@ public class RsqlQueryService<
         Root<ENTITY> root
     ) {
         return SimpleQueryExecutor.createSelectionsFromString(
-            selectString, builder, root, rsqlContext
+            selectString, builder, root, getQueryContext()
         );
     }
 
@@ -509,7 +540,7 @@ public class RsqlQueryService<
         Root<ENTITY> root
     ) {
         return SimpleQueryExecutor.createAggregateQuery(
-            selectString, builder, root, rsqlContext
+            selectString, builder, root, getQueryContext()
         );
     }
 
@@ -558,7 +589,7 @@ public class RsqlQueryService<
                 fields,
                 filter,
                 pageable,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler
         );
     }
@@ -588,7 +619,7 @@ public class RsqlQueryService<
             new String[] { "id", "name" },
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler
         );
     }
@@ -627,7 +658,7 @@ public class RsqlQueryService<
             selectString,
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler
         );
     }
@@ -670,7 +701,7 @@ public class RsqlQueryService<
             selectString,
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler
         );
     }
@@ -711,7 +742,7 @@ public class RsqlQueryService<
             selectString,
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler,
             appObjectRepository
         );
@@ -733,7 +764,7 @@ public class RsqlQueryService<
             fields,
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler
         );
     }
@@ -760,7 +791,7 @@ public class RsqlQueryService<
             selectString,
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler
         );
     }
@@ -790,7 +821,7 @@ public class RsqlQueryService<
             selectString,
             filter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler,
             appObjectRepository
         );
@@ -827,7 +858,7 @@ public class RsqlQueryService<
             filter,
             havingFilter,
             pageable,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler
         );
     }
@@ -849,7 +880,7 @@ public class RsqlQueryService<
             jpqlSelectQuery,
             alias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler).stream().map(appObjectMapper::toDto).collect(Collectors.toList());
     }
 
@@ -870,7 +901,7 @@ public class RsqlQueryService<
             jpqlSelectQuery,
             alias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler);
     }
 
@@ -893,7 +924,7 @@ public class RsqlQueryService<
                 selectAlias, jpqlCountQuery,
                 countAlias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler);
 
         return entityPage.map(appObjectMapper::toDto);
@@ -916,7 +947,7 @@ public class RsqlQueryService<
             jpqlSelectQuery,
             alias, filter,
             page,
-            rsqlContext,
+            getQueryContext(),
             rsqlCompiler);
     }
 
@@ -936,7 +967,7 @@ public class RsqlQueryService<
                 fields,
                 filter,
                 pageable,
-                rsqlContext,
+                getQueryContext(),
                 rsqlCompiler
         );
         List<Map<String, Object>> mappedResults = new java.util.ArrayList<>();
