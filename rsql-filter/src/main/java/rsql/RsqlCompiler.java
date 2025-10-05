@@ -169,8 +169,10 @@ public class RsqlCompiler<T> {
      * @param query - RsqlQuery structure
      */
     public static void fixIdsForNativeQuery(RsqlQuery query) {
+        String alias = query.alias;
         query.where = query.where.replace("Id", "_id");
         query.where = query.where.replace(".id", "_id");
+        query.where = query.where.replace(alias + "_id", alias + ".id"); // this is not a reference field but a field on the entity
     }
 
     // ==================== SELECT Compilation Methods ====================
