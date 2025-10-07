@@ -33,7 +33,10 @@ import static rsql.helper.SimpleQueryExecutor.getQueryResult;
 import static rsql.helper.SimpleQueryExecutor.getQueryResultWithSelect;
 import static rsql.helper.SimpleQueryExecutor.getQueryResultAsPageWithSelect;
 import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultWithSelect;
+import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultAsPageWithSelect;
 import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResult;
+import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultWithSelectExpression;
+import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultAsPageWithSelectExpression;
 
 /**
  * Service for executing complex queries for  entities in the database.
@@ -852,6 +855,172 @@ public class RsqlQueryService<
     @Transactional(readOnly = true)
     public List<Tuple> getAggregateResult(String selectString, String filter, String havingFilter, Pageable pageable) {
         return getAggregateQueryResultWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            havingFilter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Executes a paginated aggregate query with SELECT string syntax supporting aggregate functions,
+     * GROUP BY, WHERE, HAVING, and arithmetic expressions. Returns Page with pagination metadata.
+     *
+     * This method supports both simple aggregate queries and complex arithmetic expressions:
+     * - Simple: "productType.name:type, COUNT(*):count, SUM(price):total"
+     * - Arithmetic: "productType.name:type, SUM(price) * 1.2:totalWithTax"
+     *
+     * Supported aggregate functions: COUNT(*), COUNT(field), SUM(field), AVG(field), MIN(field), MAX(field), COUNT(DIST field)
+     * Supported arithmetic operators: +, -, *, / (only in aggregate queries)
+     *
+     * Example usage:
+     * <pre>
+     * // Simple pagination with aggregates
+     * Page&lt;Tuple&gt; page = getAggregateResultAsPage(
+     *     "productType.name:type, COUNT(*):count, SUM(price):total",
+     *     "status==ACTIVE",
+     *     "total=gt=50000;count=ge=10", // HAVING filter
+     *     PageRequest.of(0, 10, Sort.by("total").descending())
+     * );
+     *
+     * // With arithmetic expressions
+     * Page&lt;Tuple&gt; page2 = getAggregateResultAsPage(
+     *     "category, SUM(price) * 1.2:totalWithTax, COUNT(*):count",
+     *     "",
+     *     null,
+     *     PageRequest.of(0, 20)
+     * );
+     *
+     * // Access results
+     * System.out.println("Total elements: " + page.getTotalElements());
+     * System.out.println("Total pages: " + page.getTotalPages());
+     * for (Tuple tuple : page.getContent()) {
+     *     System.out.println(tuple.get("type") + ": " + tuple.get("count"));
+     * }
+     * </pre>
+     *
+     * @param selectString SELECT clause with aggregate functions and optional arithmetic (e.g., "field1, COUNT(*):count, SUM(field2) * 1.2:total")
+     * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param havingFilter RSQL filter string for HAVING clause (applied after aggregation, filters groups)
+     * @param pageable pagination and sorting information (offset, limit, sort)
+     * @return Page of tuples with aggregated results and pagination metadata
+     */
+    @Transactional(readOnly = true)
+    public Page<Tuple> getAggregateResultAsPage(String selectString, String filter, String havingFilter, Pageable pageable) {
+        return getAggregateQueryResultAsPageWithSelect(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            havingFilter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Executes an aggregate query with arithmetic expressions support (returns List without pagination).
+     * This method uses SelectExpressionVisitor which supports complex arithmetic operations and HAVING clause.
+     *
+     * <p><b>Key features:</b></p>
+     * <ul>
+     *   <li>Supports arithmetic expressions: {@code SUM(debit) - SUM(credit):balance}</li>
+     *   <li>Supports HAVING clause for filtering aggregated results</li>
+     *   <li>Uses expression-based parsing instead of field-based parsing</li>
+     * </ul>
+     *
+     * <p><b>Example usage:</b></p>
+     * <pre>
+     * // Calculate balance with arithmetic and filter results
+     * List&lt;Tuple&gt; results = queryService.getAggregateResultWithExpressions(
+     *     "account.number:accountNumber, SUM(debit) - SUM(credit):balance",
+     *     "year==2024",
+     *     "balance=gt=0",  // Only positive balances
+     *     PageRequest.of(0, 100, Sort.by("accountNumber"))
+     * );
+     *
+     * for (Tuple tuple : results) {
+     *     String account = (String) tuple.get("accountNumber");
+     *     BigDecimal balance = (BigDecimal) tuple.get("balance");
+     *     System.out.println(account + ": " + balance);
+     * }
+     * </pre>
+     *
+     * @param selectString SELECT clause with arithmetic expressions (e.g., "field1, SUM(field2) - SUM(field3):diff")
+     * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param havingFilter RSQL HAVING filter for filtering aggregated results
+     * @param pageable Pagination and sorting (only Sort is used, offset/limit ignored - use getAggregateResultAsPageWithExpressions for pagination)
+     * @return List of tuples with aggregated results
+     */
+    @Transactional(readOnly = true)
+    public List<Tuple> getAggregateResultWithExpressions(String selectString, String filter, String havingFilter, Pageable pageable) {
+        return getAggregateQueryResultWithSelectExpression(
+            entityClass,
+            Tuple.class,
+            selectString,
+            filter,
+            havingFilter,
+            pageable,
+            getQueryContext(),
+            rsqlCompiler
+        );
+    }
+
+    /**
+     * Executes a paginated aggregate query with arithmetic expressions support (returns Page with metadata).
+     * This method uses SelectExpressionVisitor which supports complex arithmetic operations, HAVING clause, and proper pagination.
+     *
+     * <p><b>Key features:</b></p>
+     * <ul>
+     *   <li>✅ Supports arithmetic expressions: {@code SUM(price) * 1.2:totalWithTax}</li>
+     *   <li>✅ Full pagination support with metadata (totalElements, totalPages, etc.)</li>
+     *   <li>✅ Sorting by SELECT aliases (including arithmetic expression aliases)</li>
+     *   <li>✅ Supports HAVING clause for filtering aggregated results</li>
+     * </ul>
+     *
+     * <p><b>Example usage:</b></p>
+     * <pre>
+     * // Paginated query with arithmetic, HAVING filter, and sorting by alias
+     * Page&lt;Tuple&gt; page = queryService.getAggregateResultAsPageWithExpressions(
+     *     "productType.name:category, SUM(price) * 1.2:totalWithTax, COUNT(*):count",
+     *     "status==ACTIVE",
+     *     "totalWithTax=gt=1000",  // Only groups with total > 1000
+     *     PageRequest.of(0, 10, Sort.by("totalWithTax").descending())
+     * );
+     *
+     * // Access pagination metadata
+     * long totalElements = page.getTotalElements();  // Total number of groups after HAVING
+     * int totalPages = page.getTotalPages();
+     * List&lt;Tuple&gt; results = page.getContent();
+     *
+     * for (Tuple tuple : results) {
+     *     String category = (String) tuple.get("category");
+     *     BigDecimal total = (BigDecimal) tuple.get("totalWithTax");
+     *     Long count = (Long) tuple.get("count");
+     *     System.out.println(category + ": " + total + " (count: " + count + ")");
+     * }
+     * </pre>
+     *
+     * <p><b>When to use this vs getAggregateResultAsPage():</b></p>
+     * <ul>
+     *   <li>Use this method when you need arithmetic expressions (both methods support HAVING)</li>
+     *   <li>Both methods support all aggregate query features</li>
+     * </ul>
+     *
+     * @param selectString SELECT clause with arithmetic expressions (e.g., "field1, SUM(field2) * 1.2:total")
+     * @param filter RSQL filter string for WHERE clause (applied before aggregation)
+     * @param havingFilter RSQL HAVING filter for filtering aggregated results
+     * @param pageable Pagination and sorting (offset, limit, sort by aliases)
+     * @return Page of tuples with aggregated results and pagination metadata
+     */
+    @Transactional(readOnly = true)
+    public Page<Tuple> getAggregateResultAsPageWithExpressions(String selectString, String filter, String havingFilter, Pageable pageable) {
+        return getAggregateQueryResultAsPageWithSelectExpression(
             entityClass,
             Tuple.class,
             selectString,

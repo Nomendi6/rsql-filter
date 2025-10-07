@@ -118,7 +118,7 @@ public class AggregateQueryBuilder<ENTITY> {
 
         // Create HavingContext with internal state
         // HavingContext will use shared joinsMap and classMetadataMap from rsqlContext
-        HavingContext<ENTITY> havingContext = new HavingContext<>(
+        HavingContext<ENTITY> havingContext = HavingContext.fromAggregateFields(
             builder,
             root,
             selectFields,

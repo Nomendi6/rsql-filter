@@ -91,6 +91,39 @@ public class SelectFieldVisitor extends RsqlSelectBaseVisitor<List<SelectField>>
         );
     }
 
+    @Override
+    public List<SelectField> visitSeExpression(RsqlSelectParser.SeExpressionContext ctx) {
+        // This visitor doesn't support arithmetic expressions
+        // But due to grammar rule ordering, simple fields are now parsed as expressions
+        // So we need to check if it's a simple field and handle it
+
+        RsqlSelectParser.ExpressionContext exprCtx = ctx.expression();
+
+        // If it's a simple field expression (without operators), handle it as seField
+        if (exprCtx instanceof RsqlSelectParser.FieldExpressionContext) {
+            RsqlSelectParser.FieldExpressionContext fieldCtx = (RsqlSelectParser.FieldExpressionContext) exprCtx;
+            String fieldPath = getFieldPath(fieldCtx.field());
+            String alias = ctx.simpleField() != null ? ctx.simpleField().getText() : null;
+
+            validateFieldPath(fieldPath);
+            return Arrays.asList(new SelectField(fieldPath, alias));
+        }
+
+        // If it's a function expression, throw error (no aggregates in simple SELECT)
+        if (exprCtx instanceof RsqlSelectParser.FuncExpressionContext) {
+            throw new SyntaxErrorException(
+                "Aggregate functions are not supported in simple SELECT queries. " +
+                "Use SelectAggregateVisitor for aggregate queries."
+            );
+        }
+
+        // For any other expression type (with operators), throw error
+        throw new SyntaxErrorException(
+            "Arithmetic expressions are not supported in this query type. " +
+            "Use SelectExpressionVisitor for queries with arithmetic expressions."
+        );
+    }
+
     /**
      * Extracts field path from FieldContext.
      * Example: field context "productType.name" -> "productType.name"

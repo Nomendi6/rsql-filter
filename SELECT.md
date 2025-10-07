@@ -9,11 +9,13 @@ This document provides comprehensive documentation for SELECT query functionalit
   - [Field Aliases](#field-aliases)
   - [Navigation Properties](#navigation-properties)
   - [Wildcard Selection](#wildcard-selection)
+  - [Arithmetic Expressions](#arithmetic-expressions)
 - [Aggregate Queries](#aggregate-queries)
   - [Supported Aggregate Functions](#supported-aggregate-functions)
   - [GROUP BY Behavior](#group-by-behavior)
   - [Multiple Aggregates](#multiple-aggregates)
   - [COUNT DISTINCT](#count-distinct)
+  - [Arithmetic with Aggregates](#arithmetic-with-aggregates)
 - [RsqlQueryService Methods](#rsqlqueryservice-methods)
   - [getTupleWithSelect](#gettuplewithselect)
   - [getTupleAsPageWithSelect](#gettupleaspagewitchselect)
@@ -36,6 +38,7 @@ The SELECT functionality extends RSQL Filter to support flexible field selection
 
 - **Field Aliases**: Rename fields in results using `:alias` syntax
 - **Navigation Properties**: Access related entity fields using dot notation
+- **Arithmetic Expressions**: Support for `+`, `-`, `*`, `/` operators with aggregate functions (in `getAggregateResult()` only)
 - **Aggregate Functions**: COUNT, SUM, AVG, MIN, MAX with automatic GROUP BY
 - **Type Safety**: Automatic LEFT JOIN creation for related entities
 - **Backward Compatible**: Old `String[]` API still works
@@ -192,6 +195,137 @@ List<Tuple> products = queryService.getTupleWithSelect(
 
 **Note:** Wildcard (`*`) selects only **basic fields** (String, Integer, Date, etc.), not relationship fields.
 
+### Arithmetic Expressions
+
+Perform arithmetic calculations in **aggregate queries** using `+`, `-`, `*`, `/` operators with aggregate functions.
+
+**Important:** Arithmetic expressions are currently supported **only in aggregate queries** via the `getAggregateResult()` method. They work with aggregate functions like SUM, AVG, COUNT, MIN, MAX.
+
+```java
+// Aggregate function arithmetic (SUPPORTED)
+"SUM(debit) - SUM(credit):balance"
+"SUM(price) * 1.2:totalWithTax"
+"SUM(price) / COUNT(*):averagePrice"
+"(SUM(price) - 100) * 2 / COUNT(*):metric"
+
+// Simple field arithmetic (NOT SUPPORTED)
+// "price + 10:adjustedPrice"              // ❌ Not supported in getTupleWithSelect
+// "(price - discount) * quantity:total"   // ❌ Not supported in getTupleWithSelect
+```
+
+For simple field selection without arithmetic, use `getTupleWithSelect()` or `getSelectResult()`.
+
+**Operator Precedence:**
+1. Parentheses `()` (highest priority)
+2. Multiplication `*` and Division `/`
+3. Addition `+` and Subtraction `-` (lowest priority)
+
+Example: `10 + 5 * 2` evaluates as `10 + (5 * 2) = 20`
+
+**Supported Operands (in aggregate queries):**
+- Aggregate functions: `SUM(field)`, `AVG(field)`, `COUNT(*)`, `MIN(field)`, `MAX(field)`
+- Numeric literals: `10`, `1.2`, `0.5`
+- Parenthesized expressions: `(SUM(price) - 100)`
+
+**Not Supported:**
+- ❌ Field references without aggregates: `price`, `quantity`, `discount`
+- ❌ Arithmetic in non-aggregate queries (`getTupleWithSelect`, `getSelectResult`)
+
+**Example - Calculate Balance:**
+```java
+// Debit minus credit
+List<Tuple> balances = queryService.getAggregateResult(
+    "account:accountName, SUM(debit) - SUM(credit):balance",
+    "year==2024",
+    PageRequest.of(0, 100, Sort.by("balance").descending())
+);
+
+for (Tuple row : balances) {
+    String account = (String) row.get("accountName");
+    BigDecimal balance = (BigDecimal) row.get("balance");
+
+    System.out.printf("%s: $%s%n", account, balance);
+}
+```
+
+**Example - Price with Tax:**
+```java
+// Add 20% tax to total
+List<Tuple> totals = queryService.getAggregateResult(
+    "productType.name:category, SUM(price):subtotal, SUM(price) * 1.2:totalWithTax",
+    "status==ACTIVE",
+    null
+);
+
+for (Tuple row : totals) {
+    System.out.printf(
+        "%s: Subtotal $%s, With Tax $%s%n",
+        row.get("category"),
+        row.get("subtotal"),
+        row.get("totalWithTax")
+    );
+}
+```
+
+**Example - Complex Calculation:**
+```java
+// Adjusted average: (total - fixed_cost) * multiplier / count
+List<Tuple> metrics = queryService.getAggregateResult(
+    "category, (SUM(price) - 50) * 2 / COUNT(*):adjustedAverage",
+    "",
+    null
+);
+
+for (Tuple row : metrics) {
+    String category = (String) row.get(0);
+    BigDecimal metric = (BigDecimal) row.get("adjustedAverage");
+
+    System.out.printf("%s: Adjusted Avg = $%s%n", category, metric);
+}
+```
+
+**REST Endpoint Example:**
+```java
+@GetMapping("/api/financial/balances")
+public ResponseEntity<List<Map<String, Object>>> getAccountBalances(
+    @RequestParam(required = false, defaultValue = "2024") String year
+) {
+    List<Tuple> balances = accountService.getQueryService().getAggregateResult(
+        "account.name:accountName, " +
+        "SUM(debit):totalDebit, " +
+        "SUM(credit):totalCredit, " +
+        "SUM(debit) - SUM(credit):balance",
+        "year==" + year,
+        Sort.by("balance").descending()
+    );
+
+    return ResponseEntity.ok(TupleConverter.toMapList(balances));
+}
+```
+
+**HTTP Request:**
+```http
+GET /api/financial/balances?year=2024
+```
+
+**Response:**
+```json
+[
+  {
+    "accountName": "Revenue",
+    "totalDebit": 50000.00,
+    "totalCredit": 75000.00,
+    "balance": -25000.00
+  },
+  {
+    "accountName": "Expenses",
+    "totalDebit": 30000.00,
+    "totalCredit": 15000.00,
+    "balance": 15000.00
+  }
+]
+```
+
 ## Aggregate Queries
 
 Execute aggregate queries with automatic GROUP BY extraction.
@@ -243,6 +377,67 @@ for (Tuple row : summary) {
 // Electronics: 15 items, total 5430.00
 // Books: 8 items, total 320.50
 ```
+
+### Arithmetic with Aggregates
+
+Combine aggregate functions with arithmetic operators for complex calculations:
+
+```java
+// Average price calculation using SUM/COUNT instead of AVG
+List<Tuple> stats = queryService.getAggregateResult(
+    "productType.name:type, SUM(price) / COUNT(*):customAverage",
+    "status==ACTIVE",
+    null
+);
+
+// Profit margin: (revenue - cost) / revenue
+List<Tuple> margins = queryService.getAggregateResult(
+    "category, " +
+    "(SUM(revenue) - SUM(cost)) / SUM(revenue):profitMargin",
+    "",
+    null
+);
+
+// Multi-step calculation
+List<Tuple> complex = queryService.getAggregateResult(
+    "region, " +
+    "(SUM(sales) - SUM(returns)) * 0.15 + 100:adjustedCommission",
+    "year==2024",
+    null
+);
+```
+
+**Real-world Example - Financial Report:**
+```java
+@GetMapping("/api/reports/financial")
+public ResponseEntity<List<Map<String, Object>>> getFinancialReport(
+    @RequestParam String startDate,
+    @RequestParam String endDate
+) {
+    String dateFilter = String.format(
+        "transactionDate=ge=#%s#;transactionDate=le=#%s#",
+        startDate, endDate
+    );
+
+    List<Tuple> report = transactionService.getQueryService().getAggregateResult(
+        "account.category:category, " +
+        "SUM(debit):totalDebit, " +
+        "SUM(credit):totalCredit, " +
+        "SUM(debit) - SUM(credit):netBalance, " +
+        "(SUM(debit) - SUM(credit)) / SUM(debit):debitRatio",
+        dateFilter,
+        Sort.by("netBalance").descending()
+    );
+
+    return ResponseEntity.ok(TupleConverter.toMapList(report));
+}
+```
+
+**Benefits:**
+- ✅ Calculations performed at database level (faster)
+- ✅ No need to post-process results in Java
+- ✅ Automatically works with GROUP BY
+- ✅ Can be used with HAVING filters (filter on calculated fields)
 
 ### Multiple Aggregates
 
@@ -307,6 +502,8 @@ List<Tuple> summary = queryService.getAggregateResult(
 
 Returns a list of tuples with flexible SELECT string support.
 
+**Important:** This method does **NOT** support arithmetic expressions. Use `getAggregateResult()` for queries with arithmetic operations.
+
 **Signature:**
 ```java
 public List<Tuple> getTupleWithSelect(
@@ -317,7 +514,7 @@ public List<Tuple> getTupleWithSelect(
 ```
 
 **Parameters:**
-- `selectString` - SELECT clause (e.g., `"code:productCode, name, productType.name"`)
+- `selectString` - SELECT clause (e.g., `"code:productCode, name, productType.name"`) - **without arithmetic expressions**
 - `filter` - RSQL filter expression (e.g., `"status==ACTIVE"`)
 - `pageable` - Pagination and sorting (can be `null`)
 
@@ -431,7 +628,9 @@ public ResponseEntity<Page<Map<String, Object>>> getProducts(
 
 ### getAggregateResult
 
-Execute aggregate queries with automatic GROUP BY.
+Execute aggregate queries with automatic GROUP BY and **arithmetic expressions**.
+
+**Important:** This is the **only method** that supports arithmetic expressions in SELECT.
 
 **Signature:**
 ```java
@@ -443,7 +642,7 @@ public List<Tuple> getAggregateResult(
 ```
 
 **Parameters:**
-- `selectString` - SELECT with aggregate functions (e.g., `"category, COUNT(*):count, SUM(price):total"`)
+- `selectString` - SELECT with aggregate functions and **arithmetic expressions** (e.g., `"category, SUM(price) * 1.2:totalWithTax"`)
 - `filter` - RSQL filter applied **before** aggregation
 - `pageable` - Sorting (pagination less useful with GROUP BY)
 
@@ -1053,12 +1252,197 @@ List<ProductSummaryDTO> summaries = queryService.getSelectResult(
    );
    ```
 
+## Pagination with Aggregate Queries
+
+The `getAggregateResultAsPage()` method provides full pagination support for aggregate queries with proper metadata and sorting.
+
+### Basic Pagination
+
+```java
+Page<Tuple> page = queryService.getAggregateResultAsPage(
+    "productType.name:category, SUM(price):total, COUNT(*):count",
+    "status==ACTIVE",
+    null,  // No HAVING filter
+    PageRequest.of(0, 10)  // First page, 10 items
+);
+
+// Access pagination metadata
+long totalElements = page.getTotalElements();  // Total number of groups
+int totalPages = page.getTotalPages();
+int currentPage = page.getNumber();
+int pageSize = page.getSize();
+List<Tuple> results = page.getContent();
+```
+
+### Sorting by Aliases
+
+You can sort by SELECT aliases (including aggregate functions and arithmetic expressions):
+
+```java
+// Sort by aggregate field (descending)
+Page<Tuple> page = queryService.getAggregateResultAsPage(
+    "category, SUM(price):total, AVG(price):avg",
+    "",
+    null,
+    PageRequest.of(0, 20, Sort.by("total").descending())
+);
+
+// Sort by arithmetic expression alias
+Page<Tuple> salesPage = queryService.getAggregateResultAsPage(
+    "category, SUM(price) * 1.2:totalWithTax",
+    "",
+    null,
+    PageRequest.of(0, 10, Sort.by("totalWithTax").ascending())
+);
+
+// Sort by GROUP BY field using alias
+Page<Tuple> catPage = queryService.getAggregateResultAsPage(
+    "productType.name:category, COUNT(*):count",
+    "",
+    null,
+    PageRequest.of(0, 10, Sort.by("category"))
+);
+
+// Sort by GROUP BY field using field path (without alias)
+Page<Tuple> catPage2 = queryService.getAggregateResultAsPage(
+    "productType.name:category, COUNT(*):count",
+    "",
+    null,
+    PageRequest.of(0, 10, Sort.by("productType.name"))  // Use field path directly
+);
+```
+
+### Sorting Precedence
+
+When resolving sort properties in aggregate queries, the library checks in the following order:
+
+1. **Alias** - First checks if the sort property matches a SELECT alias (e.g., `totalDebit`, `totalWithTax`)
+2. **Field Path** - Then checks if it matches a field path from a SELECT expression (e.g., `account.code`, `productType.name`)
+3. **Entity Property** - Finally falls back to entity property path resolution (creates new JOIN if needed)
+
+**Example:**
+```java
+// SELECT with aliases and field paths
+String selectString = "account.code:accountCode, SUM(debit):totalDebit, SUM(credit):totalCredit";
+
+// All three sorting approaches work:
+
+// 1. Sort by alias
+Sort.by("accountCode").ascending()          // Uses alias from SELECT
+
+// 2. Sort by field path
+Sort.by("account.code").ascending()         // Uses existing field path from SELECT
+
+// 3. Sort by aggregate alias
+Sort.by("totalDebit").descending()          // Uses aggregate function alias
+```
+
+**Benefits:**
+- **No duplicate JOINs** - Uses existing JOINs from SELECT clause
+- **Flexibility** - Sort by either alias or original field path
+- **Backward Compatible** - Existing code with aliases continues to work
+
+### Pagination with HAVING Filter
+
+```java
+// Only groups with total > 1000, paginated
+Page<Tuple> page = queryService.getAggregateResultAsPage(
+    "category, SUM(price):total, COUNT(*):count",
+    "status==ACTIVE",
+    "total=gt=1000;count=ge=5",  // HAVING filter
+    PageRequest.of(0, 10, Sort.by("total").descending())
+);
+
+// totalElements will be the count AFTER HAVING filter is applied
+```
+
+### Count Behavior
+
+The `Page.getTotalElements()` behaves differently based on the query type:
+
+1. **No GROUP BY:** Returns total number of matching rows
+   ```java
+   // Returns count of individual products
+   Page<Tuple> page = queryService.getAggregateResultAsPage(
+       "SUM(price):total",  // No GROUP BY
+       "status==ACTIVE",
+       null,
+       PageRequest.of(0, 10)
+   );
+   ```
+
+2. **With GROUP BY:** Returns total number of groups
+   ```java
+   // Returns count of unique categories (number of groups)
+   Page<Tuple> page = queryService.getAggregateResultAsPage(
+       "category, SUM(price):total",  // GROUP BY category
+       "",
+       null,
+       PageRequest.of(0, 10)
+   );
+   ```
+
+3. **With HAVING:** Returns number of groups **after** HAVING filter
+   ```java
+   // Returns count of categories with total > 1000
+   Page<Tuple> page = queryService.getAggregateResultAsPage(
+       "category, SUM(price):total",
+       "",
+       "total=gt=1000",  // HAVING filter
+       PageRequest.of(0, 10)
+   );
+   ```
+
+### REST Controller Example
+
+```java
+@GetMapping("/api/sales-by-category")
+public Page<Tuple> getSalesByCategory(
+    @RequestParam(required = false) String filter,
+    @RequestParam(required = false) String having,
+    Pageable pageable
+) {
+    return queryService.getAggregateResultAsPage(
+        "productType.name:category, SUM(price):total, COUNT(*):count",
+        filter != null ? filter : "",
+        having,
+        pageable
+    );
+}
+```
+
+**REST API usage:**
+```http
+GET /api/sales-by-category?page=0&size=10&sort=total,desc
+GET /api/sales-by-category?filter=status==ACTIVE&having=total=gt=1000&page=0&size=20
+GET /api/sales-by-category?having=count=ge=5&sort=category,asc&page=1&size=10
+```
+
+### Key Features
+
+- ✅ Sort by SELECT **aliases** (aggregate fields, arithmetic expressions)
+- ✅ Sort by entity properties (GROUP BY fields)
+- ✅ Proper `totalElements` calculation for GROUP BY queries
+- ✅ Correct count with HAVING filters (counts filtered groups)
+- ✅ Full `Page<T>` metadata (`totalPages`, `hasNext`, `hasPrevious`, etc.)
+
+### Important Notes
+
+1. **Sorting:** You can sort by:
+   - **Alias** - Use the alias from SELECT (e.g., `Sort.by("totalDebit")`)
+   - **Field Path** - Use the original field path (e.g., `Sort.by("account.code")`)
+   - Both approaches use the same JPA Expression from SELECT (no duplicate JOINs)
+2. **Count with HAVING:** The count reflects groups **after** HAVING filter is applied
+3. **Performance:** For large datasets with GROUP BY + HAVING, the count query executes the full aggregation to get accurate totals
+
 ## Limitations
 
-1. **Collection relationships** (`@OneToMany`, `@ManyToMany`) require custom JPQL
-2. **Aggregate functions** cannot be nested (e.g., `SUM(AVG(field))` not supported)
-3. **HAVING clause** not yet supported (filter works on WHERE only)
-4. **Result class constructor** must match SELECT field order and types
+1. **Arithmetic expressions** only work in aggregate queries (`getAggregateResult()`) - not supported in `getTupleWithSelect()` or `getSelectResult()`
+2. **Field-level arithmetic** without aggregates not supported (e.g., `price * 1.2` in non-aggregate query)
+3. **Collection relationships** (`@OneToMany`, `@ManyToMany`) require custom JPQL
+4. **Aggregate functions** cannot be nested (e.g., `SUM(AVG(field))` not supported)
+5. **String operations** in arithmetic not supported (only numeric operations)
+6. **Result class constructor** must match SELECT field order and types
 
 ## See Also
 

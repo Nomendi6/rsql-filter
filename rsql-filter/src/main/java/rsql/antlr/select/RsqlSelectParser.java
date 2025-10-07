@@ -19,30 +19,32 @@ public class RsqlSelectParser extends Parser {
 	protected static final PredictionContextCache _sharedContextCache =
 		new PredictionContextCache();
 	public static final int
-		T__0=1, T__1=2, T__2=3, T__3=4, T__4=5, COLON=6, AVG=7, MAX=8, MIN=9, 
-		SUM=10, ALL=11, DIST=12, COUNT=13, GRP=14, DOT_ID=15, ID=16, WS=17;
+		T__0=1, T__1=2, T__2=3, T__3=4, T__4=5, T__5=6, T__6=7, T__7=8, COLON=9, 
+		AVG=10, MAX=11, MIN=12, SUM=13, ALL=14, DIST=15, COUNT=16, GRP=17, DOT_ID=18, 
+		ID=19, NUMBER=20, WS=21;
 	public static final int
-		RULE_select = 0, RULE_selectElements = 1, RULE_selectElement = 2, RULE_functionCall = 3, 
-		RULE_aggregateFunction = 4, RULE_functionArgs = 5, RULE_functionArg = 6, 
-		RULE_simpleField = 7, RULE_field = 8;
+		RULE_select = 0, RULE_selectElements = 1, RULE_selectElement = 2, RULE_expression = 3, 
+		RULE_functionCall = 4, RULE_aggregateFunction = 5, RULE_functionArgs = 6, 
+		RULE_functionArg = 7, RULE_simpleField = 8, RULE_field = 9;
 	private static String[] makeRuleNames() {
 		return new String[] {
-			"select", "selectElements", "selectElement", "functionCall", "aggregateFunction", 
-			"functionArgs", "functionArg", "simpleField", "field"
+			"select", "selectElements", "selectElement", "expression", "functionCall", 
+			"aggregateFunction", "functionArgs", "functionArg", "simpleField", "field"
 		};
 	}
 	public static final String[] ruleNames = makeRuleNames();
 
 	private static String[] makeLiteralNames() {
 		return new String[] {
-			null, "'*'", "','", "'.'", "'('", "')'", "':'"
+			null, "'*'", "','", "'.'", "'('", "')'", "'/'", "'+'", "'-'", "':'"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
 	private static String[] makeSymbolicNames() {
 		return new String[] {
-			null, null, null, null, null, null, "COLON", "AVG", "MAX", "MIN", "SUM", 
-			"ALL", "DIST", "COUNT", "GRP", "DOT_ID", "ID", "WS"
+			null, null, null, null, null, null, null, null, null, "COLON", "AVG", 
+			"MAX", "MIN", "SUM", "ALL", "DIST", "COUNT", "GRP", "DOT_ID", "ID", "NUMBER", 
+			"WS"
 		};
 	}
 	private static final String[] _SYMBOLIC_NAMES = makeSymbolicNames();
@@ -130,20 +132,20 @@ public class RsqlSelectParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(19); 
+			setState(21); 
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			do {
 				{
 				{
-				setState(18);
+				setState(20);
 				selectElements();
 				}
 				}
-				setState(21); 
+				setState(23); 
 				_errHandler.sync(this);
 				_la = _input.LA(1);
-			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & 92034L) != 0) );
+			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & 1784850L) != 0) );
 			}
 		}
 		catch (RecognitionException re) {
@@ -192,15 +194,16 @@ public class RsqlSelectParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(25);
+			setState(27);
 			_errHandler.sync(this);
 			switch (_input.LA(1)) {
 			case T__0:
 				{
-				setState(23);
+				setState(25);
 				((SelectElementsContext)_localctx).star = match(T__0);
 				}
 				break;
+			case T__3:
 			case AVG:
 			case MAX:
 			case MIN:
@@ -208,27 +211,28 @@ public class RsqlSelectParser extends Parser {
 			case COUNT:
 			case GRP:
 			case ID:
+			case NUMBER:
 				{
-				setState(24);
+				setState(26);
 				selectElement();
 				}
 				break;
 			default:
 				throw new NoViableAltException(this);
 			}
-			setState(31);
+			setState(33);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while (_la==T__1) {
 				{
 				{
-				setState(27);
+				setState(29);
 				match(T__1);
-				setState(28);
+				setState(30);
 				selectElement();
 				}
 				}
-				setState(33);
+				setState(35);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
@@ -325,41 +329,65 @@ public class RsqlSelectParser extends Parser {
 			else return visitor.visitChildren(this);
 		}
 	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class SeExpressionContext extends SelectElementContext {
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public TerminalNode COLON() { return getToken(RsqlSelectParser.COLON, 0); }
+		public SimpleFieldContext simpleField() {
+			return getRuleContext(SimpleFieldContext.class,0);
+		}
+		public SeExpressionContext(SelectElementContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).enterSeExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).exitSeExpression(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof RsqlSelectVisitor ) return ((RsqlSelectVisitor<? extends T>)visitor).visitSeExpression(this);
+			else return visitor.visitChildren(this);
+		}
+	}
 
 	public final SelectElementContext selectElement() throws RecognitionException {
 		SelectElementContext _localctx = new SelectElementContext(_ctx, getState());
 		enterRule(_localctx, 4, RULE_selectElement);
 		int _la;
 		try {
-			setState(48);
+			setState(55);
 			_errHandler.sync(this);
-			switch ( getInterpreter().adaptivePredict(_input,5,_ctx) ) {
+			switch ( getInterpreter().adaptivePredict(_input,6,_ctx) ) {
 			case 1:
 				_localctx = new SeAllContext(_localctx);
 				enterOuterAlt(_localctx, 1);
 				{
-				setState(34);
-				field();
-				setState(35);
-				match(T__2);
 				setState(36);
+				field();
+				setState(37);
+				match(T__2);
+				setState(38);
 				match(T__0);
 				}
 				break;
 			case 2:
-				_localctx = new SeFieldContext(_localctx);
+				_localctx = new SeExpressionContext(_localctx);
 				enterOuterAlt(_localctx, 2);
 				{
-				setState(38);
-				field();
-				setState(41);
+				setState(40);
+				expression(0);
+				setState(43);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 				if (_la==COLON) {
 					{
-					setState(39);
+					setState(41);
 					match(COLON);
-					setState(40);
+					setState(42);
 					simpleField();
 					}
 				}
@@ -367,19 +395,39 @@ public class RsqlSelectParser extends Parser {
 				}
 				break;
 			case 3:
-				_localctx = new SeFuncCallContext(_localctx);
+				_localctx = new SeFieldContext(_localctx);
 				enterOuterAlt(_localctx, 3);
 				{
-				setState(43);
-				functionCall();
-				setState(46);
+				setState(45);
+				field();
+				setState(48);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 				if (_la==COLON) {
 					{
-					setState(44);
+					setState(46);
 					match(COLON);
-					setState(45);
+					setState(47);
+					simpleField();
+					}
+				}
+
+				}
+				break;
+			case 4:
+				_localctx = new SeFuncCallContext(_localctx);
+				enterOuterAlt(_localctx, 4);
+				{
+				setState(50);
+				functionCall();
+				setState(53);
+				_errHandler.sync(this);
+				_la = _input.LA(1);
+				if (_la==COLON) {
+					{
+					setState(51);
+					match(COLON);
+					setState(52);
 					simpleField();
 					}
 				}
@@ -395,6 +443,287 @@ public class RsqlSelectParser extends Parser {
 		}
 		finally {
 			exitRule();
+		}
+		return _localctx;
+	}
+
+	@SuppressWarnings("CheckReturnValue")
+	public static class ExpressionContext extends ParserRuleContext {
+		public ExpressionContext(ParserRuleContext parent, int invokingState) {
+			super(parent, invokingState);
+		}
+		@Override public int getRuleIndex() { return RULE_expression; }
+	 
+		public ExpressionContext() { }
+		public void copyFrom(ExpressionContext ctx) {
+			super.copyFrom(ctx);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class MulDivExpressionContext extends ExpressionContext {
+		public Token op;
+		public List<ExpressionContext> expression() {
+			return getRuleContexts(ExpressionContext.class);
+		}
+		public ExpressionContext expression(int i) {
+			return getRuleContext(ExpressionContext.class,i);
+		}
+		public MulDivExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).enterMulDivExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).exitMulDivExpression(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof RsqlSelectVisitor ) return ((RsqlSelectVisitor<? extends T>)visitor).visitMulDivExpression(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class AddSubExpressionContext extends ExpressionContext {
+		public Token op;
+		public List<ExpressionContext> expression() {
+			return getRuleContexts(ExpressionContext.class);
+		}
+		public ExpressionContext expression(int i) {
+			return getRuleContext(ExpressionContext.class,i);
+		}
+		public AddSubExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).enterAddSubExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).exitAddSubExpression(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof RsqlSelectVisitor ) return ((RsqlSelectVisitor<? extends T>)visitor).visitAddSubExpression(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class NumberExpressionContext extends ExpressionContext {
+		public TerminalNode NUMBER() { return getToken(RsqlSelectParser.NUMBER, 0); }
+		public NumberExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).enterNumberExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).exitNumberExpression(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof RsqlSelectVisitor ) return ((RsqlSelectVisitor<? extends T>)visitor).visitNumberExpression(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class FieldExpressionContext extends ExpressionContext {
+		public FieldContext field() {
+			return getRuleContext(FieldContext.class,0);
+		}
+		public FieldExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).enterFieldExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).exitFieldExpression(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof RsqlSelectVisitor ) return ((RsqlSelectVisitor<? extends T>)visitor).visitFieldExpression(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class ParenExpressionContext extends ExpressionContext {
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public ParenExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).enterParenExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).exitParenExpression(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof RsqlSelectVisitor ) return ((RsqlSelectVisitor<? extends T>)visitor).visitParenExpression(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class FuncExpressionContext extends ExpressionContext {
+		public FunctionCallContext functionCall() {
+			return getRuleContext(FunctionCallContext.class,0);
+		}
+		public FuncExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).enterFuncExpression(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RsqlSelectListener ) ((RsqlSelectListener)listener).exitFuncExpression(this);
+		}
+		@Override
+		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
+			if ( visitor instanceof RsqlSelectVisitor ) return ((RsqlSelectVisitor<? extends T>)visitor).visitFuncExpression(this);
+			else return visitor.visitChildren(this);
+		}
+	}
+
+	public final ExpressionContext expression() throws RecognitionException {
+		return expression(0);
+	}
+
+	private ExpressionContext expression(int _p) throws RecognitionException {
+		ParserRuleContext _parentctx = _ctx;
+		int _parentState = getState();
+		ExpressionContext _localctx = new ExpressionContext(_ctx, _parentState);
+		ExpressionContext _prevctx = _localctx;
+		int _startState = 6;
+		enterRecursionRule(_localctx, 6, RULE_expression, _p);
+		int _la;
+		try {
+			int _alt;
+			enterOuterAlt(_localctx, 1);
+			{
+			setState(65);
+			_errHandler.sync(this);
+			switch (_input.LA(1)) {
+			case T__3:
+				{
+				_localctx = new ParenExpressionContext(_localctx);
+				_ctx = _localctx;
+				_prevctx = _localctx;
+
+				setState(58);
+				match(T__3);
+				setState(59);
+				expression(0);
+				setState(60);
+				match(T__4);
+				}
+				break;
+			case AVG:
+			case MAX:
+			case MIN:
+			case SUM:
+			case COUNT:
+			case GRP:
+				{
+				_localctx = new FuncExpressionContext(_localctx);
+				_ctx = _localctx;
+				_prevctx = _localctx;
+				setState(62);
+				functionCall();
+				}
+				break;
+			case ID:
+				{
+				_localctx = new FieldExpressionContext(_localctx);
+				_ctx = _localctx;
+				_prevctx = _localctx;
+				setState(63);
+				field();
+				}
+				break;
+			case NUMBER:
+				{
+				_localctx = new NumberExpressionContext(_localctx);
+				_ctx = _localctx;
+				_prevctx = _localctx;
+				setState(64);
+				match(NUMBER);
+				}
+				break;
+			default:
+				throw new NoViableAltException(this);
+			}
+			_ctx.stop = _input.LT(-1);
+			setState(75);
+			_errHandler.sync(this);
+			_alt = getInterpreter().adaptivePredict(_input,9,_ctx);
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
+				if ( _alt==1 ) {
+					if ( _parseListeners!=null ) triggerExitRuleEvent();
+					_prevctx = _localctx;
+					{
+					setState(73);
+					_errHandler.sync(this);
+					switch ( getInterpreter().adaptivePredict(_input,8,_ctx) ) {
+					case 1:
+						{
+						_localctx = new MulDivExpressionContext(new ExpressionContext(_parentctx, _parentState));
+						pushNewRecursionContext(_localctx, _startState, RULE_expression);
+						setState(67);
+						if (!(precpred(_ctx, 5))) throw new FailedPredicateException(this, "precpred(_ctx, 5)");
+						setState(68);
+						((MulDivExpressionContext)_localctx).op = _input.LT(1);
+						_la = _input.LA(1);
+						if ( !(_la==T__0 || _la==T__5) ) {
+							((MulDivExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
+						}
+						else {
+							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
+							_errHandler.reportMatch(this);
+							consume();
+						}
+						setState(69);
+						expression(6);
+						}
+						break;
+					case 2:
+						{
+						_localctx = new AddSubExpressionContext(new ExpressionContext(_parentctx, _parentState));
+						pushNewRecursionContext(_localctx, _startState, RULE_expression);
+						setState(70);
+						if (!(precpred(_ctx, 4))) throw new FailedPredicateException(this, "precpred(_ctx, 4)");
+						setState(71);
+						((AddSubExpressionContext)_localctx).op = _input.LT(1);
+						_la = _input.LA(1);
+						if ( !(_la==T__6 || _la==T__7) ) {
+							((AddSubExpressionContext)_localctx).op = (Token)_errHandler.recoverInline(this);
+						}
+						else {
+							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
+							_errHandler.reportMatch(this);
+							consume();
+						}
+						setState(72);
+						expression(5);
+						}
+						break;
+					}
+					} 
+				}
+				setState(77);
+				_errHandler.sync(this);
+				_alt = getInterpreter().adaptivePredict(_input,9,_ctx);
+			}
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			_errHandler.reportError(this, re);
+			_errHandler.recover(this, re);
+		}
+		finally {
+			unrollRecursionContexts(_parentctx);
 		}
 		return _localctx;
 	}
@@ -425,11 +754,11 @@ public class RsqlSelectParser extends Parser {
 
 	public final FunctionCallContext functionCall() throws RecognitionException {
 		FunctionCallContext _localctx = new FunctionCallContext(_ctx, getState());
-		enterRule(_localctx, 6, RULE_functionCall);
+		enterRule(_localctx, 8, RULE_functionCall);
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(50);
+			setState(78);
 			aggregateFunction();
 			}
 		}
@@ -534,19 +863,19 @@ public class RsqlSelectParser extends Parser {
 
 	public final AggregateFunctionContext aggregateFunction() throws RecognitionException {
 		AggregateFunctionContext _localctx = new AggregateFunctionContext(_ctx, getState());
-		enterRule(_localctx, 8, RULE_aggregateFunction);
+		enterRule(_localctx, 10, RULE_aggregateFunction);
 		int _la;
 		try {
-			setState(76);
+			setState(104);
 			_errHandler.sync(this);
-			switch ( getInterpreter().adaptivePredict(_input,9,_ctx) ) {
+			switch ( getInterpreter().adaptivePredict(_input,13,_ctx) ) {
 			case 1:
 				_localctx = new FuncCallContext(_localctx);
 				enterOuterAlt(_localctx, 1);
 				{
-				setState(52);
+				setState(80);
 				_la = _input.LA(1);
-				if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 18304L) != 0)) ) {
+				if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 146432L) != 0)) ) {
 				_errHandler.recoverInline(this);
 				}
 				else {
@@ -554,14 +883,14 @@ public class RsqlSelectParser extends Parser {
 					_errHandler.reportMatch(this);
 					consume();
 				}
-				setState(53);
+				setState(81);
 				match(T__3);
-				setState(55);
+				setState(83);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 				if (_la==ALL || _la==DIST) {
 					{
-					setState(54);
+					setState(82);
 					((FuncCallContext)_localctx).aggregator = _input.LT(1);
 					_la = _input.LA(1);
 					if ( !(_la==ALL || _la==DIST) ) {
@@ -575,9 +904,9 @@ public class RsqlSelectParser extends Parser {
 					}
 				}
 
-				setState(57);
+				setState(85);
 				functionArg();
-				setState(58);
+				setState(86);
 				match(T__4);
 				}
 				break;
@@ -585,16 +914,16 @@ public class RsqlSelectParser extends Parser {
 				_localctx = new CountAllContext(_localctx);
 				enterOuterAlt(_localctx, 2);
 				{
-				setState(60);
+				setState(88);
 				match(COUNT);
-				setState(61);
+				setState(89);
 				match(T__3);
-				setState(67);
+				setState(95);
 				_errHandler.sync(this);
 				switch (_input.LA(1)) {
 				case T__0:
 					{
-					setState(62);
+					setState(90);
 					((CountAllContext)_localctx).starArg = match(T__0);
 					}
 					break;
@@ -607,24 +936,24 @@ public class RsqlSelectParser extends Parser {
 				case GRP:
 				case ID:
 					{
-					setState(64);
+					setState(92);
 					_errHandler.sync(this);
 					_la = _input.LA(1);
 					if (_la==ALL) {
 						{
-						setState(63);
+						setState(91);
 						((CountAllContext)_localctx).aggregator = match(ALL);
 						}
 					}
 
-					setState(66);
+					setState(94);
 					functionArg();
 					}
 					break;
 				default:
 					throw new NoViableAltException(this);
 				}
-				setState(69);
+				setState(97);
 				match(T__4);
 				}
 				break;
@@ -632,15 +961,15 @@ public class RsqlSelectParser extends Parser {
 				_localctx = new CountDistContext(_localctx);
 				enterOuterAlt(_localctx, 3);
 				{
-				setState(70);
+				setState(98);
 				match(COUNT);
-				setState(71);
+				setState(99);
 				match(T__3);
-				setState(72);
+				setState(100);
 				((CountDistContext)_localctx).aggregator = match(DIST);
-				setState(73);
+				setState(101);
 				functionArgs();
-				setState(74);
+				setState(102);
 				match(T__4);
 				}
 				break;
@@ -686,28 +1015,28 @@ public class RsqlSelectParser extends Parser {
 
 	public final FunctionArgsContext functionArgs() throws RecognitionException {
 		FunctionArgsContext _localctx = new FunctionArgsContext(_ctx, getState());
-		enterRule(_localctx, 10, RULE_functionArgs);
+		enterRule(_localctx, 12, RULE_functionArgs);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
 			{
-			setState(78);
+			setState(106);
 			functionArg();
 			}
-			setState(83);
+			setState(111);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while (_la==T__1) {
 				{
 				{
-				setState(79);
+				setState(107);
 				match(T__1);
-				setState(80);
+				setState(108);
 				functionArg();
 				}
 				}
-				setState(85);
+				setState(113);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
@@ -753,15 +1082,15 @@ public class RsqlSelectParser extends Parser {
 
 	public final FunctionArgContext functionArg() throws RecognitionException {
 		FunctionArgContext _localctx = new FunctionArgContext(_ctx, getState());
-		enterRule(_localctx, 12, RULE_functionArg);
+		enterRule(_localctx, 14, RULE_functionArg);
 		try {
-			setState(88);
+			setState(116);
 			_errHandler.sync(this);
 			switch (_input.LA(1)) {
 			case ID:
 				enterOuterAlt(_localctx, 1);
 				{
-				setState(86);
+				setState(114);
 				field();
 				}
 				break;
@@ -773,7 +1102,7 @@ public class RsqlSelectParser extends Parser {
 			case GRP:
 				enterOuterAlt(_localctx, 2);
 				{
-				setState(87);
+				setState(115);
 				functionCall();
 				}
 				break;
@@ -824,14 +1153,14 @@ public class RsqlSelectParser extends Parser {
 
 	public final SimpleFieldContext simpleField() throws RecognitionException {
 		SimpleFieldContext _localctx = new SimpleFieldContext(_ctx, getState());
-		enterRule(_localctx, 14, RULE_simpleField);
+		enterRule(_localctx, 16, RULE_simpleField);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(90);
+			setState(118);
 			_la = _input.LA(1);
-			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 98176L) != 0)) ) {
+			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 785408L) != 0)) ) {
 			_errHandler.recoverInline(this);
 			}
 			else {
@@ -880,26 +1209,28 @@ public class RsqlSelectParser extends Parser {
 
 	public final FieldContext field() throws RecognitionException {
 		FieldContext _localctx = new FieldContext(_ctx, getState());
-		enterRule(_localctx, 16, RULE_field);
-		int _la;
+		enterRule(_localctx, 18, RULE_field);
 		try {
+			int _alt;
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(92);
+			setState(120);
 			match(ID);
-			setState(96);
+			setState(124);
 			_errHandler.sync(this);
-			_la = _input.LA(1);
-			while (_la==DOT_ID) {
-				{
-				{
-				setState(93);
-				match(DOT_ID);
+			_alt = getInterpreter().adaptivePredict(_input,16,_ctx);
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
+				if ( _alt==1 ) {
+					{
+					{
+					setState(121);
+					match(DOT_ID);
+					}
+					} 
 				}
-				}
-				setState(98);
+				setState(126);
 				_errHandler.sync(this);
-				_la = _input.LA(1);
+				_alt = getInterpreter().adaptivePredict(_input,16,_ctx);
 			}
 			}
 		}
@@ -914,67 +1245,101 @@ public class RsqlSelectParser extends Parser {
 		return _localctx;
 	}
 
+	public boolean sempred(RuleContext _localctx, int ruleIndex, int predIndex) {
+		switch (ruleIndex) {
+		case 3:
+			return expression_sempred((ExpressionContext)_localctx, predIndex);
+		}
+		return true;
+	}
+	private boolean expression_sempred(ExpressionContext _localctx, int predIndex) {
+		switch (predIndex) {
+		case 0:
+			return precpred(_ctx, 5);
+		case 1:
+			return precpred(_ctx, 4);
+		}
+		return true;
+	}
+
 	public static final String _serializedATN =
-		"\u0004\u0001\u0011d\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001\u0002"+
-		"\u0002\u0007\u0002\u0002\u0003\u0007\u0003\u0002\u0004\u0007\u0004\u0002"+
-		"\u0005\u0007\u0005\u0002\u0006\u0007\u0006\u0002\u0007\u0007\u0007\u0002"+
-		"\b\u0007\b\u0001\u0000\u0004\u0000\u0014\b\u0000\u000b\u0000\f\u0000\u0015"+
-		"\u0001\u0001\u0001\u0001\u0003\u0001\u001a\b\u0001\u0001\u0001\u0001\u0001"+
-		"\u0005\u0001\u001e\b\u0001\n\u0001\f\u0001!\t\u0001\u0001\u0002\u0001"+
-		"\u0002\u0001\u0002\u0001\u0002\u0001\u0002\u0001\u0002\u0001\u0002\u0003"+
-		"\u0002*\b\u0002\u0001\u0002\u0001\u0002\u0001\u0002\u0003\u0002/\b\u0002"+
-		"\u0003\u00021\b\u0002\u0001\u0003\u0001\u0003\u0001\u0004\u0001\u0004"+
-		"\u0001\u0004\u0003\u00048\b\u0004\u0001\u0004\u0001\u0004\u0001\u0004"+
-		"\u0001\u0004\u0001\u0004\u0001\u0004\u0001\u0004\u0003\u0004A\b\u0004"+
-		"\u0001\u0004\u0003\u0004D\b\u0004\u0001\u0004\u0001\u0004\u0001\u0004"+
-		"\u0001\u0004\u0001\u0004\u0001\u0004\u0001\u0004\u0003\u0004M\b\u0004"+
-		"\u0001\u0005\u0001\u0005\u0001\u0005\u0005\u0005R\b\u0005\n\u0005\f\u0005"+
-		"U\t\u0005\u0001\u0006\u0001\u0006\u0003\u0006Y\b\u0006\u0001\u0007\u0001"+
-		"\u0007\u0001\b\u0001\b\u0005\b_\b\b\n\b\f\bb\t\b\u0001\b\u0000\u0000\t"+
-		"\u0000\u0002\u0004\u0006\b\n\f\u000e\u0010\u0000\u0003\u0002\u0000\u0007"+
-		"\n\u000e\u000e\u0001\u0000\u000b\f\u0002\u0000\u0007\u000e\u0010\u0010"+
-		"i\u0000\u0013\u0001\u0000\u0000\u0000\u0002\u0019\u0001\u0000\u0000\u0000"+
-		"\u00040\u0001\u0000\u0000\u0000\u00062\u0001\u0000\u0000\u0000\bL\u0001"+
-		"\u0000\u0000\u0000\nN\u0001\u0000\u0000\u0000\fX\u0001\u0000\u0000\u0000"+
-		"\u000eZ\u0001\u0000\u0000\u0000\u0010\\\u0001\u0000\u0000\u0000\u0012"+
-		"\u0014\u0003\u0002\u0001\u0000\u0013\u0012\u0001\u0000\u0000\u0000\u0014"+
-		"\u0015\u0001\u0000\u0000\u0000\u0015\u0013\u0001\u0000\u0000\u0000\u0015"+
-		"\u0016\u0001\u0000\u0000\u0000\u0016\u0001\u0001\u0000\u0000\u0000\u0017"+
-		"\u001a\u0005\u0001\u0000\u0000\u0018\u001a\u0003\u0004\u0002\u0000\u0019"+
-		"\u0017\u0001\u0000\u0000\u0000\u0019\u0018\u0001\u0000\u0000\u0000\u001a"+
-		"\u001f\u0001\u0000\u0000\u0000\u001b\u001c\u0005\u0002\u0000\u0000\u001c"+
-		"\u001e\u0003\u0004\u0002\u0000\u001d\u001b\u0001\u0000\u0000\u0000\u001e"+
-		"!\u0001\u0000\u0000\u0000\u001f\u001d\u0001\u0000\u0000\u0000\u001f \u0001"+
-		"\u0000\u0000\u0000 \u0003\u0001\u0000\u0000\u0000!\u001f\u0001\u0000\u0000"+
-		"\u0000\"#\u0003\u0010\b\u0000#$\u0005\u0003\u0000\u0000$%\u0005\u0001"+
-		"\u0000\u0000%1\u0001\u0000\u0000\u0000&)\u0003\u0010\b\u0000\'(\u0005"+
-		"\u0006\u0000\u0000(*\u0003\u000e\u0007\u0000)\'\u0001\u0000\u0000\u0000"+
-		")*\u0001\u0000\u0000\u0000*1\u0001\u0000\u0000\u0000+.\u0003\u0006\u0003"+
-		"\u0000,-\u0005\u0006\u0000\u0000-/\u0003\u000e\u0007\u0000.,\u0001\u0000"+
-		"\u0000\u0000./\u0001\u0000\u0000\u0000/1\u0001\u0000\u0000\u00000\"\u0001"+
-		"\u0000\u0000\u00000&\u0001\u0000\u0000\u00000+\u0001\u0000\u0000\u0000"+
-		"1\u0005\u0001\u0000\u0000\u000023\u0003\b\u0004\u00003\u0007\u0001\u0000"+
-		"\u0000\u000045\u0007\u0000\u0000\u000057\u0005\u0004\u0000\u000068\u0007"+
-		"\u0001\u0000\u000076\u0001\u0000\u0000\u000078\u0001\u0000\u0000\u0000"+
-		"89\u0001\u0000\u0000\u00009:\u0003\f\u0006\u0000:;\u0005\u0005\u0000\u0000"+
-		";M\u0001\u0000\u0000\u0000<=\u0005\r\u0000\u0000=C\u0005\u0004\u0000\u0000"+
-		">D\u0005\u0001\u0000\u0000?A\u0005\u000b\u0000\u0000@?\u0001\u0000\u0000"+
-		"\u0000@A\u0001\u0000\u0000\u0000AB\u0001\u0000\u0000\u0000BD\u0003\f\u0006"+
-		"\u0000C>\u0001\u0000\u0000\u0000C@\u0001\u0000\u0000\u0000DE\u0001\u0000"+
-		"\u0000\u0000EM\u0005\u0005\u0000\u0000FG\u0005\r\u0000\u0000GH\u0005\u0004"+
-		"\u0000\u0000HI\u0005\f\u0000\u0000IJ\u0003\n\u0005\u0000JK\u0005\u0005"+
-		"\u0000\u0000KM\u0001\u0000\u0000\u0000L4\u0001\u0000\u0000\u0000L<\u0001"+
-		"\u0000\u0000\u0000LF\u0001\u0000\u0000\u0000M\t\u0001\u0000\u0000\u0000"+
-		"NS\u0003\f\u0006\u0000OP\u0005\u0002\u0000\u0000PR\u0003\f\u0006\u0000"+
-		"QO\u0001\u0000\u0000\u0000RU\u0001\u0000\u0000\u0000SQ\u0001\u0000\u0000"+
-		"\u0000ST\u0001\u0000\u0000\u0000T\u000b\u0001\u0000\u0000\u0000US\u0001"+
-		"\u0000\u0000\u0000VY\u0003\u0010\b\u0000WY\u0003\u0006\u0003\u0000XV\u0001"+
-		"\u0000\u0000\u0000XW\u0001\u0000\u0000\u0000Y\r\u0001\u0000\u0000\u0000"+
-		"Z[\u0007\u0002\u0000\u0000[\u000f\u0001\u0000\u0000\u0000\\`\u0005\u0010"+
-		"\u0000\u0000]_\u0005\u000f\u0000\u0000^]\u0001\u0000\u0000\u0000_b\u0001"+
-		"\u0000\u0000\u0000`^\u0001\u0000\u0000\u0000`a\u0001\u0000\u0000\u0000"+
-		"a\u0011\u0001\u0000\u0000\u0000b`\u0001\u0000\u0000\u0000\r\u0015\u0019"+
-		"\u001f).07@CLSX`";
+		"\u0004\u0001\u0015\u0080\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001"+
+		"\u0002\u0002\u0007\u0002\u0002\u0003\u0007\u0003\u0002\u0004\u0007\u0004"+
+		"\u0002\u0005\u0007\u0005\u0002\u0006\u0007\u0006\u0002\u0007\u0007\u0007"+
+		"\u0002\b\u0007\b\u0002\t\u0007\t\u0001\u0000\u0004\u0000\u0016\b\u0000"+
+		"\u000b\u0000\f\u0000\u0017\u0001\u0001\u0001\u0001\u0003\u0001\u001c\b"+
+		"\u0001\u0001\u0001\u0001\u0001\u0005\u0001 \b\u0001\n\u0001\f\u0001#\t"+
+		"\u0001\u0001\u0002\u0001\u0002\u0001\u0002\u0001\u0002\u0001\u0002\u0001"+
+		"\u0002\u0001\u0002\u0003\u0002,\b\u0002\u0001\u0002\u0001\u0002\u0001"+
+		"\u0002\u0003\u00021\b\u0002\u0001\u0002\u0001\u0002\u0001\u0002\u0003"+
+		"\u00026\b\u0002\u0003\u00028\b\u0002\u0001\u0003\u0001\u0003\u0001\u0003"+
+		"\u0001\u0003\u0001\u0003\u0001\u0003\u0001\u0003\u0001\u0003\u0003\u0003"+
+		"B\b\u0003\u0001\u0003\u0001\u0003\u0001\u0003\u0001\u0003\u0001\u0003"+
+		"\u0001\u0003\u0005\u0003J\b\u0003\n\u0003\f\u0003M\t\u0003\u0001\u0004"+
+		"\u0001\u0004\u0001\u0005\u0001\u0005\u0001\u0005\u0003\u0005T\b\u0005"+
+		"\u0001\u0005\u0001\u0005\u0001\u0005\u0001\u0005\u0001\u0005\u0001\u0005"+
+		"\u0001\u0005\u0003\u0005]\b\u0005\u0001\u0005\u0003\u0005`\b\u0005\u0001"+
+		"\u0005\u0001\u0005\u0001\u0005\u0001\u0005\u0001\u0005\u0001\u0005\u0001"+
+		"\u0005\u0003\u0005i\b\u0005\u0001\u0006\u0001\u0006\u0001\u0006\u0005"+
+		"\u0006n\b\u0006\n\u0006\f\u0006q\t\u0006\u0001\u0007\u0001\u0007\u0003"+
+		"\u0007u\b\u0007\u0001\b\u0001\b\u0001\t\u0001\t\u0005\t{\b\t\n\t\f\t~"+
+		"\t\t\u0001\t\u0000\u0001\u0006\n\u0000\u0002\u0004\u0006\b\n\f\u000e\u0010"+
+		"\u0012\u0000\u0005\u0002\u0000\u0001\u0001\u0006\u0006\u0001\u0000\u0007"+
+		"\b\u0002\u0000\n\r\u0011\u0011\u0001\u0000\u000e\u000f\u0002\u0000\n\u0011"+
+		"\u0013\u0013\u008b\u0000\u0015\u0001\u0000\u0000\u0000\u0002\u001b\u0001"+
+		"\u0000\u0000\u0000\u00047\u0001\u0000\u0000\u0000\u0006A\u0001\u0000\u0000"+
+		"\u0000\bN\u0001\u0000\u0000\u0000\nh\u0001\u0000\u0000\u0000\fj\u0001"+
+		"\u0000\u0000\u0000\u000et\u0001\u0000\u0000\u0000\u0010v\u0001\u0000\u0000"+
+		"\u0000\u0012x\u0001\u0000\u0000\u0000\u0014\u0016\u0003\u0002\u0001\u0000"+
+		"\u0015\u0014\u0001\u0000\u0000\u0000\u0016\u0017\u0001\u0000\u0000\u0000"+
+		"\u0017\u0015\u0001\u0000\u0000\u0000\u0017\u0018\u0001\u0000\u0000\u0000"+
+		"\u0018\u0001\u0001\u0000\u0000\u0000\u0019\u001c\u0005\u0001\u0000\u0000"+
+		"\u001a\u001c\u0003\u0004\u0002\u0000\u001b\u0019\u0001\u0000\u0000\u0000"+
+		"\u001b\u001a\u0001\u0000\u0000\u0000\u001c!\u0001\u0000\u0000\u0000\u001d"+
+		"\u001e\u0005\u0002\u0000\u0000\u001e \u0003\u0004\u0002\u0000\u001f\u001d"+
+		"\u0001\u0000\u0000\u0000 #\u0001\u0000\u0000\u0000!\u001f\u0001\u0000"+
+		"\u0000\u0000!\"\u0001\u0000\u0000\u0000\"\u0003\u0001\u0000\u0000\u0000"+
+		"#!\u0001\u0000\u0000\u0000$%\u0003\u0012\t\u0000%&\u0005\u0003\u0000\u0000"+
+		"&\'\u0005\u0001\u0000\u0000\'8\u0001\u0000\u0000\u0000(+\u0003\u0006\u0003"+
+		"\u0000)*\u0005\t\u0000\u0000*,\u0003\u0010\b\u0000+)\u0001\u0000\u0000"+
+		"\u0000+,\u0001\u0000\u0000\u0000,8\u0001\u0000\u0000\u0000-0\u0003\u0012"+
+		"\t\u0000./\u0005\t\u0000\u0000/1\u0003\u0010\b\u00000.\u0001\u0000\u0000"+
+		"\u000001\u0001\u0000\u0000\u000018\u0001\u0000\u0000\u000025\u0003\b\u0004"+
+		"\u000034\u0005\t\u0000\u000046\u0003\u0010\b\u000053\u0001\u0000\u0000"+
+		"\u000056\u0001\u0000\u0000\u000068\u0001\u0000\u0000\u00007$\u0001\u0000"+
+		"\u0000\u00007(\u0001\u0000\u0000\u00007-\u0001\u0000\u0000\u000072\u0001"+
+		"\u0000\u0000\u00008\u0005\u0001\u0000\u0000\u00009:\u0006\u0003\uffff"+
+		"\uffff\u0000:;\u0005\u0004\u0000\u0000;<\u0003\u0006\u0003\u0000<=\u0005"+
+		"\u0005\u0000\u0000=B\u0001\u0000\u0000\u0000>B\u0003\b\u0004\u0000?B\u0003"+
+		"\u0012\t\u0000@B\u0005\u0014\u0000\u0000A9\u0001\u0000\u0000\u0000A>\u0001"+
+		"\u0000\u0000\u0000A?\u0001\u0000\u0000\u0000A@\u0001\u0000\u0000\u0000"+
+		"BK\u0001\u0000\u0000\u0000CD\n\u0005\u0000\u0000DE\u0007\u0000\u0000\u0000"+
+		"EJ\u0003\u0006\u0003\u0006FG\n\u0004\u0000\u0000GH\u0007\u0001\u0000\u0000"+
+		"HJ\u0003\u0006\u0003\u0005IC\u0001\u0000\u0000\u0000IF\u0001\u0000\u0000"+
+		"\u0000JM\u0001\u0000\u0000\u0000KI\u0001\u0000\u0000\u0000KL\u0001\u0000"+
+		"\u0000\u0000L\u0007\u0001\u0000\u0000\u0000MK\u0001\u0000\u0000\u0000"+
+		"NO\u0003\n\u0005\u0000O\t\u0001\u0000\u0000\u0000PQ\u0007\u0002\u0000"+
+		"\u0000QS\u0005\u0004\u0000\u0000RT\u0007\u0003\u0000\u0000SR\u0001\u0000"+
+		"\u0000\u0000ST\u0001\u0000\u0000\u0000TU\u0001\u0000\u0000\u0000UV\u0003"+
+		"\u000e\u0007\u0000VW\u0005\u0005\u0000\u0000Wi\u0001\u0000\u0000\u0000"+
+		"XY\u0005\u0010\u0000\u0000Y_\u0005\u0004\u0000\u0000Z`\u0005\u0001\u0000"+
+		"\u0000[]\u0005\u000e\u0000\u0000\\[\u0001\u0000\u0000\u0000\\]\u0001\u0000"+
+		"\u0000\u0000]^\u0001\u0000\u0000\u0000^`\u0003\u000e\u0007\u0000_Z\u0001"+
+		"\u0000\u0000\u0000_\\\u0001\u0000\u0000\u0000`a\u0001\u0000\u0000\u0000"+
+		"ai\u0005\u0005\u0000\u0000bc\u0005\u0010\u0000\u0000cd\u0005\u0004\u0000"+
+		"\u0000de\u0005\u000f\u0000\u0000ef\u0003\f\u0006\u0000fg\u0005\u0005\u0000"+
+		"\u0000gi\u0001\u0000\u0000\u0000hP\u0001\u0000\u0000\u0000hX\u0001\u0000"+
+		"\u0000\u0000hb\u0001\u0000\u0000\u0000i\u000b\u0001\u0000\u0000\u0000"+
+		"jo\u0003\u000e\u0007\u0000kl\u0005\u0002\u0000\u0000ln\u0003\u000e\u0007"+
+		"\u0000mk\u0001\u0000\u0000\u0000nq\u0001\u0000\u0000\u0000om\u0001\u0000"+
+		"\u0000\u0000op\u0001\u0000\u0000\u0000p\r\u0001\u0000\u0000\u0000qo\u0001"+
+		"\u0000\u0000\u0000ru\u0003\u0012\t\u0000su\u0003\b\u0004\u0000tr\u0001"+
+		"\u0000\u0000\u0000ts\u0001\u0000\u0000\u0000u\u000f\u0001\u0000\u0000"+
+		"\u0000vw\u0007\u0004\u0000\u0000w\u0011\u0001\u0000\u0000\u0000x|\u0005"+
+		"\u0013\u0000\u0000y{\u0005\u0012\u0000\u0000zy\u0001\u0000\u0000\u0000"+
+		"{~\u0001\u0000\u0000\u0000|z\u0001\u0000\u0000\u0000|}\u0001\u0000\u0000"+
+		"\u0000}\u0013\u0001\u0000\u0000\u0000~|\u0001\u0000\u0000\u0000\u0011"+
+		"\u0017\u001b!+057AIKS\\_hot|";
 	public static final ATN _ATN =
 		new ATNDeserializer().deserialize(_serializedATN.toCharArray());
 	static {

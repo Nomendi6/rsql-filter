@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import rsql.antlr.select.RsqlSelectBaseVisitor;
 import rsql.antlr.select.RsqlSelectParser;
 import rsql.exceptions.SyntaxErrorException;
-import rsql.helper.AggregateField;
+import rsql.helper.*;
 import rsql.helper.AggregateField.AggregateFunction;
 import rsql.where.RsqlContext;
 
@@ -18,12 +18,19 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Visitor for parsing aggregate SELECT clauses into List<AggregateField>.
- * Supports both simple fields (as GROUP BY) and aggregate functions (SUM, AVG, COUNT, etc.).
+ * Visitor for parsing SELECT clauses with expressions into List&lt;SelectExpression&gt;.
+ * Supports fields, aggregate functions, arithmetic operations, and numeric literals.
+ *
+ * <p>Example usage:</p>
+ * <pre>
+ * SelectExpressionVisitor visitor = new SelectExpressionVisitor();
+ * visitor.setContext(rsqlContext);
+ * List&lt;SelectExpression&gt; expressions = visitor.visit(parseTree);
+ * </pre>
  */
-public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<AggregateField>> {
+public class SelectExpressionVisitor extends RsqlSelectBaseVisitor<List<SelectExpression>> {
 
-    private static final Logger log = LoggerFactory.getLogger(SelectAggregateVisitor.class);
+    private static final Logger log = LoggerFactory.getLogger(SelectExpressionVisitor.class);
 
     private RsqlContext<?> rsqlContext;
 
@@ -37,75 +44,162 @@ public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<Aggregate
     }
 
     @Override
-    public List<AggregateField> visitSelect(RsqlSelectParser.SelectContext ctx) {
-        List<AggregateField> allFields = new ArrayList<>();
+    public List<SelectExpression> visitSelect(RsqlSelectParser.SelectContext ctx) {
+        List<SelectExpression> allExpressions = new ArrayList<>();
 
         for (RsqlSelectParser.SelectElementsContext elementsCtx : ctx.selectElements()) {
-            List<AggregateField> fields = visit(elementsCtx);
-            if (fields != null) {
-                allFields.addAll(fields);
+            List<SelectExpression> expressions = visit(elementsCtx);
+            if (expressions != null) {
+                allExpressions.addAll(expressions);
             }
         }
 
-        return allFields;
+        return allExpressions;
     }
 
     @Override
-    public List<AggregateField> visitSelectElements(RsqlSelectParser.SelectElementsContext ctx) {
-        // If SELECT *, return all fields as GROUP BY
+    public List<SelectExpression> visitSelectElements(RsqlSelectParser.SelectElementsContext ctx) {
+        // If SELECT *, return all fields from root entity
         if (ctx.star != null) {
-            return getAllFieldsAsGroupBy("");
+            return getAllFieldExpressionsFromRootEntity();
         }
 
-        List<AggregateField> fields = new ArrayList<>();
+        List<SelectExpression> expressions = new ArrayList<>();
         for (RsqlSelectParser.SelectElementContext elemCtx : ctx.selectElement()) {
-            List<AggregateField> elemFields = visit(elemCtx);
-            if (elemFields != null) {
-                fields.addAll(elemFields);
+            List<SelectExpression> elemExpressions = visit(elemCtx);
+            if (elemExpressions != null) {
+                expressions.addAll(elemExpressions);
             }
         }
 
-        return fields;
+        return expressions;
     }
 
     @Override
-    public List<AggregateField> visitSeField(RsqlSelectParser.SeFieldContext ctx) {
-        // Plain field → GROUP BY
-        String fieldPath = getFieldPath(ctx.field());
-        String alias = ctx.simpleField() != null ? ctx.simpleField().getText() : null;
+    public List<SelectExpression> visitSeAll(RsqlSelectParser.SeAllContext ctx) {
+        String entityPath = getFieldPath(ctx.field());
+        return getAllFieldExpressionsFromEntity(entityPath);
+    }
 
+    @Override
+    public List<SelectExpression> visitSeField(RsqlSelectParser.SeFieldContext ctx) {
+        // Convert simple field to FieldExpression
+        String fieldPath = getFieldPath(ctx.field());
         validateFieldPath(fieldPath);
 
-        AggregateField field = AggregateField.groupBy(fieldPath, alias);
-        return Arrays.asList(field);
-    }
+        FieldExpression expr = new FieldExpression(fieldPath);
 
-    @Override
-    public List<AggregateField> visitSeAll(RsqlSelectParser.SeAllContext ctx) {
-        String entityPath = getFieldPath(ctx.field());
-        return getAllFieldsAsGroupBy(entityPath);
-    }
-
-    @Override
-    public List<AggregateField> visitSeFuncCall(RsqlSelectParser.SeFuncCallContext ctx) {
-        // Aggregate function with optional alias
-        List<AggregateField> fields = visit(ctx.functionCall());
-
-        // If alias is present, create new AggregateField with the alias
-        if (ctx.simpleField() != null && !fields.isEmpty()) {
+        // Apply alias if present
+        if (ctx.simpleField() != null) {
             String alias = ctx.simpleField().getText();
-            AggregateField originalField = fields.get(0);
-            // Create new AggregateField with the same fieldPath and function, but with alias
-            fields = Arrays.asList(
-                new AggregateField(originalField.getFieldPath(), originalField.getFunction(), alias)
-            );
+            expr.setAlias(alias);
         }
 
-        return fields;
+        return Arrays.asList(expr);
     }
 
     @Override
-    public List<AggregateField> visitFuncCall(RsqlSelectParser.FuncCallContext ctx) {
+    public List<SelectExpression> visitSeFuncCall(RsqlSelectParser.SeFuncCallContext ctx) {
+        // Convert function call to FunctionExpression
+        SelectExpression expr = visitFunctionCallAsExpression(ctx.functionCall());
+
+        // Apply alias if present
+        if (ctx.simpleField() != null) {
+            String alias = ctx.simpleField().getText();
+            expr.setAlias(alias);
+        }
+
+        return Arrays.asList(expr);
+    }
+
+    @Override
+    public List<SelectExpression> visitSeExpression(RsqlSelectParser.SeExpressionContext ctx) {
+        // Visit the expression (single SelectExpression)
+        SelectExpression expr = visitExpressionSingle(ctx.expression());
+
+        // Apply alias if present
+        if (ctx.simpleField() != null) {
+            String alias = ctx.simpleField().getText();
+            expr.setAlias(alias);
+        }
+
+        return Arrays.asList(expr);
+    }
+
+    // ==================== Expression Visitors ====================
+
+    /**
+     * Visits an expression and returns a single SelectExpression.
+     */
+    private SelectExpression visitExpressionSingle(RsqlSelectParser.ExpressionContext ctx) {
+        if (ctx instanceof RsqlSelectParser.ParenExpressionContext) {
+            return processParenExpression((RsqlSelectParser.ParenExpressionContext) ctx);
+        } else if (ctx instanceof RsqlSelectParser.MulDivExpressionContext) {
+            return processMulDivExpression((RsqlSelectParser.MulDivExpressionContext) ctx);
+        } else if (ctx instanceof RsqlSelectParser.AddSubExpressionContext) {
+            return processAddSubExpression((RsqlSelectParser.AddSubExpressionContext) ctx);
+        } else if (ctx instanceof RsqlSelectParser.FuncExpressionContext) {
+            return processFuncExpression((RsqlSelectParser.FuncExpressionContext) ctx);
+        } else if (ctx instanceof RsqlSelectParser.FieldExpressionContext) {
+            return processFieldExpression((RsqlSelectParser.FieldExpressionContext) ctx);
+        } else if (ctx instanceof RsqlSelectParser.NumberExpressionContext) {
+            return processNumberExpression((RsqlSelectParser.NumberExpressionContext) ctx);
+        } else {
+            throw new SyntaxErrorException("Unknown expression type: " + ctx.getClass().getSimpleName());
+        }
+    }
+
+    private SelectExpression processParenExpression(RsqlSelectParser.ParenExpressionContext ctx) {
+        // Parentheses don't create a new node, just pass through the inner expression
+        return visitExpressionSingle(ctx.expression());
+    }
+
+    private SelectExpression processMulDivExpression(RsqlSelectParser.MulDivExpressionContext ctx) {
+        SelectExpression left = visitExpressionSingle(ctx.expression(0));
+        SelectExpression right = visitExpressionSingle(ctx.expression(1));
+        BinaryOperator op = BinaryOperator.fromSymbol(ctx.op.getText());
+        return new BinaryOpExpression(left, op, right);
+    }
+
+    private SelectExpression processAddSubExpression(RsqlSelectParser.AddSubExpressionContext ctx) {
+        SelectExpression left = visitExpressionSingle(ctx.expression(0));
+        SelectExpression right = visitExpressionSingle(ctx.expression(1));
+        BinaryOperator op = BinaryOperator.fromSymbol(ctx.op.getText());
+        return new BinaryOpExpression(left, op, right);
+    }
+
+    private SelectExpression processFuncExpression(RsqlSelectParser.FuncExpressionContext ctx) {
+        return visitFunctionCallAsExpression(ctx.functionCall());
+    }
+
+    private SelectExpression processFieldExpression(RsqlSelectParser.FieldExpressionContext ctx) {
+        String fieldPath = getFieldPath(ctx.field());
+        validateFieldPath(fieldPath);
+        return new FieldExpression(fieldPath);
+    }
+
+    private SelectExpression processNumberExpression(RsqlSelectParser.NumberExpressionContext ctx) {
+        String numberText = ctx.NUMBER().getText();
+        return new LiteralExpression(numberText);
+    }
+
+    // ==================== Function Call Processing ====================
+
+    private SelectExpression visitFunctionCallAsExpression(RsqlSelectParser.FunctionCallContext ctx) {
+        RsqlSelectParser.AggregateFunctionContext aggCtx = ctx.aggregateFunction();
+
+        if (aggCtx instanceof RsqlSelectParser.FuncCallContext) {
+            return processFuncCall((RsqlSelectParser.FuncCallContext) aggCtx);
+        } else if (aggCtx instanceof RsqlSelectParser.CountAllContext) {
+            return processCountAll((RsqlSelectParser.CountAllContext) aggCtx);
+        } else if (aggCtx instanceof RsqlSelectParser.CountDistContext) {
+            return processCountDist((RsqlSelectParser.CountDistContext) aggCtx);
+        } else {
+            throw new SyntaxErrorException("Unknown aggregate function type");
+        }
+    }
+
+    private SelectExpression processFuncCall(RsqlSelectParser.FuncCallContext ctx) {
         // Detect function type
         AggregateFunction function;
         if (ctx.AVG() != null) function = AggregateFunction.AVG;
@@ -115,9 +209,8 @@ public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<Aggregate
         else if (ctx.GRP() != null) function = AggregateFunction.NONE; // GRP() → GROUP BY
         else throw new SyntaxErrorException("Unknown aggregate function");
 
-        // Check for DIST modifier
+        // Check for DIST modifier (not supported for non-COUNT functions)
         if (ctx.aggregator != null && ctx.aggregator.getText().equalsIgnoreCase("DIST")) {
-            // DIST is only valid for COUNT, not for other functions
             throw new SyntaxErrorException(
                 "DISTINCT modifier is only supported for COUNT function, not for " +
                 (ctx.AVG() != null ? "AVG" : ctx.MAX() != null ? "MAX" : ctx.MIN() != null ? "MIN" : "SUM")
@@ -126,15 +219,12 @@ public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<Aggregate
 
         // Extract field path from function argument
         String fieldPath = visitFunctionArgAsString(ctx.functionArg());
-
         validateFieldPath(fieldPath);
 
-        AggregateField field = AggregateField.of(fieldPath, function, null);
-        return Arrays.asList(field);
+        return new FunctionExpression(fieldPath, function);
     }
 
-    @Override
-    public List<AggregateField> visitCountAll(RsqlSelectParser.CountAllContext ctx) {
+    private SelectExpression processCountAll(RsqlSelectParser.CountAllContext ctx) {
         String fieldPath;
 
         // COUNT(*) or COUNT(field)
@@ -147,63 +237,28 @@ public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<Aggregate
             validateFieldPath(fieldPath);
         }
 
-        AggregateField field = AggregateField.of(fieldPath, AggregateFunction.COUNT, null);
-        return Arrays.asList(field);
+        return new FunctionExpression(fieldPath, AggregateFunction.COUNT);
     }
 
-    @Override
-    public List<AggregateField> visitCountDist(RsqlSelectParser.CountDistContext ctx) {
-        // COUNT(DIST field1, field2, ...) → COUNT DISTINCT
+    private SelectExpression processCountDist(RsqlSelectParser.CountDistContext ctx) {
+        // COUNT(DIST field) → COUNT DISTINCT
+        // Note: Multiple fields in COUNT DISTINCT are handled as separate expressions
         List<String> fieldPaths = visitFunctionArgsAsStrings(ctx.functionArgs());
 
-        List<AggregateField> fields = new ArrayList<>();
-        for (String fieldPath : fieldPaths) {
-            validateFieldPath(fieldPath);
-            fields.add(AggregateField.of(fieldPath, AggregateFunction.COUNT_DISTINCT, null));
+        if (fieldPaths.isEmpty()) {
+            throw new SyntaxErrorException("COUNT(DIST ...) requires at least one field");
         }
 
-        return fields;
-    }
-
-    @Override
-    public List<AggregateField> visitSeExpression(RsqlSelectParser.SeExpressionContext ctx) {
-        // This visitor doesn't support arithmetic expressions with operators
-        // But due to grammar rule ordering, simple fields and functions are now parsed as expressions
-        // So we need to check if it's a simple field or function and handle it
-
-        RsqlSelectParser.ExpressionContext exprCtx = ctx.expression();
-        String alias = ctx.simpleField() != null ? ctx.simpleField().getText() : null;
-
-        // If it's a simple field expression (without operators), handle it as GROUP BY
-        if (exprCtx instanceof RsqlSelectParser.FieldExpressionContext) {
-            RsqlSelectParser.FieldExpressionContext fieldCtx = (RsqlSelectParser.FieldExpressionContext) exprCtx;
-            String fieldPath = getFieldPath(fieldCtx.field());
-            validateFieldPath(fieldPath);
-            AggregateField field = AggregateField.groupBy(fieldPath, alias);
-            return Arrays.asList(field);
+        // For simplicity, if multiple fields, we only support the first one
+        // (JPA CriteriaBuilder.countDistinct() takes a single expression)
+        if (fieldPaths.size() > 1) {
+            log.warn("COUNT(DIST field1, field2, ...) with multiple fields: only first field will be used");
         }
 
-        // If it's a function expression, handle it as aggregate function
-        if (exprCtx instanceof RsqlSelectParser.FuncExpressionContext) {
-            RsqlSelectParser.FuncExpressionContext funcCtx = (RsqlSelectParser.FuncExpressionContext) exprCtx;
-            List<AggregateField> fields = visit(funcCtx.functionCall());
+        String fieldPath = fieldPaths.get(0);
+        validateFieldPath(fieldPath);
 
-            // Apply alias if present
-            if (alias != null && !fields.isEmpty()) {
-                AggregateField originalField = fields.get(0);
-                fields = Arrays.asList(
-                    new AggregateField(originalField.getFieldPath(), originalField.getFunction(), alias)
-                );
-            }
-
-            return fields;
-        }
-
-        // For any other expression type (with operators), throw error
-        throw new SyntaxErrorException(
-            "Arithmetic expressions with operators are not supported in this query type. " +
-            "Use SelectExpressionVisitor for queries with arithmetic expressions."
-        );
+        return new FunctionExpression(fieldPath, AggregateFunction.COUNT_DISTINCT);
     }
 
     // ==================== Helper Methods ====================
@@ -247,15 +302,22 @@ public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<Aggregate
     }
 
     /**
-     * Gets all fields from entity as AggregateField objects with NONE function (GROUP BY).
+     * Gets all field expressions from root entity.
      */
-    private List<AggregateField> getAllFieldsAsGroupBy(String entityPath) {
+    private List<SelectExpression> getAllFieldExpressionsFromRootEntity() {
+        return getAllFieldExpressionsFromEntity("");
+    }
+
+    /**
+     * Gets all field expressions from a specific entity.
+     */
+    private List<SelectExpression> getAllFieldExpressionsFromEntity(String entityPath) {
         List<String> fieldPaths = getAllFieldPathsFromEntity(entityPath);
-        List<AggregateField> fields = new ArrayList<>();
+        List<SelectExpression> expressions = new ArrayList<>();
         for (String fieldPath : fieldPaths) {
-            fields.add(AggregateField.groupBy(fieldPath, null));
+            expressions.add(new FieldExpression(fieldPath));
         }
-        return fields;
+        return expressions;
     }
 
     /**
@@ -362,9 +424,7 @@ public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<Aggregate
      * Returns "id" as default, which is common convention.
      */
     private String getPrimaryKeyField() {
-        // TODO: Could use metamodel to get actual PK field:
-        // EntityType<?> entityType = metamodel.entity(rsqlContext.entityClass);
-        // Set<SingularAttribute<?, ?>> idAttributes = entityType.getIdClassAttributes();
+        // TODO: Could use metamodel to get actual PK field
         // For now, use "id" as convention
         return "id";
     }
