@@ -468,33 +468,6 @@ Access the application at http://localhost:8080
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## What's New in 0.6.7
-
-### Enhanced Sorting in Aggregate Queries
-
-Version 0.6.7 introduces flexible sorting options for aggregate queries. You can now sort by:
-
-- **Aliases** - `Sort.by("totalDebit")` (existing functionality)
-- **Field Paths** - `Sort.by("account.code")` (new in 0.6.7)
-- **Arithmetic Expression Aliases** - `Sort.by("totalWithTax")` (existing functionality)
-
-**Key Benefits:**
-- No duplicate JOINs - reuses existing JOINs from SELECT clause
-- More intuitive - use the same field path from SELECT
-- Backward compatible - existing code continues to work
-
-**Example:**
-```java
-String selectString = "account.code:accountCode, SUM(debit):totalDebit, SUM(debit)-SUM(credit):balance";
-
-// All three sorting methods work:
-Sort.by("accountCode")      // Sort by alias
-Sort.by("account.code")     // Sort by field path (NEW in 0.6.7)
-Sort.by("totalDebit")       // Sort by aggregate alias
-```
-
-See [SELECT.md](SELECT.md#sorting-precedence) for detailed documentation.
-
 ## Compatibility
 
 | rsql-filter | Spring Boot | Hibernate | Java |
