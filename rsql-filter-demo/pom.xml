@@ -6,13 +6,13 @@
     <parent>
         <groupId>com.nomendi6</groupId>
         <artifactId>rsql-filter-parent</artifactId>
-        <version>0.6.6</version>
+        <version>0.6.7</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter-demo</artifactId>
-    <version>0.6.6</version>
+    <version>0.6.7</version>
     <packaging>jar</packaging>
 
     <name>RSQL Filter Demo Application</name>

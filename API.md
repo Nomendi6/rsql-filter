@@ -226,8 +226,10 @@ public List<Tuple> getTupleWithSelect(
 ```
 Executes a SELECT query with field selection and returns results as Tuples.
 
+**Important:** This method does **NOT** support arithmetic expressions. For arithmetic operations, use `getAggregateResult()`.
+
 **Parameters:**
-- `selectString` - SELECT expression (e.g., "code:id, name, productType.name:type")
+- `selectString` - SELECT expression (e.g., "code:id, name, productType.name:type") - **without arithmetic**
 - `filter` - RSQL filter expression
 - `pageable` - Pagination and sorting
 
@@ -289,8 +291,10 @@ public List<Tuple> getAggregateResult(
 ```
 Executes an aggregate query with automatic GROUP BY generation and HAVING clause filtering.
 
+**Important:** This is the **only method** that supports arithmetic expressions in SELECT (e.g., `SUM(price) * 1.2`).
+
 **Parameters:**
-- `selectString` - SELECT expression with aggregate functions (e.g., "category:cat, COUNT(*):count, SUM(price):total")
+- `selectString` - SELECT expression with aggregate functions **and arithmetic** (e.g., "category:cat, SUM(price) * 1.2:totalWithTax")
 - `filter` - RSQL WHERE filter expression (applied before aggregation)
 - `havingFilter` - RSQL HAVING filter expression (applied after aggregation)
 - `pageable` - Pagination and sorting
@@ -316,13 +320,74 @@ public List<Tuple> getAggregateResult(
 Executes an aggregate query with automatic GROUP BY generation (no HAVING clause).
 
 **Parameters:**
-- `selectString` - SELECT expression with aggregate functions
+- `selectString` - SELECT expression with aggregate functions and arithmetic expressions
 - `filter` - RSQL filter expression
 - `pageable` - Pagination and sorting
 
 **Returns:** List of Tuples with aggregated results
 
 **Note:** This is a backward-compatible version. Use the version with `havingFilter` parameter for filtering aggregated results.
+
+#### getAggregateResultAsPage
+```java
+public Page<Tuple> getAggregateResultAsPage(
+    String selectString,
+    String filter,
+    String havingFilter,
+    Pageable pageable
+)
+```
+Executes an aggregate query with automatic GROUP BY generation, HAVING clause filtering, and **full pagination support**.
+
+**Important:** This method supports:
+- Arithmetic expressions in SELECT (e.g., `SUM(price) * 1.2`)
+- Sorting by SELECT aliases (e.g., `Sort.by("total").descending()`)
+- Full pagination metadata (`totalElements`, `totalPages`, etc.)
+- Proper count calculation for GROUP BY queries with HAVING filters
+
+**Parameters:**
+- `selectString` - SELECT expression with aggregate functions and arithmetic (e.g., "category, SUM(price):total, COUNT(*):count")
+- `filter` - RSQL WHERE filter expression (applied before aggregation)
+- `havingFilter` - RSQL HAVING filter expression (applied after aggregation)
+- `pageable` - Pagination and sorting (use `Sort.by("aliasName")` to sort by SELECT aliases)
+
+**Returns:** `Page<Tuple>` with aggregated results and pagination metadata
+
+**Example:**
+```java
+// Paginate and sort by aggregate alias
+Page<Tuple> page = queryService.getAggregateResultAsPage(
+    "productType.name:category, SUM(price):total, COUNT(*):count",
+    "status==ACTIVE",
+    "total=gt=1000",
+    PageRequest.of(0, 10, Sort.by("total").descending())
+);
+
+long totalElements = page.getTotalElements();  // Total number of groups
+int totalPages = page.getTotalPages();          // Total pages
+List<Tuple> results = page.getContent();        // Current page results
+
+// With arithmetic expressions
+Page<Tuple> salesPage = queryService.getAggregateResultAsPage(
+    "category, SUM(price) * 1.2:totalWithTax, AVG(price):avg",
+    "",
+    null,
+    PageRequest.of(0, 20, Sort.by("category"))
+);
+```
+
+**Sorting (0.6.7+):**
+The library supports three ways to sort aggregate query results:
+- **By alias**: `Sort.by("total").descending()` - Uses the alias from SELECT
+- **By field path**: `Sort.by("productType.name")` - Uses the original field path from SELECT (reuses existing JOIN)
+- **By arithmetic expression alias**: `Sort.by("totalWithTax")` - Uses alias of calculated field
+
+All three approaches use the same JPA Expression from SELECT, preventing duplicate JOINs.
+
+**Count Behavior:**
+- For queries **without** GROUP BY: returns total matching rows
+- For queries **with** GROUP BY: returns total number of groups
+- For queries **with** HAVING: returns number of groups **after** HAVING filter
 
 **Supported aggregate functions:**
 - `COUNT(*)` - Count all rows
@@ -333,6 +398,13 @@ Executes an aggregate query with automatic GROUP BY generation (no HAVING clause
 - `MIN(field)` - Minimum value
 - `MAX(field)` - Maximum value
 
+**Supported arithmetic operators:**
+- `+` - Addition
+- `-` - Subtraction
+- `*` - Multiplication
+- `/` - Division
+- `()` - Parentheses for grouping and precedence
+
 **Example without HAVING:**
 ```java
 // Sales statistics by product type (all categories)
@@ -340,6 +412,30 @@ List<Tuple> stats = queryService.getAggregateResult(
     "productType.name:category, COUNT(*):count, SUM(price):total, AVG(price):avg",
     "status==ACTIVE",
     PageRequest.of(0, 100, Sort.by("category"))
+);
+```
+
+**Example with arithmetic expressions:**
+```java
+// Calculate balance (debit - credit)
+List<Tuple> balances = queryService.getAggregateResult(
+    "account.name:accountName, SUM(debit) - SUM(credit):balance",
+    "year==2024",
+    PageRequest.of(0, 100, Sort.by("balance").descending())
+);
+
+// Calculate price with 20% tax
+List<Tuple> totals = queryService.getAggregateResult(
+    "productType.name:category, SUM(price):subtotal, SUM(price) * 1.2:totalWithTax",
+    "status==ACTIVE",
+    null
+);
+
+// Complex calculation: adjusted average
+List<Tuple> metrics = queryService.getAggregateResult(
+    "category, (SUM(price) - 50) * 2 / COUNT(*):adjustedAverage",
+    "",
+    null
 );
 ```
 
@@ -431,12 +527,14 @@ public <RESULT> List<RESULT> getSelectResult(
 ```
 Generic method for executing SELECT queries with custom result class.
 
+**Important:** This method does **NOT** support arithmetic expressions. Use `getAggregateResult()` for arithmetic.
+
 **Type Parameters:**
 - `RESULT` - Type of result class (e.g., custom DTO)
 
 **Parameters:**
 - `resultClass` - Class of the result type
-- `selectString` - SELECT expression
+- `selectString` - SELECT expression - **without arithmetic**
 - `filter` - RSQL filter expression
 - `pageable` - Pagination and sorting
 
@@ -941,6 +1039,56 @@ Compiles an RSQL string into a JPA Specification.
 **Returns:** JPA Specification
 
 **Throws:** `SyntaxErrorException` if the RSQL expression is invalid
+
+#### compileSelectToExpressions
+```java
+public List<SelectExpression> compileSelectToExpressions(
+    String selectString,
+    RsqlContext<T> rsqlContext
+)
+```
+Compiles a SELECT string with arithmetic expressions into a list of SelectExpression objects.
+
+**Important:** This compilation method supports arithmetic expressions and is used internally by `getAggregateResult()`. The resulting expressions are designed for aggregate queries.
+
+**Parameters:**
+- `selectString` - SELECT expression with arithmetic (e.g., `"code, SUM(price) * 1.2:totalWithTax"`)
+- `rsqlContext` - Context containing entity information
+
+**Returns:** List of SelectExpression objects representing the parsed SELECT clause
+
+**Throws:** `SyntaxErrorException` if the SELECT expression is invalid
+
+**Example:**
+```java
+RsqlCompiler<Product> compiler = new RsqlCompiler<>();
+RsqlContext<Product> context = new RsqlContext<>(Product.class);
+context.defineEntityManager(entityManager);
+
+List<SelectExpression> expressions = compiler.compileSelectToExpressions(
+    "category, SUM(price) - 100:adjustedTotal, COUNT(*):count",
+    context
+);
+
+// Use expressions to build JPA query
+for (SelectExpression expr : expressions) {
+    Expression<?> jpaExpr = expr.toJpaExpression(builder, root, context);
+    // Add to query...
+}
+```
+
+**SelectExpression Types:**
+- `FieldExpression` - Simple field reference (e.g., `category`)
+- `FunctionExpression` - Aggregate function (e.g., `SUM(price)`, `COUNT(*)`)
+- `BinaryOpExpression` - Arithmetic operation (e.g., `SUM(price) - 100`)
+- `LiteralExpression` - Numeric literal (e.g., `100`, `1.2`)
+
+**Supported Operators:**
+- `+` - Addition
+- `-` - Subtraction
+- `*` - Multiplication
+- `/` - Division
+- `()` - Parentheses for precedence
 
 #### compileToRsqlQuery
 ```java

@@ -111,6 +111,45 @@ public class SelectFieldSelectionVisitor extends RsqlSelectBaseVisitor<List<Sele
         );
     }
 
+    @Override
+    public List<Selection<?>> visitSeExpression(RsqlSelectParser.SeExpressionContext ctx) {
+        // This visitor doesn't support arithmetic expressions
+        // But due to grammar rule ordering, simple fields are now parsed as expressions
+        // So we need to check if it's a simple field and handle it
+
+        RsqlSelectParser.ExpressionContext exprCtx = ctx.expression();
+
+        // If it's a simple field expression (without operators), handle it as seField
+        if (exprCtx instanceof RsqlSelectParser.FieldExpressionContext) {
+            RsqlSelectParser.FieldExpressionContext fieldCtx = (RsqlSelectParser.FieldExpressionContext) exprCtx;
+            String fieldPath = getFieldPath(fieldCtx.field());
+            String alias = ctx.simpleField() != null ? ctx.simpleField().getText() : null;
+
+            // Create JPA Path using getPropertyPathRecursive
+            Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, joinsMap, classMetadataMap);
+
+            // Set alias: use provided alias, or default to the last part of fieldPath
+            String finalAlias = (alias != null && !alias.isEmpty()) ? alias : getLastFieldName(fieldPath);
+            Selection<?> selection = path.alias(finalAlias);
+
+            return Arrays.asList(selection);
+        }
+
+        // If it's a function expression, throw error (no aggregates in simple SELECT)
+        if (exprCtx instanceof RsqlSelectParser.FuncExpressionContext) {
+            throw new SyntaxErrorException(
+                "Aggregate functions are not supported in simple SELECT queries. " +
+                "Use SelectAggregateSelectionVisitor for aggregate queries."
+            );
+        }
+
+        // For any other expression type (with operators), throw error
+        throw new SyntaxErrorException(
+            "Arithmetic expressions are not supported in this query type. " +
+            "Use SelectExpressionVisitor for queries with arithmetic expressions."
+        );
+    }
+
     // ==================== Helper Methods ====================
 
     /**

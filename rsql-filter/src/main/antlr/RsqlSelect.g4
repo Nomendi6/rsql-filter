@@ -12,12 +12,24 @@ selectElements
 ;
 
 selectElement
-    : field '.' '*'    # seAll  // all fields from an entity
-    | field (COLON simpleField)?  # seField   // as
-    | functionCall (COLON simpleField)? # seFuncCall
+    : field '.' '*'                     # seAll        // all fields from an entity
+    | expression (COLON simpleField)?   # seExpression // arithmetic expression with optional alias (MUST be before seField/seFuncCall)
+    | field (COLON simpleField)?        # seField      // simple field with optional alias (backward compatibility)
+    | functionCall (COLON simpleField)? # seFuncCall   // function with optional alias (backward compatibility)
     ;
 
 COLON: ':';
+
+// Expression rules for arithmetic operations
+// Precedence: multiplication/division > addition/subtraction
+expression
+    : '(' expression ')'                          # parenExpression
+    | expression op=('*' | '/') expression        # mulDivExpression
+    | expression op=('+' | '-') expression        # addSubExpression
+    | functionCall                                # funcExpression
+    | field                                       # fieldExpression
+    | NUMBER                                      # numberExpression
+    ;
 
 functionCall
     : aggregateFunction
@@ -88,5 +100,7 @@ fragment Y : [yY];
 fragment Z : [zZ];
 
 fragment ID_LITERAL: [a-zA-Z_$][0-9a-zA-Z_$]*;
+
+NUMBER: [0-9]+ ('.' [0-9]+)?;
 
 WS: [ \t\r\n]+ -> skip;
