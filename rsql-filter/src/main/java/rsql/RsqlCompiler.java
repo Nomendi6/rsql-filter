@@ -3,7 +3,9 @@ package rsql;
 import rsql.exceptions.SyntaxErrorException;
 import rsql.helper.AggregateField;
 import rsql.helper.AggregateField.AggregateFunction;
+import rsql.helper.SelectExpression;
 import rsql.select.SelectAggregateVisitor;
+import rsql.select.SelectExpressionVisitor;
 import rsql.select.SelectField;
 import rsql.select.SelectFieldVisitor;
 import rsql.select.SelectTreeParser;
@@ -277,6 +279,46 @@ public class RsqlCompiler<T> {
             .filter(f -> f.getFunction() == AggregateFunction.NONE)
             .map(AggregateField::getFieldPath)
             .collect(Collectors.toList());
+    }
+
+    /**
+     * Compiles a SELECT string with expressions into a list of SelectExpression objects.
+     * Supports fields, aggregate functions, arithmetic operations, and numeric literals.
+     *
+     * <p>Example expressions:</p>
+     * <ul>
+     *   <li>Simple field: "price"</li>
+     *   <li>Aggregate: "SUM(price):total"</li>
+     *   <li>Arithmetic: "SUM(revenue)-SUM(cost):profit"</li>
+     *   <li>Complex: "(SUM(price)*1.2):priceWithTax"</li>
+     * </ul>
+     *
+     * @param selectString SELECT clause with expressions
+     * @param rsqlContext JPA context
+     * @return List of SelectExpression objects
+     * @throws SyntaxErrorException if syntax error
+     */
+    public List<SelectExpression> compileSelectToExpressions(
+        String selectString,
+        RsqlContext<T> rsqlContext
+    ) {
+        if (selectString == null || selectString.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        CharStream inputStream = CharStreams.fromString(selectString);
+        ParseTree tree = selectTreeParser.parseStream(inputStream);
+
+        SelectExpressionVisitor visitor = new SelectExpressionVisitor();
+        visitor.setContext(rsqlContext);
+
+        List<SelectExpression> expressions = visitor.visit(tree);
+
+        if (expressions == null) {
+            throw new SyntaxErrorException("Error parsing SELECT clause: " + selectString);
+        }
+
+        return expressions;
     }
 
 }

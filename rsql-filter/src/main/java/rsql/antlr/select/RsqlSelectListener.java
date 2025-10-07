@@ -42,6 +42,18 @@ public interface RsqlSelectListener extends ParseTreeListener {
 	 */
 	void exitSeAll(RsqlSelectParser.SeAllContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code seExpression}
+	 * labeled alternative in {@link RsqlSelectParser#selectElement}.
+	 * @param ctx the parse tree
+	 */
+	void enterSeExpression(RsqlSelectParser.SeExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code seExpression}
+	 * labeled alternative in {@link RsqlSelectParser#selectElement}.
+	 * @param ctx the parse tree
+	 */
+	void exitSeExpression(RsqlSelectParser.SeExpressionContext ctx);
+	/**
 	 * Enter a parse tree produced by the {@code seField}
 	 * labeled alternative in {@link RsqlSelectParser#selectElement}.
 	 * @param ctx the parse tree
@@ -65,6 +77,78 @@ public interface RsqlSelectListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitSeFuncCall(RsqlSelectParser.SeFuncCallContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code mulDivExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterMulDivExpression(RsqlSelectParser.MulDivExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code mulDivExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitMulDivExpression(RsqlSelectParser.MulDivExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code addSubExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterAddSubExpression(RsqlSelectParser.AddSubExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code addSubExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitAddSubExpression(RsqlSelectParser.AddSubExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code numberExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterNumberExpression(RsqlSelectParser.NumberExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code numberExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitNumberExpression(RsqlSelectParser.NumberExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code fieldExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterFieldExpression(RsqlSelectParser.FieldExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code fieldExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitFieldExpression(RsqlSelectParser.FieldExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code parenExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterParenExpression(RsqlSelectParser.ParenExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code parenExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitParenExpression(RsqlSelectParser.ParenExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code funcExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterFuncExpression(RsqlSelectParser.FuncExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code funcExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitFuncExpression(RsqlSelectParser.FuncExpressionContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link RsqlSelectParser#functionCall}.
 	 * @param ctx the parse tree

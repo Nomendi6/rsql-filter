@@ -32,6 +32,13 @@ public interface RsqlSelectVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitSeAll(RsqlSelectParser.SeAllContext ctx);
 	/**
+	 * Visit a parse tree produced by the {@code seExpression}
+	 * labeled alternative in {@link RsqlSelectParser#selectElement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSeExpression(RsqlSelectParser.SeExpressionContext ctx);
+	/**
 	 * Visit a parse tree produced by the {@code seField}
 	 * labeled alternative in {@link RsqlSelectParser#selectElement}.
 	 * @param ctx the parse tree
@@ -45,6 +52,48 @@ public interface RsqlSelectVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitSeFuncCall(RsqlSelectParser.SeFuncCallContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code mulDivExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMulDivExpression(RsqlSelectParser.MulDivExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code addSubExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAddSubExpression(RsqlSelectParser.AddSubExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code numberExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitNumberExpression(RsqlSelectParser.NumberExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code fieldExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFieldExpression(RsqlSelectParser.FieldExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code parenExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitParenExpression(RsqlSelectParser.ParenExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code funcExpression}
+	 * labeled alternative in {@link RsqlSelectParser#expression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFuncExpression(RsqlSelectParser.FuncExpressionContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link RsqlSelectParser#functionCall}.
 	 * @param ctx the parse tree

@@ -29,13 +29,13 @@ For detailed API documentation, see [API.md](API.md).
 <dependency>
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
-    <version>0.6.2</version>
+    <version>0.6.7</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter:0.6.2'
+implementation 'com.nomendi6:rsql-filter:0.6.7'
 ```
 
 ### Requirements
@@ -53,6 +53,7 @@ implementation 'com.nomendi6:rsql-filter:0.6.2'
 - **Sorting**: Built-in support for sorting results
 - **Pagination**: Full Spring Data pagination support
 - **SELECT Queries**: Flexible field selection with aliases and navigation properties
+- **Arithmetic Expressions**: Support for `+`, `-`, `*`, `/` operators in aggregate queries (with SUM, AVG, COUNT, etc.)
 - **Aggregate Functions**: COUNT, SUM, AVG, MIN, MAX with automatic GROUP BY
 - **HAVING Clause**: Filter aggregated results with full RSQL syntax support
 - **LOV Queries**: List of Values queries for dropdowns/autocomplete
@@ -223,7 +224,7 @@ List<LovDTO> lovs = queryService.findLovByFilter(
 
 ### SELECT Queries
 
-The library supports flexible SELECT queries with field aliases, navigation properties, and aggregate functions:
+The library supports flexible SELECT queries with field aliases, navigation properties, arithmetic expressions, and aggregate functions:
 
 ```java
 // Basic SELECT with aliases
@@ -256,6 +257,32 @@ for (Tuple row : stats) {
 }
 ```
 
+**Arithmetic expressions in aggregate queries:**
+```java
+// Calculate price with tax (20%) - using getAggregateResult
+List<Tuple> products = queryService.getAggregateResult(
+    "productType.name:category, SUM(price) * 1.2:totalWithTax, SUM(price):total",
+    "status==ACTIVE",
+    pageable
+);
+
+// Calculate balance (debit - credit)
+List<Tuple> balances = queryService.getAggregateResult(
+    "account:accountName, SUM(debit) - SUM(credit):balance",
+    "year==2024",
+    pageable
+);
+
+// Complex calculations with aggregate functions
+List<Tuple> metrics = queryService.getAggregateResult(
+    "category, (SUM(price) - 100) * 2 / COUNT(*):adjustedAverage",
+    "",
+    pageable
+);
+```
+
+**Note:** Arithmetic expressions are currently supported only in **aggregate queries** (via `getAggregateResult()` method). For non-aggregate queries, use `getTupleWithSelect()` for field selection without arithmetic operations.
+
 **HAVING clause for filtering aggregated results:**
 ```java
 // Categories with total sales over $10,000 and at least 5 products
@@ -281,11 +308,45 @@ List<Tuple> stats = queryService.getAggregateResult(
 - `COUNT(DIST field)` - Count distinct values
 - `SUM(field)`, `AVG(field)`, `MIN(field)`, `MAX(field)`
 
+**Arithmetic operators (in aggregate queries only):**
+- `+` - Addition
+- `-` - Subtraction
+- `*` - Multiplication
+- `/` - Division
+- `()` - Parentheses for precedence (multiplication/division before addition/subtraction)
+
+**Note:** Arithmetic expressions work only with aggregate functions (SUM, AVG, COUNT, MIN, MAX) in `getAggregateResult()` queries.
+
+**Pagination with aggregate queries:**
+```java
+// Paginate aggregate results with sorting by alias
+Page<Tuple> page = queryService.getAggregateResultAsPage(
+    "productType.name:category, SUM(price):total, COUNT(*):count",
+    "status==ACTIVE",
+    "total=gt=1000",  // HAVING filter
+    PageRequest.of(0, 10, Sort.by("total").descending())  // Sort by aggregate alias
+);
+
+// Access pagination metadata
+long totalElements = page.getTotalElements();
+int totalPages = page.getTotalPages();
+List<Tuple> content = page.getContent();
+
+// With arithmetic expressions
+Page<Tuple> salesPage = queryService.getAggregateResultAsPage(
+    "category, SUM(price) * 1.2:totalWithTax, AVG(price):avgPrice",
+    "",
+    null,
+    PageRequest.of(0, 20, Sort.by("category").ascending())
+);
+```
+
 **REST endpoint example:**
 ```http
 GET /api/products?select=code:id,name,price&filter=status==ACTIVE&sort=name,asc
 GET /api/products/stats?filter=status==ACTIVE&having=COUNT(*)=gt=5
 GET /api/sales-by-category?having=totalSales=gt=10000;productCount=ge=5
+GET /api/sales-by-category?page=0&size=10&sort=totalSales,desc&having=total=gt=1000
 ```
 
 For complete SELECT syntax and examples, see [SELECT.md](SELECT.md).
@@ -406,6 +467,33 @@ Access the application at http://localhost:8080
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+## What's New in 0.6.7
+
+### Enhanced Sorting in Aggregate Queries
+
+Version 0.6.7 introduces flexible sorting options for aggregate queries. You can now sort by:
+
+- **Aliases** - `Sort.by("totalDebit")` (existing functionality)
+- **Field Paths** - `Sort.by("account.code")` (new in 0.6.7)
+- **Arithmetic Expression Aliases** - `Sort.by("totalWithTax")` (existing functionality)
+
+**Key Benefits:**
+- No duplicate JOINs - reuses existing JOINs from SELECT clause
+- More intuitive - use the same field path from SELECT
+- Backward compatible - existing code continues to work
+
+**Example:**
+```java
+String selectString = "account.code:accountCode, SUM(debit):totalDebit, SUM(debit)-SUM(credit):balance";
+
+// All three sorting methods work:
+Sort.by("accountCode")      // Sort by alias
+Sort.by("account.code")     // Sort by field path (NEW in 0.6.7)
+Sort.by("totalDebit")       // Sort by aggregate alias
+```
+
+See [SELECT.md](SELECT.md#sorting-precedence) for detailed documentation.
 
 ## Compatibility
 

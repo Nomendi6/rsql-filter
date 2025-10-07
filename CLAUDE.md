@@ -119,6 +119,7 @@ cd rsql-filter-demo && ./mvnw -Dspring.profiles.active=dev
    - WhereSpecificationVisitor - Converts parse tree to JPA Specifications
    - WhereStringVisitor - Converts to JPQL strings
    - WhereTextVisitor - Extracts text representations
+   - SelectExpressionVisitor - Converts SELECT clauses to SelectExpression objects (supports arithmetic expressions)
 
 ### Integration Pattern
 
@@ -170,6 +171,8 @@ rsql-filter-mvn/
 
 ## RSQL Filter Syntax
 
+### WHERE Clause Syntax
+
 The library supports filtering with operators like:
 - `==` (equals), `!=` (not equals)
 - `=gt=`, `=ge=`, `=lt=`, `=le=` (comparisons)
@@ -181,6 +184,39 @@ The library supports filtering with operators like:
 
 Example: `name=='John';(age=gt=30,status=in=(ACTIVE,PENDING))`
 Alternative: `name=='John' and (age=gt=30 or status=in=(ACTIVE,PENDING))`
+
+### SELECT Clause Syntax
+
+The library supports SELECT expressions with:
+- **Simple fields**: `name`, `productType.name`
+- **Aggregate functions**: `SUM(price)`, `AVG(price)`, `COUNT(*)`, `MIN(price)`, `MAX(price)`, `COUNT(DIST field1, field2)`
+- **Arithmetic expressions**: Support for `+`, `-`, `*`, `/` operators
+- **Numeric literals**: Integer and decimal numbers
+- **Parentheses**: For controlling operation precedence
+- **Aliases**: Optional aliases using `:` syntax
+- **SELECT ***: Select all fields from root entity
+- **Entity.* syntax**: Select all fields from related entity (e.g., `productType.*`)
+
+#### Arithmetic Expression Examples:
+```
+SUM(price) - 100:adjustedTotal
+SUM(price) * 1.2:priceWithTax
+SUM(price) / COUNT(*):avgPrice
+(SUM(price) - 50) * 2 / COUNT(*):complexMetric
+SUM(debit) - SUM(credit):balance
+```
+
+#### Multiple Expressions:
+```
+productType.name:typeName, SUM(price):total, COUNT(*):count, SUM(price) / COUNT(*):average
+```
+
+#### Operator Precedence:
+- Parentheses `()` (highest)
+- Multiplication `*` and Division `/`
+- Addition `+` and Subtraction `-` (lowest)
+
+Example: `10 + 5 * 2` evaluates as `10 + (5 * 2) = 20`
 
 ## Important Implementation Notes
 
@@ -210,22 +246,75 @@ The project was recently restructured:
 
 2. **RSQL Compiler**: `rsql-filter/src/main/java/rsql/RsqlCompiler.java`
    - Compiles RSQL strings to JPA Specifications
+   - Provides `compileSelectToExpressions()` for parsing SELECT clauses with arithmetic expressions
 
 3. **Grammar Files**: `rsql-filter/src/main/antlr/`
    - RsqlWhere.g4 - Defines the WHERE clause syntax
+   - RsqlSelect.g4 - Defines the SELECT clause syntax with arithmetic expression support
    - RsqlCommonLexer.g4 - Common lexer rules
 
-4. **Integration Tests**: `rsql-filter-integration-tests/src/test/java/`
+4. **SelectExpression Hierarchy**: `rsql-filter/src/main/java/rsql/helper/`
+   - SelectExpression (abstract base) - Base class for all SELECT expressions
+   - FieldExpression - Simple field references
+   - FunctionExpression - Aggregate functions (SUM, AVG, COUNT, MIN, MAX)
+   - BinaryOpExpression - Arithmetic operations (+, -, *, /)
+   - LiteralExpression - Numeric literals
+   - BinaryOperator (enum) - Arithmetic operators
+
+5. **SelectExpressionVisitor**: `rsql-filter/src/main/java/rsql/select/SelectExpressionVisitor.java`
+   - Parses ANTLR parse tree into SelectExpression objects
+   - Validates field paths against JPA metamodel
+   - Handles operator precedence and parentheses
+
+6. **Integration Tests**: `rsql-filter-integration-tests/src/test/java/`
    - Comprehensive tests showing all supported features
    - Good examples of how to use the library
+   - SelectExpressionIT - Tests for arithmetic expressions with real JPA entities
 
 ### Common Development Tasks
 
-#### Adding a New Operator
+#### Adding a New WHERE Operator
 1. Update the grammar file (RsqlWhere.g4)
 2. Regenerate ANTLR code: `mvn antlr4:antlr4 -pl rsql-filter`
 3. Update WhereSpecificationVisitor to handle the new operator
 4. Add integration tests
+
+#### Adding Arithmetic Expressions to SELECT
+The library now supports arithmetic expressions in SELECT clauses. To use:
+
+```java
+// Using SimpleQueryExecutor directly
+List<Tuple> results = SimpleQueryExecutor.getAggregateQueryResultWithSelectExpression(
+    Product.class,
+    Tuple.class,
+    "productType.name:typeName, SUM(price) * 1.2:totalWithTax",
+    "status==ACTIVE",  // WHERE filter (optional)
+    null,              // HAVING filter (optional)
+    null,              // Pageable (optional)
+    rsqlContext,
+    compiler
+);
+
+// Using RsqlCompiler to parse expressions
+List<SelectExpression> expressions = compiler.compileSelectToExpressions(
+    "SUM(price) - 100:adjusted",
+    rsqlContext
+);
+
+// Convert to JPA expressions
+for (SelectExpression expr : expressions) {
+    Expression<?> jpaExpr = expr.toJpaExpression(criteriaBuilder, root, rsqlContext);
+    // Use jpaExpr in CriteriaQuery
+}
+```
+
+#### Modifying SELECT Grammar
+When modifying `RsqlSelect.g4`, keep in mind:
+1. **Rule order matters**: In `selectElement`, `seExpression` MUST come before `seField` and `seFuncCall` to prevent ambiguity with the `*` operator
+2. Expression precedence is handled by grammar structure (multiplication/division before addition/subtraction)
+3. After changing grammar, regenerate: `mvn antlr4:antlr4 -pl rsql-filter`
+4. Update `SelectExpressionVisitor` if adding new expression types
+5. Run tests: `mvn test -pl rsql-filter` and `mvn test -pl rsql-filter-integration-tests`
 
 #### Testing with Demo Application
 ```bash

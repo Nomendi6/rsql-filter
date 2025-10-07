@@ -188,6 +188,50 @@ public class SelectAggregateSelectionVisitor extends RsqlSelectBaseVisitor<List<
         return selections;
     }
 
+    @Override
+    public List<Selection<?>> visitSeExpression(RsqlSelectParser.SeExpressionContext ctx) {
+        // This visitor doesn't support arithmetic expressions with operators
+        // But due to grammar rule ordering, simple fields and functions are now parsed as expressions
+        // So we need to check if it's a simple field or function and handle it
+
+        RsqlSelectParser.ExpressionContext exprCtx = ctx.expression();
+        String alias = ctx.simpleField() != null ? ctx.simpleField().getText() : null;
+
+        // If it's a simple field expression (without operators), handle it as GROUP BY
+        if (exprCtx instanceof RsqlSelectParser.FieldExpressionContext) {
+            RsqlSelectParser.FieldExpressionContext fieldCtx = (RsqlSelectParser.FieldExpressionContext) exprCtx;
+            String fieldPath = getFieldPath(fieldCtx.field());
+
+            Path<?> path = getPropertyPathRecursive(fieldPath, root, rsqlContext, rsqlContext.joinsMap, rsqlContext.classMetadataMap);
+
+            // Set alias: use provided alias, or default to the last part of fieldPath
+            String finalAlias = (alias != null && !alias.isEmpty()) ? alias : getLastFieldName(fieldPath);
+            Selection<?> selection = path.alias(finalAlias);
+
+            return Arrays.asList(selection);
+        }
+
+        // If it's a function expression, handle it as aggregate function
+        if (exprCtx instanceof RsqlSelectParser.FuncExpressionContext) {
+            RsqlSelectParser.FuncExpressionContext funcCtx = (RsqlSelectParser.FuncExpressionContext) exprCtx;
+            List<Selection<?>> selections = visit(funcCtx.functionCall());
+
+            // Apply alias if present
+            if (alias != null && !selections.isEmpty()) {
+                Selection<?> selection = selections.get(0);
+                selections = Arrays.asList(selection.alias(alias));
+            }
+
+            return selections;
+        }
+
+        // For any other expression type (with operators), throw error
+        throw new SyntaxErrorException(
+            "Arithmetic expressions with operators are not supported in this query type. " +
+            "Use SelectExpressionVisitor for queries with arithmetic expressions."
+        );
+    }
+
     // ==================== Helper Methods ====================
 
     /**

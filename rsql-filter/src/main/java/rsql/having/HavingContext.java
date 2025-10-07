@@ -30,7 +30,22 @@ public class HavingContext<ENTITY> {
     private final RsqlContext<ENTITY> rsqlContext;
 
     /**
-     * Constructs a HavingContext from SELECT aggregate fields.
+     * Private constructor - use static factory methods instead.
+     */
+    private HavingContext(
+        CriteriaBuilder builder,
+        Root<ENTITY> root,
+        RsqlContext<ENTITY> rsqlContext,
+        Map<String, Expression<?>> aliasToExpression
+    ) {
+        this.builder = builder;
+        this.root = root;
+        this.rsqlContext = rsqlContext;
+        this.aliasToExpression = aliasToExpression;
+    }
+
+    /**
+     * Creates a HavingContext from SELECT aggregate fields.
      * Uses shared joinsMap and classMetadataMap from RsqlContext to ensure consistency
      * with SELECT, WHERE, and other clauses.
      *
@@ -38,17 +53,41 @@ public class HavingContext<ENTITY> {
      * @param root Query root
      * @param selectFields List of AggregateFields from SELECT clause
      * @param rsqlContext RSQL context with EntityManager and shared JOIN/metadata caches
+     * @return HavingContext instance
      */
-    public HavingContext(
+    public static <E> HavingContext<E> fromAggregateFields(
         CriteriaBuilder builder,
-        Root<ENTITY> root,
+        Root<E> root,
         List<AggregateField> selectFields,
-        RsqlContext<ENTITY> rsqlContext
+        RsqlContext<E> rsqlContext
     ) {
-        this.builder = builder;
-        this.root = root;
-        this.rsqlContext = rsqlContext;
-        this.aliasToExpression = buildAliasMapping(selectFields);
+        // Create a temporary context to use the instance method
+        HavingContext<E> tempContext = new HavingContext<>(builder, root, rsqlContext, new HashMap<>());
+        Map<String, Expression<?>> aliasMap = tempContext.buildAliasMapping(selectFields);
+        return new HavingContext<>(builder, root, rsqlContext, aliasMap);
+    }
+
+    /**
+     * Creates a HavingContext from SELECT expression objects (supports arithmetic expressions).
+     * Uses shared joinsMap and classMetadataMap from RsqlContext to ensure consistency
+     * with SELECT, WHERE, and other clauses.
+     *
+     * @param builder CriteriaBuilder for creating expressions
+     * @param root Query root
+     * @param selectExpressions List of SelectExpression objects from SELECT clause
+     * @param rsqlContext RSQL context with EntityManager and shared JOIN/metadata caches
+     * @return HavingContext instance
+     */
+    public static <E> HavingContext<E> fromSelectExpressions(
+        CriteriaBuilder builder,
+        Root<E> root,
+        List<rsql.helper.SelectExpression> selectExpressions,
+        RsqlContext<E> rsqlContext
+    ) {
+        // Create a temporary context to use the instance method
+        HavingContext<E> tempContext = new HavingContext<>(builder, root, rsqlContext, new HashMap<>());
+        Map<String, Expression<?>> aliasMap = tempContext.buildAliasMappingFromExpressions(selectExpressions);
+        return new HavingContext<>(builder, root, rsqlContext, aliasMap);
     }
 
     /**
@@ -165,6 +204,32 @@ public class HavingContext<ENTITY> {
 
             // Map alias to expression
             mapping.put(field.getAlias(), expression);
+        }
+
+        return mapping;
+    }
+
+    /**
+     * Builds the alias-to-expression mapping from SELECT expression objects.
+     * Uses the toJpaExpression() method of SelectExpression to create JPA Expression objects.
+     *
+     * @param selectExpressions List of SelectExpression objects from SELECT clause
+     * @return Map of alias -> Expression
+     */
+    private Map<String, Expression<?>> buildAliasMappingFromExpressions(List<rsql.helper.SelectExpression> selectExpressions) {
+        Map<String, Expression<?>> mapping = new HashMap<>();
+
+        for (rsql.helper.SelectExpression expr : selectExpressions) {
+            // Skip expressions without alias - they cannot be referenced in HAVING by name
+            if (!expr.hasAlias()) {
+                continue;
+            }
+
+            // Use the SelectExpression's toJpaExpression method to create the JPA Expression
+            Expression<?> jpaExpression = expr.toJpaExpression(builder, root, rsqlContext);
+
+            // Map alias to expression
+            mapping.put(expr.getAlias(), jpaExpression);
         }
 
         return mapping;
