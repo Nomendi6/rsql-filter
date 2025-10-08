@@ -593,4 +593,103 @@ public class SelectExpressionIT {
         assertThat(page.getTotalPages()).isEqualTo(0);
         assertThat(page.getContent()).isEmpty();
     }
+
+    @Test
+    void testExecuteAggregateWithWhereFilterOnJoinedEntity() {
+        // Given: WHERE filter on joined entity (productType.name)
+        // This tests the fix for JOIN reuse in count queries
+        String selectString = "productType.name:typeName, COUNT(*):count, SUM(price):total";
+        String filter = "productType.name=='Electronics'"; // Only Electronics products
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // When
+        Page<Tuple> page = SimpleQueryExecutor.getAggregateQueryResultAsPageWithSelectExpression(
+            Product.class,
+            Tuple.class,
+            selectString,
+            filter,
+            null,
+            pageable,
+            rsqlContext,
+            compiler
+        );
+
+        // Then
+        assertThat(page.getTotalElements()).isEqualTo(1); // Only Electronics group
+        assertThat(page.getContent()).hasSize(1);
+
+        Tuple tuple = page.getContent().get(0);
+        String typeName = tuple.get(0, String.class);
+        Long count = tuple.get(1, Long.class);
+        BigDecimal total = tuple.get(2, BigDecimal.class);
+
+        assertThat(typeName).isEqualTo("Electronics");
+        assertThat(count).isEqualTo(3L); // 3 electronics products
+        assertThat(total).isEqualByComparingTo(new BigDecimal("1100.00")); // 1000 + 25 + 75
+    }
+
+    @Test
+    void testExecuteAggregateWithWhereFilterOnJoinedEntity_WithGroupBy() {
+        // Given: WHERE filter on joined entity with GROUP BY on different field
+        // This is a regression test for JOIN conflicts in count queries
+        String selectString = "productType.code:typeCode, productType.name:typeName, SUM(price):total";
+        String filter = "productType.name=like='%Electronics%'";
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // When
+        Page<Tuple> page = SimpleQueryExecutor.getAggregateQueryResultAsPageWithSelectExpression(
+            Product.class,
+            Tuple.class,
+            selectString,
+            filter,
+            null,
+            pageable,
+            rsqlContext,
+            compiler
+        );
+
+        // Then
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent()).hasSize(1);
+
+        Tuple tuple = page.getContent().get(0);
+        String typeCode = tuple.get(0, String.class);
+        String typeName = tuple.get(1, String.class);
+        BigDecimal total = tuple.get(2, BigDecimal.class);
+
+        assertThat(typeCode).isEqualTo("TYPE1");
+        assertThat(typeName).isEqualTo("Electronics");
+        assertThat(total).isEqualByComparingTo(new BigDecimal("1100.00"));
+    }
+
+    @Test
+    void testExecuteAggregateWithComplexWhereFilterOnJoinedEntity() {
+        // Given: Complex WHERE filter using multiple fields from joined entity
+        String selectString = "productType.name:typeName, COUNT(*):count";
+        String filter = "productType.code=='TYPE1';price=gt=30"; // Electronics AND price > 30
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "count"));
+
+        // When
+        Page<Tuple> page = SimpleQueryExecutor.getAggregateQueryResultAsPageWithSelectExpression(
+            Product.class,
+            Tuple.class,
+            selectString,
+            filter,
+            null,
+            pageable,
+            rsqlContext,
+            compiler
+        );
+
+        // Then
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent()).hasSize(1);
+
+        Tuple tuple = page.getContent().get(0);
+        String typeName = tuple.get(0, String.class);
+        Long count = tuple.get(1, Long.class);
+
+        assertThat(typeName).isEqualTo("Electronics");
+        assertThat(count).isEqualTo(2L); // Laptop (1000) and Keyboard (75), Mouse is 25
+    }
 }
