@@ -259,7 +259,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
             );
         };
 
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
     }
 
@@ -315,7 +314,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
             );
         };
 
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
     }
 
@@ -343,7 +341,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
 
         return spec;
     }
@@ -372,7 +369,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
     }
 
@@ -400,7 +396,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
     }
 
@@ -422,7 +417,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
 
         return spec;
     }
@@ -433,7 +427,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         String fieldName = getFieldName(ctx.field());
 
         Specification<T> spec = getSpecificationForInCondition(fieldName, ctx.inList());
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
     }
 
@@ -442,7 +435,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         String fieldName = getFieldName(ctx.field());
 
         Specification<T> spec = getSpecificationForInCondition(fieldName, ctx.inList());
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
 
         return Specification.not(spec);
     }
@@ -463,7 +455,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
 
         return spec;
     }
@@ -484,7 +475,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
 
         return spec;
     }
@@ -505,7 +495,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
 
         return spec;
     }
@@ -536,7 +525,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
 
         return spec;
     }
@@ -565,7 +553,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
     }
 
@@ -623,7 +610,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
     }
 
@@ -655,7 +641,6 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         };
-        spec.toPredicate(rsqlContext.root, rsqlContext.criteriaQuery, rsqlContext.criteriaBuilder);
         return spec;
 
     }
