@@ -276,15 +276,23 @@ public class SimpleQueryExecutor {
         // THIRD: Create WHERE specification (uses shared joinsMap from rsqlContext)
         Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
-        // FOURTH: Create SELECT selections (reuses JOINs from WHERE clause)
+        // FOURTH: Create WHERE predicate FIRST (this creates JOINs in joinsMap)
+        // This ensures that JOINs created by WHERE clause are registered first,
+        // allowing SELECT clause to reuse them instead of creating duplicates
+        Predicate predicate = null;
+        if (specification != null) {
+            predicate = specification.toPredicate(root, query, builder);
+        }
+
+        // FIFTH: Create SELECT selections (reuses JOINs from WHERE clause via joinsMap)
         List<Selection<?>> selectionList = createSelectionsFromString(
             selectString, builder, root, rsqlContext
         );
 
         query.multiselect(selectionList);
 
-        if (specification != null) {
-            Predicate predicate = specification.toPredicate(root, query, builder);
+        // Apply WHERE clause
+        if (predicate != null) {
             query.where(predicate);
         }
         if (sort != null && sort.isSorted()) {
@@ -350,16 +358,23 @@ public class SimpleQueryExecutor {
         // THIRD: Create WHERE specification (uses shared joinsMap from rsqlContext)
         Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
-        // FOURTH: Create SELECT selections (reuses JOINs from WHERE clause)
+        // FOURTH: Create WHERE predicate FIRST (this creates JOINs in joinsMap)
+        // This ensures that JOINs created by WHERE clause are registered first,
+        // allowing SELECT clause to reuse them instead of creating duplicates
+        Predicate predicate = null;
+        if (specification != null) {
+            predicate = specification.toPredicate(root, query, builder);
+        }
+
+        // FIFTH: Create SELECT selections (reuses JOINs from WHERE clause via joinsMap)
         List<Selection<?>> selectionList = createSelectionsFromString(
             selectString, builder, root, rsqlContext
         );
 
         query.multiselect(selectionList);
 
-        Predicate predicate = null;
-        if (specification != null) {
-            predicate = specification.toPredicate(root, query, builder);
+        // Apply WHERE clause
+        if (predicate != null) {
             query.where(predicate);
         }
 
@@ -371,11 +386,36 @@ public class SimpleQueryExecutor {
             return new PageImpl<>((List<RESULT>) rsqlContext.entityManager.createQuery(query).getResultList());
         }
 
-        long totalRecords = 0L;
+        // Calculate total count
+        // We create our own count query instead of using repository.count(specification)
+        // because the Specification's JOINs are tied to the main query's Root and cannot be reused
+        long totalRecords;
         if (specification == null) {
             totalRecords = repository.count();
         } else {
-            totalRecords = repository.count(specification);
+            // Create a new count query with fresh RsqlContext to avoid JOIN conflicts
+            CriteriaQuery<Long> countQuery = builder.createQuery(Long.class);
+            Root<ENTITY> countRoot = countQuery.from(entityClass);
+            countQuery.select(builder.count(countRoot));
+
+            // Create a new RsqlContext for count query to avoid reusing cached joins from main query
+            // The main query's joins are tied to a different Root and cannot be reused here
+            RsqlContext<ENTITY> countContext = new RsqlContext<>(rsqlContext.entityClass);
+            countContext.entityManager = rsqlContext.entityManager;
+            countContext.criteriaBuilder = builder;
+            countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
+            countContext.root = countRoot;
+            countContext.joinsMap = new HashMap<>();
+            countContext.classMetadataMap = new HashMap<>();
+
+            // Create a new specification with the count context (this will create its own joins)
+            Specification<ENTITY> countSpecification = createSpecification(filter, countContext, compiler);
+            if (countSpecification != null) {
+                Predicate countPredicate = countSpecification.toPredicate(countRoot, countQuery, builder);
+                countQuery.where(countPredicate);
+            }
+
+            totalRecords = rsqlContext.entityManager.createQuery(countQuery).getSingleResult();
         }
 
         return readPage(query, pageable, predicate, rsqlContext, entityClass, totalRecords);
@@ -829,6 +869,14 @@ public class SimpleQueryExecutor {
         // Create WHERE specification (uses shared joinsMap from rsqlContext)
         Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
+        // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
+        // This ensures that JOINs created by WHERE clause are registered first,
+        // allowing SELECT clause to reuse them instead of creating duplicates
+        Predicate wherePredicate = null;
+        if (specification != null) {
+            wherePredicate = specification.toPredicate(root, query, builder);
+        }
+
         // Build select clause with aggregate functions (uses shared joinsMap from rsqlContext)
         List<Selection<?>> selectionList = new ArrayList<>();
         for (AggregateField field : selectFields) {
@@ -853,9 +901,8 @@ public class SimpleQueryExecutor {
         query.multiselect(selectionList);
 
         // Add WHERE clause
-        if (specification != null) {
-            Predicate predicate = specification.toPredicate(root, query, builder);
-            query.where(predicate);
+        if (wherePredicate != null) {
+            query.where(wherePredicate);
         }
 
         // Add GROUP BY clause (uses shared joinsMap from rsqlContext)
@@ -948,6 +995,14 @@ public class SimpleQueryExecutor {
         // Create WHERE specification
         Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
+        // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
+        // This ensures that JOINs created by WHERE clause are registered first,
+        // allowing SELECT clause to reuse them instead of creating duplicates
+        Predicate wherePredicate = null;
+        if (specification != null) {
+            wherePredicate = specification.toPredicate(root, query, builder);
+        }
+
         // Build select clause with aggregate functions and create maps for sorting
         // - aliasToExpressionMap: maps aliases to expressions (e.g., "sumaDuguje" -> SUM(duguje))
         // - fieldPathToExpressionMap: maps field paths to expressions (e.g., "konto.oznaka" -> Path)
@@ -983,9 +1038,8 @@ public class SimpleQueryExecutor {
         query.multiselect(selectionList);
 
         // Add WHERE clause
-        if (specification != null) {
-            Predicate predicate = specification.toPredicate(root, query, builder);
-            query.where(predicate);
+        if (wherePredicate != null) {
+            query.where(wherePredicate);
         }
 
         // Add GROUP BY clause
@@ -1255,6 +1309,14 @@ public class SimpleQueryExecutor {
         // Create WHERE specification (uses shared joinsMap from rsqlContext)
         Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
+        // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
+        // This ensures that JOINs created by WHERE clause are registered first,
+        // allowing SELECT clause to reuse them instead of creating duplicates
+        Predicate wherePredicate = null;
+        if (specification != null) {
+            wherePredicate = specification.toPredicate(root, query, builder);
+        }
+
         // Build select clause with expressions and create maps for sorting
         // - aliasToExpressionMap: maps aliases to expressions (e.g., "sumaDuguje" -> SUM(duguje))
         // - fieldPathToExpressionMap: maps field paths to expressions (e.g., "konto.oznaka" -> Path)
@@ -1283,9 +1345,8 @@ public class SimpleQueryExecutor {
         query.multiselect(selectionList);
 
         // Add WHERE clause
-        if (specification != null) {
-            Predicate predicate = specification.toPredicate(root, query, builder);
-            query.where(predicate);
+        if (wherePredicate != null) {
+            query.where(wherePredicate);
         }
 
         // Add GROUP BY clause (uses shared joinsMap from rsqlContext)
@@ -1409,6 +1470,14 @@ public class SimpleQueryExecutor {
         // Create WHERE specification
         Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
 
+        // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
+        // This ensures that JOINs created by WHERE clause are registered first,
+        // allowing SELECT clause to reuse them instead of creating duplicates
+        Predicate wherePredicate = null;
+        if (specification != null) {
+            wherePredicate = specification.toPredicate(root, query, builder);
+        }
+
         // Build select clause with expressions and create maps for sorting
         // - aliasToExpressionMap: maps aliases to expressions (e.g., "sumaDuguje" -> SUM(duguje))
         // - fieldPathToExpressionMap: maps field paths to expressions (e.g., "konto.oznaka" -> Path)
@@ -1436,9 +1505,8 @@ public class SimpleQueryExecutor {
         query.multiselect(selectionList);
 
         // Add WHERE clause
-        if (specification != null) {
-            Predicate predicate = specification.toPredicate(root, query, builder);
-            query.where(predicate);
+        if (wherePredicate != null) {
+            query.where(wherePredicate);
         }
 
         // Add GROUP BY clause
