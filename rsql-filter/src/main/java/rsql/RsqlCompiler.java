@@ -74,7 +74,19 @@ public class RsqlCompiler<T> {
             if (specification == null) {
                 throw new SyntaxErrorException("Error in rsql expression: " + inputString);
             }
-            return specification;
+
+            // Wrap the specification to clear joinsMap on each toPredicate call.
+            // This is CRITICAL for Hibernate 6 compatibility: when Spring Data JPA
+            // calls toPredicate() twice (once for query, once for count), each call
+            // gets a different Root object. JOINs created on the first root cannot
+            // be reused on the second root as Hibernate 6 SQM nodes are query-specific.
+            final Specification<T> innerSpec = specification;
+            return (root, query, criteriaBuilder) -> {
+                // Clear JOIN cache to ensure fresh JOINs for each query context
+                rsqlContext.joinsMap.clear();
+                rsqlContext.classMetadataMap.clear();
+                return innerSpec.toPredicate(root, query, criteriaBuilder);
+            };
         }
         return null;
     }

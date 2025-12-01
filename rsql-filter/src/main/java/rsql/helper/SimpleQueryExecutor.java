@@ -2,6 +2,8 @@ package rsql.helper;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.support.PageableExecutionUtils;
 import rsql.RsqlCompiler;
 import rsql.having.HavingCompiler;
@@ -33,6 +35,8 @@ import java.util.*;
 import static rsql.where.RsqlWhereHelper.*;
 
 public class SimpleQueryExecutor {
+
+    private static final Logger log = LoggerFactory.getLogger(SimpleQueryExecutor.class);
 
     private static <ENTITY> Specification<ENTITY> createSpecification(
         String filter,
@@ -498,12 +502,8 @@ public class SimpleQueryExecutor {
             query = rsqlContext.entityManager.createQuery(jpqlQueryString, resultClass);
             countQuery = rsqlContext.entityManager.createQuery(countQueryString, Long.class);
         } catch (Exception e) {
-            System.out.println("Error compiling JPQL expression: ");
-            System.out.println("------ SELECT QUERY ------");
-            System.out.println(jpqlQueryString);
-            System.out.println("------ COUNT QUERY ------");
-            System.out.println(countQueryString);
-            System.out.println("------");
+            log.error("Error compiling JPQL expression:\n------ SELECT QUERY ------\n{}\n------ COUNT QUERY ------\n{}\n------",
+                jpqlQueryString, countQueryString, e);
             throw new RuntimeException(e);
         }
         if (rsqlQuery != null) {
