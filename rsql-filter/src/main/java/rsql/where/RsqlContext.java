@@ -6,6 +6,8 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.metamodel.ManagedType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +23,8 @@ import java.util.Map;
  * @param <ENTITY> The type of the entity that the RSQL operations are targeting.
  */
 public class RsqlContext<ENTITY> {
+
+    private static final Logger log = LoggerFactory.getLogger(RsqlContext.class);
 
     /**
      * The Class object representing the entity type.
@@ -76,6 +80,7 @@ public class RsqlContext<ENTITY> {
         this.entityClass = entityClass;
         this.joinsMap = new HashMap<>();
         this.classMetadataMap = new HashMap<>();
+        log.trace("RsqlContext created for entity: {}", entityClass.getSimpleName());
     }
 
     /**
@@ -116,7 +121,8 @@ public class RsqlContext<ENTITY> {
 
         this.joinsMap.clear();
         this.classMetadataMap.clear();
-        //        this.specification = Specification.where(null);
+
+        log.trace("RsqlContext initialized for entity: {}", entityClass.getSimpleName());
     }
 
     /**

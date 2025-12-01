@@ -6,13 +6,13 @@
     <parent>
         <groupId>com.nomendi6</groupId>
         <artifactId>rsql-filter-parent</artifactId>
-        <version>0.6.9</version>
+        <version>0.6.12</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter-demo</artifactId>
-    <version>0.6.9</version>
+    <version>0.6.12</version>
     <packaging>jar</packaging>
 
     <name>RSQL Filter Demo Application</name>
@@ -383,6 +383,25 @@
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Skip deployment for demo module -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
+            <!-- Skip central publishing for demo module -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
             </plugin>
         </plugins>
         <pluginManagement>

@@ -75,12 +75,17 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         ManagedType<?> classMetadata = metamodel.managedType(startRoot.getJavaType());
         Path<?> root = startRoot;
 
+        log.trace("getPropertyPathRecursive: field={}, joinsMapSize={}", fieldName, rsqlContext.joinsMap.size());
+
         // Check if we already have a cached join for this path (except last element)
         String pathKey = "";
         if (graph.length > 1) {
             pathKey = joinArrayItems(graph, graph.length - 1, ".");
             if (rsqlContext.joinsMap.containsKey(pathKey)) {
                 Path<?> pathRoot = rsqlContext.joinsMap.get(pathKey);
+
+                log.trace("  Found cached join for pathKey={}", pathKey);
+
                 ManagedType<?> pathClassMetadata = rsqlContext.classMetadataMap.get(pathKey);
                 String property = graph[graph.length - 1];
                 root = pathRoot.get(property);
@@ -111,15 +116,18 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
                 // Check if join already exists in cache
                 if (rsqlContext.joinsMap.containsKey(pathKey)) {
+                    Path<?> cachedJoin = rsqlContext.joinsMap.get(pathKey);
+
+                    log.trace("  Reusing cached join: pathKey={}", pathKey);
+
                     classMetadata = rsqlContext.classMetadataMap.get(pathKey);
-                    root = rsqlContext.joinsMap.get(pathKey);
+                    root = cachedJoin;
                 } else {
                     // Create new LEFT JOIN and cache it
                     Class<?> associationType = findPropertyType(property, classMetadata);
-                    String previousClass = classMetadata.getJavaType().getName();
                     classMetadata = metamodel.managedType(associationType);
 
-                    log.trace("Create a LEFT JOIN between {} and {}.", previousClass, classMetadata.getJavaType().getName());
+                    log.trace("  Creating LEFT JOIN for pathKey={}", pathKey);
 
                     root = ((From) root).join(property, JoinType.LEFT);
                     rsqlContext.joinsMap.put(pathKey, root);

@@ -103,15 +103,16 @@ public class RsqlQueryService<
     }
 
     /**
-     * Returns the template RsqlContext. This context should NOT be used directly for queries.
-     * Instead, use getQueryContext() to get a fresh instance for each query execution.
+     * Returns a thread-safe RsqlContext instance for query execution.
+     * This method now delegates to getQueryContext() to ensure each call receives
+     * a fresh context instance with isolated state.
      *
-     * @return The template RsqlContext
-     * @deprecated Use getQueryContext() instead to ensure thread-safety
+     * @return A new RsqlContext instance
+     * @deprecated Use getQueryContext() directly for better clarity
      */
     @Deprecated
     public RsqlContext<ENTITY> getRsqlContext() {
-        return rsqlContext;
+        return getQueryContext();
     }
 
     /**
