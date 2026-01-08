@@ -46,6 +46,18 @@ public class SimpleQueryExecutor {
         return compiler.compileToSpecification(filter, rsqlContext);
     }
 
+    /**
+     * Creates a specification for aggregate queries without clearing joinsMap on toPredicate.
+     * This ensures JOINs are shared across SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses.
+     */
+    private static <ENTITY> Specification<ENTITY> createSpecificationForAggregate(
+        String filter,
+        RsqlContext<ENTITY> rsqlContext,
+        RsqlCompiler<ENTITY> compiler
+    ) {
+        return compiler.compileToSpecification(filter, rsqlContext, false);
+    }
+
     private static <ENTITY> RsqlQuery createWhereClause(
         String filter,
         RsqlContext<ENTITY> rsqlContext,
@@ -866,8 +878,9 @@ public class SimpleQueryExecutor {
         rsqlContext.joinsMap.clear();
         rsqlContext.classMetadataMap.clear();
 
-        // Create WHERE specification (uses shared joinsMap from rsqlContext)
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+        // Create WHERE specification for aggregate query (without clearing joinsMap on toPredicate)
+        // This ensures JOINs are shared across SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses
+        Specification<ENTITY> specification = createSpecificationForAggregate(filter, rsqlContext, compiler);
 
         // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
         // This ensures that JOINs created by WHERE clause are registered first,
@@ -992,8 +1005,9 @@ public class SimpleQueryExecutor {
         rsqlContext.joinsMap.clear();
         rsqlContext.classMetadataMap.clear();
 
-        // Create WHERE specification
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+        // Create WHERE specification for aggregate query (without clearing joinsMap on toPredicate)
+        // This ensures JOINs are shared across SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses
+        Specification<ENTITY> specification = createSpecificationForAggregate(filter, rsqlContext, compiler);
 
         // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
         // This ensures that JOINs created by WHERE clause are registered first,
@@ -1306,8 +1320,9 @@ public class SimpleQueryExecutor {
         rsqlContext.joinsMap.clear();
         rsqlContext.classMetadataMap.clear();
 
-        // Create WHERE specification (uses shared joinsMap from rsqlContext)
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+        // Create WHERE specification for aggregate query (without clearing joinsMap on toPredicate)
+        // This ensures JOINs are shared across SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses
+        Specification<ENTITY> specification = createSpecificationForAggregate(filter, rsqlContext, compiler);
 
         // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
         // This ensures that JOINs created by WHERE clause are registered first,
@@ -1467,8 +1482,9 @@ public class SimpleQueryExecutor {
         rsqlContext.joinsMap.clear();
         rsqlContext.classMetadataMap.clear();
 
-        // Create WHERE specification
-        Specification<ENTITY> specification = createSpecification(filter, rsqlContext, compiler);
+        // Create WHERE specification for aggregate query (without clearing joinsMap on toPredicate)
+        // This ensures JOINs are shared across SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses
+        Specification<ENTITY> specification = createSpecificationForAggregate(filter, rsqlContext, compiler);
 
         // Create WHERE predicate FIRST (this creates JOINs in joinsMap)
         // This ensures that JOINs created by WHERE clause are registered first,

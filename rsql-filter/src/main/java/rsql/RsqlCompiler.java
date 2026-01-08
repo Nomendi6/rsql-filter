@@ -58,6 +58,22 @@ public class RsqlCompiler<T> {
      * @return Specification with where conditions
      */
     public Specification<T> compileToSpecification(String inputString, RsqlContext<T> rsqlContext) {
+        return compileToSpecification(inputString, rsqlContext, true);
+    }
+
+    /**
+     * Defines hibernate Specification (where condition) for filter defined in inputString.
+     * This overload allows control over whether joinsMap is cleared on each toPredicate call.
+     *
+     * @param inputString - filter defined in rsql language
+     * @param rsqlContext - context
+     * @param clearJoinsMapOnToPredicate - if true, clears joinsMap on each toPredicate call
+     *        (needed for Hibernate 6 compatibility with Spring Data JPA repository methods).
+     *        Set to false for aggregate queries where joinsMap must be shared across
+     *        SELECT, WHERE, GROUP BY, HAVING, and ORDER BY clauses.
+     * @return Specification with where conditions
+     */
+    public Specification<T> compileToSpecification(String inputString, RsqlContext<T> rsqlContext, boolean clearJoinsMapOnToPredicate) {
         if (inputString != null && inputString.length() > 0) {
             CharStream inputStream = CharStreams.fromString(inputString);
 
@@ -75,18 +91,25 @@ public class RsqlCompiler<T> {
                 throw new SyntaxErrorException("Error in rsql expression: " + inputString);
             }
 
-            // Wrap the specification to clear joinsMap on each toPredicate call.
-            // This is CRITICAL for Hibernate 6 compatibility: when Spring Data JPA
-            // calls toPredicate() twice (once for query, once for count), each call
-            // gets a different Root object. JOINs created on the first root cannot
-            // be reused on the second root as Hibernate 6 SQM nodes are query-specific.
-            final Specification<T> innerSpec = specification;
-            return (root, query, criteriaBuilder) -> {
-                // Clear JOIN cache to ensure fresh JOINs for each query context
-                rsqlContext.joinsMap.clear();
-                rsqlContext.classMetadataMap.clear();
-                return innerSpec.toPredicate(root, query, criteriaBuilder);
-            };
+            if (clearJoinsMapOnToPredicate) {
+                // Wrap the specification to clear joinsMap on each toPredicate call.
+                // This is CRITICAL for Hibernate 6 compatibility: when Spring Data JPA
+                // calls toPredicate() twice (once for query, once for count), each call
+                // gets a different Root object. JOINs created on the first root cannot
+                // be reused on the second root as Hibernate 6 SQM nodes are query-specific.
+                final Specification<T> innerSpec = specification;
+                return (root, query, criteriaBuilder) -> {
+                    // Clear JOIN cache to ensure fresh JOINs for each query context
+                    rsqlContext.joinsMap.clear();
+                    rsqlContext.classMetadataMap.clear();
+                    return innerSpec.toPredicate(root, query, criteriaBuilder);
+                };
+            } else {
+                // Return specification without wrapping - caller is responsible for
+                // managing joinsMap clearing. Used by aggregate queries to ensure
+                // JOINs are shared across SELECT, WHERE, GROUP BY, HAVING, and ORDER BY.
+                return specification;
+            }
         }
         return null;
     }
