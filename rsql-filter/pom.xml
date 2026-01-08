@@ -15,7 +15,32 @@
     <packaging>jar</packaging>
 
     <name>RSQL Filter Core Library</name>
-    <description>RSQL filter for Spring Data JPA</description>
+    <description>RSQL filter for Spring Data JPA - provides powerful filtering, sorting, and aggregation capabilities using RSQL syntax</description>
+    <url>https://github.com/nomendi6/rsql-filter</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>nomendi6</id>
+            <name>Nomendi 6 d.o.o.</name>
+            <email>info@nomendi6.com</email>
+            <organization>Nomendi 6 d.o.o.</organization>
+            <organizationUrl>https://nomendi6.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/nomendi6/rsql-filter.git</connection>
+        <developerConnection>scm:git:ssh://github.com:nomendi6/rsql-filter.git</developerConnection>
+        <url>https://github.com/nomendi6/rsql-filter/tree/master</url>
+    </scm>
 
     <!-- Properties are inherited from parent POM -->
 
