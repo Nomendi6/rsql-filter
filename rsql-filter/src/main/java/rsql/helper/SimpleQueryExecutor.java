@@ -1219,8 +1219,9 @@ public class SimpleQueryExecutor {
                 fullQuery.multiselect(countSelectionList);
 
                 if (specification != null) {
-                    // Create a new specification with the count context (this will create its own joins)
-                    Specification<ENTITY> countSpecification = createSpecification(filter, countContext, compiler);
+                    // Create a new specification for aggregate query (without clearing joinsMap on toPredicate)
+                    // This ensures JOINs created by SELECT are preserved for GROUP BY to reuse
+                    Specification<ENTITY> countSpecification = createSpecificationForAggregate(filter, countContext, compiler);
                     if (countSpecification != null) {
                         Predicate fullPredicate = countSpecification.toPredicate(fullRoot, fullQuery, builder);
                         fullQuery.where(fullPredicate);
@@ -1648,8 +1649,9 @@ public class SimpleQueryExecutor {
                 fullQuery.multiselect(countSelectionList);
 
                 if (specification != null) {
-                    // Create a new specification with the count context (this will create its own joins)
-                    Specification<ENTITY> countSpecification = createSpecification(filter, countContext, compiler);
+                    // Create a new specification for aggregate query (without clearing joinsMap on toPredicate)
+                    // This ensures JOINs created by SELECT are preserved for GROUP BY to reuse
+                    Specification<ENTITY> countSpecification = createSpecificationForAggregate(filter, countContext, compiler);
                     if (countSpecification != null) {
                         Predicate fullPredicate = countSpecification.toPredicate(fullRoot, fullQuery, builder);
                         fullQuery.where(fullPredicate);
