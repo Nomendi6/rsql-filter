@@ -1624,96 +1624,62 @@ public class SimpleQueryExecutor {
 
             totalCount = rsqlContext.entityManager.createQuery(countQuery).getSingleResult();
         } else {
-            // With GROUP BY - count number of groups
-            // If HAVING is present, we must execute the full query to count
+            // With GROUP BY - count number of groups using a lightweight count query.
+            // Returns one Long per group (8 bytes each), then .size() gives the total.
+            // This handles both with and without HAVING uniformly.
+            CriteriaQuery<Long> countQuery = builder.createQuery(Long.class);
+            Root<ENTITY> countRoot = countQuery.from(entityClass);
+
+            // Create fresh context to avoid JOIN conflicts with main query
+            RsqlContext<ENTITY> countContext = new RsqlContext<>(entityClass);
+            countContext.entityManager = rsqlContext.entityManager;
+            countContext.criteriaBuilder = builder;
+            countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
+            countContext.root = countRoot;
+            countContext.joinsMap = new HashMap<>();
+            countContext.classMetadataMap = new HashMap<>();
+
+            countQuery.select(builder.count(countRoot));
+
+            // Add WHERE clause
+            if (specification != null) {
+                Specification<ENTITY> countSpecification = createSpecificationForAggregate(filter, countContext, compiler);
+                if (countSpecification != null) {
+                    Predicate countPredicate = countSpecification.toPredicate(countRoot, countQuery, builder);
+                    countQuery.where(countPredicate);
+                }
+            }
+
+            // Add GROUP BY clause for all fields
+            List<Expression<?>> countGroupByExpressions = new ArrayList<>();
+            for (String groupByField : groupByFields) {
+                Path<?> groupByPath = getPropertyPathRecursive(groupByField, countRoot, countContext, countContext.joinsMap, countContext.classMetadataMap);
+                countGroupByExpressions.add(groupByPath);
+            }
+            countQuery.groupBy(countGroupByExpressions);
+
+            // Add HAVING clause if present
             if (havingPredicate != null) {
-                // Execute the full query without pagination to count
-                // Use fresh RsqlContext to avoid JOIN conflicts
-                CriteriaQuery<RESULT> fullQuery = builder.createQuery(resultClass);
-                Root<ENTITY> fullRoot = fullQuery.from(entityClass);
-
-                // Create fresh context to avoid JOIN conflicts
-                RsqlContext<ENTITY> countContext = new RsqlContext<>(entityClass);
-                countContext.entityManager = rsqlContext.entityManager;
-                countContext.criteriaBuilder = builder;
-                countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) fullQuery;
-                countContext.root = fullRoot;
-                countContext.joinsMap = new HashMap<>();
-                countContext.classMetadataMap = new HashMap<>();
-
-                List<Selection<?>> countSelectionList = new ArrayList<>();
-                for (rsql.helper.SelectExpression expr : selectExpressions) {
-                    Expression<?> jpaExpression = expr.toJpaExpression(builder, fullRoot, countContext);
-                    countSelectionList.add(jpaExpression);
-                }
-                fullQuery.multiselect(countSelectionList);
-
-                if (specification != null) {
-                    // Create a new specification for aggregate query (without clearing joinsMap on toPredicate)
-                    // This ensures JOINs created by SELECT are preserved for GROUP BY to reuse
-                    Specification<ENTITY> countSpecification = createSpecificationForAggregate(filter, countContext, compiler);
-                    if (countSpecification != null) {
-                        Predicate fullPredicate = countSpecification.toPredicate(fullRoot, fullQuery, builder);
-                        fullQuery.where(fullPredicate);
-                    }
-                }
-
-                List<Expression<?>> fullGroupByExpressions = new ArrayList<>();
-                for (String groupByField : groupByFields) {
-                    Path<?> groupByPath = getPropertyPathRecursive(groupByField, fullRoot, countContext, countContext.joinsMap, countContext.classMetadataMap);
-                    fullGroupByExpressions.add(groupByPath);
-                }
-                fullQuery.groupBy(fullGroupByExpressions);
-
-                // Re-apply HAVING with fresh context
-                HavingContext<ENTITY> fullHavingContext = HavingContext.fromSelectExpressions(
+                HavingContext<ENTITY> countHavingContext = HavingContext.fromSelectExpressions(
                     builder,
-                    fullRoot,
+                    countRoot,
                     selectExpressions,
                     countContext
                 );
-                HavingCompiler fullHavingCompiler = new HavingCompiler();
-                Predicate fullHavingPredicate = fullHavingCompiler.compile(
+                HavingCompiler countHavingCompiler = new HavingCompiler();
+                Predicate countHavingPredicate = countHavingCompiler.compile(
                     havingFilter,
-                    fullHavingContext,
+                    countHavingContext,
                     countContext,
                     groupByFields
                 );
-                if (fullHavingPredicate != null) {
-                    fullQuery.having(fullHavingPredicate);
+                if (countHavingPredicate != null) {
+                    countQuery.having(countHavingPredicate);
                 }
-
-                totalCount = rsqlContext.entityManager.createQuery(fullQuery).getResultList().size();
-            } else {
-                // No HAVING - use simple count
-                CriteriaQuery<Long> countQuery = builder.createQuery(Long.class);
-                Root<ENTITY> countRoot = countQuery.from(entityClass);
-
-                // Use the first GROUP BY field for count
-                // Use fresh HashMap to avoid JOIN conflicts with main query
-                Path<?> firstGroupByPath = getPropertyPathRecursive(groupByFields.get(0), countRoot, rsqlContext, new HashMap<>(), new HashMap<>());
-                countQuery.select(builder.countDistinct(firstGroupByPath));
-
-                if (specification != null) {
-                    // Create a new RsqlContext for count query to avoid reusing cached joins from main query
-                    RsqlContext<ENTITY> countContext = new RsqlContext<>(rsqlContext.entityClass);
-                    countContext.entityManager = rsqlContext.entityManager;
-                    countContext.criteriaBuilder = builder;
-                    countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
-                    countContext.root = countRoot;
-                    countContext.joinsMap = new HashMap<>();
-                    countContext.classMetadataMap = new HashMap<>();
-
-                    // Create a new specification with the count context (this will create its own joins)
-                    Specification<ENTITY> countSpecification = createSpecification(filter, countContext, compiler);
-                    if (countSpecification != null) {
-                        Predicate countPredicate = countSpecification.toPredicate(countRoot, countQuery, builder);
-                        countQuery.where(countPredicate);
-                    }
-                }
-
-                totalCount = rsqlContext.entityManager.createQuery(countQuery).getSingleResult();
             }
+
+            List<Long> groupCounts = rsqlContext.entityManager.createQuery(countQuery).getResultList();
+            totalCount = groupCounts.size();
         }
 
         // ========== EXECUTE PAGINATED QUERY ==========
