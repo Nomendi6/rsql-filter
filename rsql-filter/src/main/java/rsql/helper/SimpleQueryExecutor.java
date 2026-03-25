@@ -314,7 +314,13 @@ public class SimpleQueryExecutor {
         if (sort != null && sort.isSorted()) {
             query.orderBy(QueryUtils.toOrders(sort, root, builder));
         }
-        return rsqlContext.entityManager.createQuery(query).getResultList();
+
+        var typedQuery = rsqlContext.entityManager.createQuery(query);
+        if (pageable != null && pageable.isPaged()) {
+            typedQuery.setFirstResult((int) pageable.getOffset());
+            typedQuery.setMaxResults(pageable.getPageSize());
+        }
+        return typedQuery.getResultList();
     }
 
     /**
