@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import rsql.RsqlCompiler;
 import rsql.exceptions.SyntaxErrorException;
+import rsql.helper.RsqlHelper;
 import rsql.where.RsqlContext;
 import com.nomendi6.rsql.it.config.IntegrationTest;
 import com.nomendi6.rsql.it.domain.AppObject;
@@ -643,12 +644,7 @@ public class CompilerWhereSpecificationIT {
     }
 
     private String getFullPath(NavigablePath navigablePath) {
-        String rootPath = getRootPath(navigablePath);
-        // uzmi duljinu rootPath
-        int rootPathLength = rootPath.length();
-        // NavigablePath.getIdentifierForTableGroup().toString() uzmi nakon rootPathLength
-        String fullPath = navigablePath.getIdentifierForTableGroup().toString().substring(rootPathLength+1);
-        return fullPath;
+        return RsqlHelper.normalizeHibernatePathIdentifier(navigablePath.getIdentifierForTableGroup());
     }
 
     private String getRootPath(NavigablePath navigablePath) {

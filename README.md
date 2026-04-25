@@ -188,6 +188,8 @@ public interface ProductTypeRepository extends JpaRepository<ProductType, Long>,
 
 Complete example application can be found [here](./rsql-filter-demo).
 
+> Note: `rsql-filter-demo` is excluded from `0.7.x` releases until the demo migration to the same platform stack is completed. For Spring Boot 3 compatibility, use the `0.6.x` line from `release-3.x`.
+
 ## Advanced Usage
 
 ### Sorting

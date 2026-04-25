@@ -5,6 +5,8 @@ package rsql.helper;
  */
 public class RsqlHelper {
 
+    private static final String DOMAIN_PACKAGE_MARKER = ".domain.";
+
     /**
      * Adds an RSQL expression to an existing one using the AND operator.
      *
@@ -65,5 +67,37 @@ public class RsqlHelper {
             return originalExpression;
         }
         return "(" + originalExpression + ")";
+    }
+
+    /**
+     * Converts Hibernate SQM path identifiers to stable dot-separated field paths.
+     * Hibernate 7 includes internal alias suffixes such as {@code product(var_1).code}
+     * in some identifiers; those aliases are not part of the user-facing RSQL field path.
+     *
+     * @param identifier Hibernate path identifier
+     * @return normalized field path
+     */
+    public static String normalizeHibernatePathIdentifier(String identifier) {
+        if (identifier == null || identifier.isEmpty()) {
+            return identifier;
+        }
+
+        String normalized = identifier.replaceAll("\\([^)]*\\)", "");
+        int domainPackageIndex = normalized.indexOf(DOMAIN_PACKAGE_MARKER);
+        if (domainPackageIndex >= 0) {
+            normalized = normalized.substring(domainPackageIndex + DOMAIN_PACKAGE_MARKER.length());
+        } else if (normalized.startsWith("domain.")) {
+            normalized = normalized.substring("domain.".length());
+        }
+
+        int firstDot = normalized.indexOf('.');
+        if (firstDot >= 0 && startsWithUpperCase(normalized.substring(0, firstDot))) {
+            normalized = normalized.substring(firstDot + 1);
+        }
+        return normalized;
+    }
+
+    private static boolean startsWithUpperCase(String value) {
+        return !value.isEmpty() && Character.isUpperCase(value.charAt(0));
     }
 }
