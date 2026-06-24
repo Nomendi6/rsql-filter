@@ -1,5 +1,7 @@
-// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter-mvn/rsql/src/main/antlr/RsqlWhere.g4 by ANTLR 4.13.2
+// Generated from RsqlWhere.g4 by ANTLR 4.13.2
+
 package rsql.antlr.where;
+
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
 /**
@@ -235,6 +237,18 @@ public interface RsqlWhereVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link RsqlWhereParser#operatorCLIKE}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitOperatorCLIKE(RsqlWhereParser.OperatorCLIKEContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link RsqlWhereParser#operatorCNLIKE}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitOperatorCNLIKE(RsqlWhereParser.OperatorCNLIKEContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link RsqlWhereParser#operatorIN}.
 	 * @param ctx the parse tree

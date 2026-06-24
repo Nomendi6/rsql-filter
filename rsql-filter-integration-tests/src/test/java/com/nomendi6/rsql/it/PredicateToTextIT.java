@@ -884,4 +884,27 @@ public class PredicateToTextIT {
         assertThat(actual).isEqualTo(expected);
     }
 
+    // ---- case-sensitive LIKE: predicate has NO lower(), pattern keeps its case ----
+
+    @Test
+    void fieldCLikeKeyword() {
+        assertThat(compileToPredicate("code=clike='A*'")).isEqualTo("code like 'A%'");
+    }
+
+    @Test
+    void fieldCLikeSymbolic() {
+        assertThat(compileToPredicate("code=^*'A*'")).isEqualTo("code like 'A%'");
+    }
+
+    @Test
+    void fieldCNotLikeKeyword() {
+        assertThat(compileToPredicate("code=cnlike='A*'")).isEqualTo("code not like 'A%'");
+    }
+
+    @Test
+    void fieldCNotLikeSymbolic() {
+        assertThat(compileToPredicate("code=!^*'A*'")).isEqualTo("code not like 'A%'");
+        assertThat(compileToPredicate("code!=^*'A*'")).isEqualTo("code not like 'A%'");
+    }
+
 }
