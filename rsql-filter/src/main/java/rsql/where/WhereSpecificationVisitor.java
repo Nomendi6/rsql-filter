@@ -614,6 +614,16 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
                 return criteriaBuilder.notLike(criteriaBuilder.lower(path), likeString);
                 //                return criteriaBuilder.like(path, likeString);
+            } else if (operator.operatorCLIKE() != null) {
+                // case-sensitive LIKE: no lower() on column, no toLowerCase() on pattern (keeps index sargable)
+                final String likeString = value.replace('*', '%');
+
+                return criteriaBuilder.like(path, likeString);
+            } else if (operator.operatorCNLIKE() != null) {
+                // case-sensitive NOT LIKE
+                final String likeString = value.replace('*', '%');
+
+                return criteriaBuilder.notLike(path, likeString);
             }
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
@@ -645,6 +655,9 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 // final String likeString = parameter.replace('*', '%').toLowerCase(Locale.ROOT);
                 // return criteriaBuilder.like(criteriaBuilder.lower(path), criteriaBuilder.lower(parameter));
                 throw new SyntaxErrorException("Not supported like with parameter :" + parameterName);
+            } else if (operator.operatorCLIKE() != null || operator.operatorCNLIKE() != null) {
+                // mirror of LIKE: parameter-bound (c)like is not supported
+                throw new SyntaxErrorException("Not supported clike with parameter :" + parameterName);
             }
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());

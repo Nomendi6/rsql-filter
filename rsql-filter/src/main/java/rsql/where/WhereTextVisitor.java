@@ -827,6 +827,13 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         } else if (operator.operatorNLIKE() != null) {
             value = value.replace('*', '%').toLowerCase(Locale.ROOT);
             query.where = "lower(".concat(fieldPath).concat(") not like :").concat(p1);
+        } else if (operator.operatorCLIKE() != null) {
+            // case-sensitive LIKE: no lower(), keep original case in the pattern
+            value = value.replace('*', '%');
+            query.where = fieldPath.concat(" like :").concat(p1);
+        } else if (operator.operatorCNLIKE() != null) {
+            value = value.replace('*', '%');
+            query.where = fieldPath.concat(" not like :").concat(p1);
         } else {
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         }

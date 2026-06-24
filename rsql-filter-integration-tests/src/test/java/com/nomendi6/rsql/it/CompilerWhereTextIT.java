@@ -707,6 +707,42 @@ public class CompilerWhereTextIT {
         assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1");
     }
 
+    // ---- case-sensitive LIKE: no lower(), pattern keeps original case ----
+
+    @Test
+    void fieldCLikeKeyword() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=clike='A*'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.name like :p1");
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("A%"); // case preserved, * -> %
+    }
+
+    @Test
+    void fieldCLikeSymbolic() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=^*'A*'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.name like :p1");
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("A%");
+    }
+
+    @Test
+    void fieldCNotLikeKeyword() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=cnlike='A*'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.name not like :p1");
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("A%");
+    }
+
+    @Test
+    void fieldCNotLikeSymbolic() {
+        assertThat(compiler.compileToRsqlQuery("name=!^*'A*'", rsqlContext).where).isEqualTo("a0.name not like :p1");
+        assertThat(compiler.compileToRsqlQuery("name!=^*'A*'", rsqlContext).where).isEqualTo("a0.name not like :p1");
+    }
+
+    @Test
+    void clikeWithParameterIsNotSupported() {
+        // mirror of =like=: parameter-bound (c)like is rejected
+        assertThrows(SyntaxErrorException.class, () -> compiler.compileToRsqlQuery("name=clike=:p", rsqlContext));
+        assertThrows(SyntaxErrorException.class, () -> compiler.compileToRsqlQuery("name=cnlike=:p", rsqlContext));
+    }
+
     @Test
     void fieldAliases1() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("seq==1 and parent.seq==2 and parent.parent.seq==3", rsqlContext);

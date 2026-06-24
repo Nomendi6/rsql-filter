@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-06-24
+
+### Added
+- **Case-sensitive `LIKE` operators** `=clike=` (alias `=^*`) and `=cnlike=` (aliases `=!^*` / `!=^*`).
+  - Unlike the existing `=like=` / `=nlike=`, these do **not** wrap the column in `lower(...)` and do **not** lower-case the pattern, so matching is case-sensitive and the predicate stays index-friendly (sargable). The `*` → `%` wildcard mapping is unchanged.
+  - Available on the Specification (`compileToSpecification`), JPQL text (`compileToRsqlQuery`) and string (`parseString`) paths. Parameter-bound patterns are not supported (mirrors `=like=`).
+  - Backported from `release-3` (`0.6.17`).
+
+### Changed
+- Existing `=like=` / `=*` and `=nlike=` / `=!*` / `!=*` behavior is unchanged (still case-insensitive).
+
+### Fixed
+- `RsqlWhere.g4` now declares `@header { package rsql.antlr.where; }` (consistent with `RsqlHaving.g4`), so regenerated ANTLR sources get the `rsql.antlr.where` package automatically — the previously required manual edit is no longer needed.
+- Bumped `central-publishing-maven-plugin` to `0.11.0` to fix a Maven Central publish failure (`UnrecognizedPropertyException: warnings`).
+
 ## [0.7.0] - 2026-04-25
 
 ### Changed

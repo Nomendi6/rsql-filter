@@ -85,11 +85,16 @@ The following table shows the list of supported operators:
 | ==       | Equal to                 |
 | !=       | Not equal to             |
 | =!       | Not equal to             |
-| =*       | Like                     |
-| =like=   | Like                     |
-| !=*      | Not like                 |
-| =!*      | Not like                 |
-| =nlike=  | Not like                 |
+| =*       | Like (case-insensitive)  |
+| =like=   | Like (case-insensitive)  |
+| =^*      | Like (case-sensitive)    |
+| =clike=  | Like (case-sensitive)    |
+| !=*      | Not like (case-insensitive) |
+| =!*      | Not like (case-insensitive) |
+| =nlike=  | Not like (case-insensitive) |
+| !=^*     | Not like (case-sensitive) |
+| =!^*     | Not like (case-sensitive) |
+| =cnlike= | Not like (case-sensitive) |
 | =gt=     | Greater than             |
 | =ge=     | Greater than or equal to |
 | =lt=     | Less than                |
@@ -102,6 +107,17 @@ The following table shows the list of supported operators:
 | !=null   | Is not null              |
 | ==true   | Equal to true            |
 | ==false  | Equal to false           |
+
+#### Case-sensitive vs. case-insensitive LIKE
+
+The `LIKE` family comes in two variants. In all of them, the `*` in the pattern is mapped to the SQL `%` wildcard.
+
+- **Case-insensitive** (`=like=` / `=*`, `=nlike=` / `=!*` / `!=*`): both the column and the pattern are lower-cased, e.g. `name=like='A*'` generates `lower(name) like 'a%'`. This is unchanged.
+- **Case-sensitive** (`=clike=` / `=^*`, `=cnlike=` / `=!^*` / `!=^*`): the column is **not** wrapped in `lower(...)` and the pattern keeps its original case, e.g. `name=clike='A*'` generates `name like 'A%'`. Use this when you need exact-case matching, or to keep a plain B-tree index usable (the case-insensitive variant is non-sargable because it wraps the column in `lower(...)`).
+
+Notes:
+- The actual case-sensitivity of `=clike=` ultimately depends on the database collation (e.g. H2 default and PostgreSQL are case-sensitive; MySQL with a `_ci` collation may still match case-insensitively).
+- Like the existing operators, `=clike=` does **not** escape literal `%` / `_`, and parameter-bound patterns (`field=clike=:p`) are not supported.
 
 Supported data types:
 

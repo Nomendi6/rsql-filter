@@ -5,9 +5,10 @@ import com.nomendi6.rsql.it.domain.ProductType;
 import com.nomendi6.rsql.it.service.dto.ProductDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 import rsql.mapper.EntityMapper;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ProductMapper extends EntityMapper<ProductDTO, Product> {
 
     @Override

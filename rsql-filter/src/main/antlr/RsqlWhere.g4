@@ -2,6 +2,10 @@ grammar RsqlWhere;
 
 import RsqlCommonLexer;
 
+@header {
+package rsql.antlr.where;
+}
+
 /** The start rule; begin parsing here. */
 where:   condition+ ;
 
@@ -87,6 +91,8 @@ operator
             | operatorGE
             | operatorLIKE
             | operatorNLIKE
+            | operatorCLIKE
+            | operatorCNLIKE
             ;
 
 operatorBasic
@@ -102,6 +108,8 @@ operatorGE: '=' GE '=';
 operatorLE: '=' LE '=';
 operatorLIKE: '=*' | '=' LIKE '=';
 operatorNLIKE: '=!*' | '!=*' | '=' NLIKE '=';
+operatorCLIKE: '=^*' | '=' CLIKE '=';
+operatorCNLIKE: '=!^*' | '!=^*' | '=' CNLIKE '=';
 operatorIN: '=' IN '=';
 operatorNIN: '=' NIN '=';
 operatorNBT: '=' NBT '=';
@@ -113,6 +121,8 @@ GE: G E;
 LE: L E;
 NLIKE : N L I K E;
 LIKE : L I K E;
+CNLIKE : C N L I K E;
+CLIKE : C L I K E;
 NIN : N I N;
 IN: I N;
 NBT : N B T;
