@@ -2,7 +2,7 @@ package rsql.converter;
 
 import jakarta.persistence.criteria.Predicate;
 import org.hibernate.metamodel.model.domain.internal.AnyDiscriminatorSqmPath;
-import org.hibernate.metamodel.model.domain.internal.EntityDiscriminatorSqmPath;
+import org.hibernate.query.sqm.DiscriminatorSqmPath;
 import org.hibernate.query.sqm.SemanticQueryWalker;
 import org.hibernate.query.sqm.function.SelfRenderingSqmFunction;
 import org.hibernate.query.sqm.tree.SqmTypedNode;
@@ -21,6 +21,7 @@ import org.hibernate.query.sqm.tree.select.*;
 import org.hibernate.query.sqm.tree.update.SqmAssignment;
 import org.hibernate.query.sqm.tree.update.SqmSetClause;
 import org.hibernate.query.sqm.tree.update.SqmUpdateStatement;
+import rsql.helper.RsqlHelper;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -125,6 +126,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
     }
 
     @Override
+    public Object visitRootFunction(SqmFunctionRoot<?> sqmRoot) {
+        return null;
+    }
+
+    @Override
     public Object visitRootCte(SqmCteRoot<?> sqmRoot) {
         return null;
     }
@@ -140,7 +146,7 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
     }
 
     @Override
-    public Object visitQualifiedEntityJoin(SqmEntityJoin<?> joinedFromElement) {
+    public Object visitQualifiedEntityJoin(SqmEntityJoin<?, ?> joinedFromElement) {
         return null;
     }
 
@@ -151,6 +157,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
     @Override
     public Object visitQualifiedDerivedJoin(SqmDerivedJoin<?> joinedFromElement) {
+        return null;
+    }
+
+    @Override
+    public Object visitQualifiedFunctionJoin(SqmFunctionJoin<?> joinedFromElement) {
         return null;
     }
 
@@ -195,7 +206,7 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
     }
 
     @Override
-    public Object visitDiscriminatorPath(EntityDiscriminatorSqmPath sqmPath) {
+    public Object visitDiscriminatorPath(DiscriminatorSqmPath<?> sqmPath) {
         return null;
     }
 
@@ -211,6 +222,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
     @Override
     public Object visitIndexAggregateFunction(SqmIndexAggregateFunction<?> path) {
+        return null;
+    }
+
+    @Override
+    public Object visitFunctionPath(SqmFunctionPath<?> functionPath) {
         return null;
     }
 
@@ -360,6 +376,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
     }
 
     @Override
+    public Object visitEmbeddableTypeLiteralExpression(SqmLiteralEmbeddableType<?> expression) {
+        return null;
+    }
+
+    @Override
     public Object visitAnyDiscriminatorTypeExpression(AnyDiscriminatorSqmPath<?> expression) {
         return null;
     }
@@ -381,6 +402,11 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
     @Override
     public Object visitFunction(SqmFunction<?> tSqmFunction) {
+        return null;
+    }
+
+    @Override
+    public Object visitSetReturningFunction(SqmSetReturningFunction<?> tSqmFunction) {
         return null;
     }
 
@@ -492,11 +518,7 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
     }
 
     private String getFieldWithPath(String wholePath) {
-        // find "domain." in the wholePath and get the string right after it
-        String leftHandSide = wholePath.substring(wholePath.indexOf("domain.") + 7);
-        // find the first "." in the leftHandSide and get the string after it
-        leftHandSide = leftHandSide.substring(leftHandSide.indexOf(".") + 1);
-        return leftHandSide;
+        return RsqlHelper.normalizeHibernatePathIdentifier(wholePath);
     }
 
     private String convertOperatorName(String name) {
@@ -725,6 +747,16 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
     @Override
     public Object visitFullyQualifiedClass(Class<?> namedClass) {
+        return null;
+    }
+
+    @Override
+    public Object visitAsWrapperExpression(AsWrapperSqmExpression<?> expression) {
+        return null;
+    }
+
+    @Override
+    public Object visitNamedExpression(SqmNamedExpression<?> expression) {
         return null;
     }
 }

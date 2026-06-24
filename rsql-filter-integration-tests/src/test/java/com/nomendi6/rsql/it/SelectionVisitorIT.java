@@ -11,6 +11,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
 import org.antlr.v4.runtime.CharStreams;
@@ -325,7 +326,7 @@ public class SelectionVisitorIT {
         // When
         List<Selection<?>> selections = visitor.visit(tree);
         query.multiselect(selections);
-        query.groupBy(root.get("productType").get("name"));
+        query.groupBy(asExpression(selections.get(0)));
 
         TypedQuery<Tuple> typedQuery = em.createQuery(query);
         List<Tuple> results = typedQuery.getResultList();
@@ -433,7 +434,7 @@ public class SelectionVisitorIT {
         // When
         List<Selection<?>> selections = visitor.visit(tree);
         query.multiselect(selections);
-        query.groupBy(root.get("productType").get("code"), root.get("status"));
+        query.groupBy(asExpression(selections.get(0)), asExpression(selections.get(1)));
 
         TypedQuery<Tuple> typedQuery = em.createQuery(query);
         List<Tuple> results = typedQuery.getResultList();
@@ -450,5 +451,9 @@ public class SelectionVisitorIT {
             .orElseThrow();
 
         assertThat(activeElectronics.get("count")).isEqualTo(2L); // Laptop and Mouse
+    }
+
+    private Expression<?> asExpression(Selection<?> selection) {
+        return (Expression<?>) selection;
     }
 }

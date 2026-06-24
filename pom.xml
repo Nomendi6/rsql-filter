@@ -5,7 +5,7 @@
 
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter-parent</artifactId>
-    <version>0.6.16</version>
+    <version>0.7.0</version>
     <packaging>pom</packaging>
 
     <name>RSQL Filter Parent</name>
@@ -37,24 +37,30 @@
     <modules>
         <module>rsql-filter</module>
         <module>rsql-filter-integration-tests</module>
-        <module>rsql-filter-demo</module>
+        <!--
+          Excluded from 0.7.x: rsql-filter-demo depends on JHipster 8 / Spring Boot 3.
+          Will be re-included once JHipster 9 (Spring Boot 4) is GA, or after
+          demo-de-JHipster refactor lands. Tracked in:
+          agent/05.upgrade-spring-boot-4/02.plan-implementacije.md (Faza 7).
+        -->
+        <!-- <module>rsql-filter-demo</module> -->
     </modules>
 
     <properties>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
 
         <!-- Unified versions for all modules -->
-        <spring-boot.version>3.4.4</spring-boot.version>
-        <hibernate.version>6.5.3.Final</hibernate.version>
+        <spring-boot.version>4.0.3</spring-boot.version>
+        <hibernate.version>7.2.4.Final</hibernate.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <antlr4.version>4.13.2</antlr4.version>
-        <junit-jupiter.version>5.9.1</junit-jupiter.version>
-        <liquibase.version>4.26.0</liquibase.version>
-        <testcontainers.version>1.19.1</testcontainers.version>
+        <junit-jupiter.version>6.0.3</junit-jupiter.version>
+        <liquibase.version>5.0.1</liquibase.version>
+        <testcontainers.version>2.0.3</testcontainers.version>
         
         <!-- JHipster specific versions -->
         <jhipster-dependencies.version>8.0.0</jhipster-dependencies.version>
@@ -79,17 +85,14 @@
 
     <dependencyManagement>
         <dependencies>
-             <!-- JHipster BOM - manages most dependencies for test-appl -->
+             <!-- Spring Boot BOM manages shared versions after removing the parent-level JHipster BOM. -->
             <dependency>
-                <groupId>tech.jhipster</groupId>
-                <artifactId>jhipster-dependencies</artifactId>
-                <version>${jhipster-dependencies.version}</version>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Spring Boot BOM (for test-appl) - JHipster BOM already imports the corresponding one -->
-            <!-- We don't import SB 3.3.5 BOM here to avoid conflicts -->
-
              <dependency>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-runtime</artifactId>
@@ -124,7 +127,7 @@
              </dependency>
              <dependency>
                 <groupId>org.hibernate.orm</groupId>
-                <artifactId>hibernate-jpamodelgen</artifactId>
+                <artifactId>hibernate-processor</artifactId>
                  <version>${hibernate.version}</version>
                  <scope>provided</scope>
              </dependency>

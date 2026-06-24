@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "product")
@@ -48,6 +50,14 @@ public class Product implements Serializable {
     @ManyToOne
     @JoinColumn(name = "parent_id")
     private Product parent;
+
+    @ManyToMany
+    @JoinTable(
+        name = "product_tag",
+        joinColumns = @JoinColumn(name = "product_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
 
     // Constructors
     public Product() {
@@ -202,6 +212,24 @@ public class Product implements Serializable {
 
     public Product withSeq(Long seq) {
         this.seq = seq;
+        return this;
+    }
+
+    public Set<Tag> getTags() {
+        return tags;
+    }
+
+    public void setTags(Set<Tag> tags) {
+        this.tags = tags;
+    }
+
+    public Product withTags(Set<Tag> tags) {
+        this.tags = tags;
+        return this;
+    }
+
+    public Product addTag(Tag tag) {
+        this.tags.add(tag);
         return this;
     }
 }

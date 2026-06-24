@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.nomendi6</groupId>
         <artifactId>rsql-filter-parent</artifactId>
-        <version>0.6.16</version>
+        <version>0.7.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -96,7 +96,7 @@
                         </path>
                         <path>
                             <groupId>org.hibernate.orm</groupId>
-                            <artifactId>hibernate-jpamodelgen</artifactId>
+                            <artifactId>hibernate-processor</artifactId>
                             <version>${hibernate.version}</version>
                         </path>
                         <path>

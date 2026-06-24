@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-25
+
+### Changed
+- Migrated to Spring Boot 4.0.3 and Hibernate 7.2.4.
+- Removed `rsql-filter-demo` module from the `0.7.x` release line.
+
+### Notes
+- The library and integration tests are verified on Spring Boot 4.0.3.
+- For Spring Boot 3 users, continue using `0.6.x` from the `release-3` branch.
+
 ## [0.6.12] - 2025-12-01
 
 ### Fixed
