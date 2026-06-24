@@ -1219,7 +1219,7 @@ queryService.findByFilter("createdDate=bt=(#2024-01-01#,#2024-12-31#)");
 
 ### Pattern Matching
 ```java
-// Contains
+// Contains (case-insensitive: generates lower(name) like '%john%')
 queryService.findByFilter("name=like='*john*'");
 
 // Starts with
@@ -1227,6 +1227,13 @@ queryService.findByFilter("email=like='john*'");
 
 // Ends with
 queryService.findByFilter("email=like='*@example.com'");
+
+// Case-sensitive LIKE: =clike= (alias =^*) - no lower(), pattern keeps its case
+// e.g. orgPath=clike='|ABC|*' generates orgPath like '|ABC|%' (index-friendly)
+queryService.findByFilter("orgPath=clike='|ABC|*'");
+
+// Case-sensitive NOT LIKE: =cnlike= (alias =!^* / !=^*)
+queryService.findByFilter("orgPath=cnlike='|ABC|*'");
 ```
 
 ### NULL Handling
