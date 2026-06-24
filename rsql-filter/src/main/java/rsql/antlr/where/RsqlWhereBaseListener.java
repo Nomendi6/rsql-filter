@@ -1,5 +1,7 @@
-// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter-mvn/rsql/src/main/antlr/RsqlWhere.g4 by ANTLR 4.13.2
+// Generated from RsqlWhere.g4 by ANTLR 4.13.2
+
 package rsql.antlr.where;
+
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
@@ -420,6 +422,30 @@ public class RsqlWhereBaseListener implements RsqlWhereListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterOperatorCLIKE(RsqlWhereParser.OperatorCLIKEContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitOperatorCLIKE(RsqlWhereParser.OperatorCLIKEContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterOperatorCNLIKE(RsqlWhereParser.OperatorCNLIKEContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitOperatorCNLIKE(RsqlWhereParser.OperatorCNLIKEContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

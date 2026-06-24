@@ -402,4 +402,34 @@ class RsqlWhereStringTest {
         String result = parser.parseString("field1=like='A*'");
         assertEquals("lower(field1) like 'a%'", result);
     }
+
+    // ---- case-sensitive LIKE (=clike= / =^*) : no lower(), pattern keeps its case ----
+
+    @Test
+    void fieldCLikeKeyword() {
+        RsqlWhereString parser = new RsqlWhereString();
+        String result = parser.parseString("field1=clike='A*'");
+        assertEquals("field1 like 'A%'", result);
+    }
+
+    @Test
+    void fieldCLikeSymbolic() {
+        RsqlWhereString parser = new RsqlWhereString();
+        String result = parser.parseString("field1=^*'A*'");
+        assertEquals("field1 like 'A%'", result);
+    }
+
+    @Test
+    void fieldCNLikeKeyword() {
+        RsqlWhereString parser = new RsqlWhereString();
+        String result = parser.parseString("field1=cnlike='A*'");
+        assertEquals("field1 not like 'A%'", result);
+    }
+
+    @Test
+    void fieldCNLikeSymbolic() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 not like 'A%'", parser.parseString("field1=!^*'A*'"));
+        assertEquals("field1 not like 'A%'", parser.parseString("field1!=^*'A*'"));
+    }
 }

@@ -8,7 +8,6 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import rsql.exceptions.SyntaxErrorException;
 
 import java.util.Locale;
-import java.util.Objects;
 
 import static rsql.where.RsqlWhereHelper.*;
 
@@ -108,6 +107,20 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
     @Override
     public String visitOperatorLIKE(RsqlWhereParser.OperatorLIKEContext ctx) {
         return " like ";
+    }
+
+    // Non-null renderings so the new operators never yield a null operator in the
+    // non-string visitSingleCondition* methods. The case-sensitive string rendering
+    // is handled directly in visitSingleConditionString (subcontext branch), so these
+    // are only reached for non-STRING_LITERAL contexts.
+    @Override
+    public String visitOperatorCLIKE(RsqlWhereParser.OperatorCLIKEContext ctx) {
+        return " like ";
+    }
+
+    @Override
+    public String visitOperatorCNLIKE(RsqlWhereParser.OperatorCNLIKEContext ctx) {
+        return " not like ";
     }
 
     @Override
@@ -234,14 +247,23 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
     @Override
     public String visitSingleConditionString(RsqlWhereParser.SingleConditionStringContext ctx) {
         String field = visitField(ctx.field());
-        String operator = visitOperator(ctx.operator());
         String text = ctx.STRING_LITERAL().getText();
+        RsqlWhereParser.OperatorContext op = ctx.operator();
 
-        if (Objects.equals(operator, " like ")) {
+        if (op.operatorLIKE() != null) {
+            // case-insensitive LIKE (unchanged): lower(field) like 'lowercased-pattern'
             text = text.replace('*', '%').toLowerCase(Locale.ROOT);
-            text = "lower(".concat(field).concat(") like ").concat(text);
-            return text;
+            return "lower(".concat(field).concat(") like ").concat(text);
+        } else if (op.operatorCLIKE() != null) {
+            // case-sensitive LIKE: no lower(), pattern keeps its original case
+            text = text.replace('*', '%');
+            return field + " like " + text;
+        } else if (op.operatorCNLIKE() != null) {
+            text = text.replace('*', '%');
+            return field + " not like " + text;
         } else {
+            // all other operators (==, !=, <, >, ...) rendered via visitOperator
+            String operator = visitOperator(op);
             return field + operator + text;
         }
     }

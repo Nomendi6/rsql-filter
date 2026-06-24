@@ -1,5 +1,7 @@
-// Generated from /home/vrba/v/rsql-filter/nomendi6/rsql-filter-mvn/rsql/src/main/antlr/RsqlWhere.g4 by ANTLR 4.13.2
+// Generated from RsqlWhere.g4 by ANTLR 4.13.2
+
 package rsql.antlr.where;
+
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
@@ -389,6 +391,26 @@ public interface RsqlWhereListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link RsqlWhereParser#operatorCLIKE}.
+	 * @param ctx the parse tree
+	 */
+	void enterOperatorCLIKE(RsqlWhereParser.OperatorCLIKEContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link RsqlWhereParser#operatorCLIKE}.
+	 * @param ctx the parse tree
+	 */
+	void exitOperatorCLIKE(RsqlWhereParser.OperatorCLIKEContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link RsqlWhereParser#operatorCNLIKE}.
+	 * @param ctx the parse tree
+	 */
+	void enterOperatorCNLIKE(RsqlWhereParser.OperatorCNLIKEContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link RsqlWhereParser#operatorCNLIKE}.
+	 * @param ctx the parse tree
+	 */
+	void exitOperatorCNLIKE(RsqlWhereParser.OperatorCNLIKEContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link RsqlWhereParser#operatorIN}.
 	 * @param ctx the parse tree
