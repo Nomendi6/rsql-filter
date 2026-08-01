@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.18] - 2026-08-01
+
+### Fixed
+- **A doubled delimiter in a string literal is now un-escaped on the `WHERE` path.** The grammar has always
+  allowed the delimiter to be escaped by doubling it (`name=="say ""hi"""`, `name=='it''s'`, ``name==`a``b` ``),
+  and the `HAVING` path already handled it — but the `WHERE` path kept the doubled delimiter in the value.
+  Such a filter therefore matched nothing and returned a silently empty result instead of an error.
+  This affects every branch that reads a string literal: `==`, `!=`, `=in=`, `=nin=`, `=bt=`, `=nbt=` and the
+  whole `LIKE` family, on both the Specification and the JPQL-text path. Enum literals (`#NAME#`) are unaffected.
+  ⚠ **This changes results** for filters that use a doubled delimiter — see the README section
+  *Escaping the delimiter in string literals*.
+- `PredicateToText` now escapes an embedded single quote when rendering a value, so the produced text stays
+  valid JPQL (`code = 'it''s'` instead of `code = 'it's'`). Without this, the fix above would have turned a
+  previously accidentally-valid rendering into an invalid one.
+- `WhereStringVisitor` (the `parseString` rendering path) fixed several pre-existing defects:
+  - the `=nlike=` / `=!*` / `!=*` operator had no rendering at all and produced the literal text `null`
+    (it affected string, field, number, parameter and date conditions alike);
+  - `=nbt=` (NOT BETWEEN) had no rendering and returned `null` for the whole expression;
+  - `=in=` / `=nin=` elements were emitted verbatim, so string values kept their original delimiter
+    (producing invalid JPQL such as `field in ("a""b")`) and date/enum literals were left as `#…#`;
+  - `=bt=` had the same problem for string and enum bounds and for a mixed pair such as `(#2020-01-01#,'a')`;
+    a pair of two date or two datetime bounds was already rendered correctly and is unchanged;
+  - values are now always emitted as valid JPQL string literals, with an embedded single quote doubled.
+- **Regenerating the parsers used to strip the `package` declaration from `RsqlCommonLexer.java`**, which had to
+  be restored by hand. The package is now set with the `-package` argument of `antlr4-maven-plugin`.
+  (An `@header` block in the grammar would not work: ANTLR inherits it into `RsqlWhere.g4` and `RsqlHaving.g4`,
+  which import this lexer, giving their generated sources two `package` declarations and breaking the build
+  on any tree without `target/`.) Regeneration of all four grammars is verified idempotent and every generated
+  file carries exactly one `package` declaration.
+- **Changing only `RsqlCommonLexer.g4` no longer leaves the WHERE/HAVING parsers with stale tokens.** Each of
+  the four `antlr4-maven-plugin` executions restricts itself to a single grammar with `<includes>`, so the
+  plugin never learned that `RsqlWhere.g4` and `RsqlHaving.g4` depend on the lexer they import. A
+  `maven-clean-plugin` execution bound to `initialize` now purges the four generated directories before each
+  build, so every build regenerates all four grammars from the `.g4` files.
+
+### Notes
+- Backported from the `0.7.x` line (`0.7.2` + the ANTLR packaging fix from `0.7.3`).
+
 ## [0.6.17] - 2026-06-24
 
 ### Added

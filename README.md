@@ -119,11 +119,38 @@ Notes:
 - The actual case-sensitivity of `=clike=` ultimately depends on the database collation (e.g. H2 default and PostgreSQL are case-sensitive; MySQL with a `_ci` collation may still match case-insensitively).
 - Like the existing operators, `=clike=` does **not** escape literal `%` / `_`, and parameter-bound patterns (`field=clike=:p`) are not supported.
 
+#### Escaping the delimiter in string literals
+
+A string literal can be delimited by `"`, `'` or `` ` ``. To use the delimiter itself inside the value,
+**double it**:
+
+```
+name=="say ""hi"""      -> value: say "hi"
+name=='it''s'           -> value: it's
+name==`a``b`            -> value: a`b
+```
+
+Only the delimiter in use has to be doubled — the other two are ordinary characters, so the simplest
+option is usually to pick a delimiter the value does not contain:
+
+```
+name=="it's"            -> value: it's        (no doubling needed)
+name==`say "hi"`        -> value: say "hi"    (no doubling needed)
+```
+
+This works the same way in `WHERE` and in `HAVING`, and for every operator that takes a string
+(`==`, `!=`, `=in=`, `=nin=`, `=bt=`, `=nbt=`, and the whole `LIKE` family).
+
+> **Changed in 0.7.2 / 0.6.18.** Earlier versions accepted the doubled delimiter but did not collapse it
+> back in the `WHERE` path, so `name=="say ""hi"""` searched for the literal text `say ""hi""` and
+> silently returned nothing. If you worked around this by *not* doubling the delimiter, note that such a
+> filter never parsed; if you doubled it and relied on the old (broken) result, the result will now change.
+
 Supported data types:
 
 | Data Type      | Description                                                                 |
 |----------------|-----------------------------------------------------------------------------|
-| String         | Expression in quotes ("" or '' or ``), for example `name=='Ana'`            |
+| String         | Expression in quotes ("" or '' or ``), for example `name=='Ana'`. See [Escaping the delimiter](#escaping-the-delimiter-in-string-literals) |
 | Integer        | Integer number, for example `id==2345`                                      |
 | Decimal number | Decimal number, for example `amount=gt=10.23`                               |
 | Enum           | Enum name, for example `status==#ACTIVE#`                                   |

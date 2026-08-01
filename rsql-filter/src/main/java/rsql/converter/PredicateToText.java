@@ -600,7 +600,7 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
 
     private String convertValueToString(Object value) {
         if (value instanceof String) {
-            return "'" + value + "'";
+            return quote((String) value);
         }
         if (value instanceof Instant) {
             return "TIMESTAMP('" + value.toString() + "')";
@@ -609,12 +609,25 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
             return "DATE('" + value.toString() + "')";
         }
         if (value instanceof Enum) {
-            return "'" + value.toString() + "'";
+            return quote(value.toString());
         }
         if (value instanceof UUID) {
             return "UUID('" + value.toString() + "')";
         }
         return value.toString();
+    }
+
+    /**
+     * Render a value as a JPQL string literal, escaping an embedded single quote by doubling it.
+     * <p>
+     * Without this, a value containing a single quote produces text that cannot be parsed
+     * (for example {@code code = 'it's'} instead of {@code code = 'it''s'}).
+     *
+     * @param value The raw value
+     * @return The value wrapped in single quotes, with embedded single quotes doubled
+     */
+    private String quote(String value) {
+        return "'" + value.replace("'", "''") + "'";
     }
 
     @Override
