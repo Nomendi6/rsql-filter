@@ -1,8 +1,8 @@
 lexer grammar RsqlCommonLexer;
 
-@header {
-package rsql.antlr.lexer;
-}
+// NOTE: the package is set with the -package argument of antlr4-maven-plugin, NOT with @header.
+// An @header here would be inherited by the grammars that import this lexer (RsqlWhere, RsqlHaving),
+// producing a second package declaration in their generated sources.
 
 DOT:                                 '.';
 LR_BRACKET:                          '(';

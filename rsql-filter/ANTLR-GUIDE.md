@@ -24,12 +24,12 @@ The project is configured to generate ANTLR code automatically during the build 
 
 1. **Generate ANTLR code only**:
    ```bash
-   mvn antlr4:antlr4 -pl rsql
+   mvn -pl rsql-filter generate-sources
    ```
 
 2. **Generate all sources** (including ANTLR) as part of a clean build:
    ```bash
-   mvn clean generate-sources -pl rsql
+   mvn clean generate-sources -pl rsql-filter
    ```
 
 3. **Full build** including ANTLR generation:
@@ -42,7 +42,7 @@ The project is configured to generate ANTLR code automatically during the build 
 When you need to modify the grammar files:
 
 1. Edit the `.g4` files in `/src/main/antlr/`
-2. Run `mvn generate-sources -pl rsql` to regenerate the ANTLR code
+2. Run `mvn -pl rsql-filter generate-sources` to regenerate the ANTLR code
 3. The generated code will automatically be placed in the correct directories
 
 ## Maven Configuration
@@ -79,12 +79,22 @@ The ANTLR Maven plugin is configured in the `pom.xml` file with:
                 </includes>
                 <outputDirectory>${project.basedir}/src/main/java/rsql/antlr/lexer</outputDirectory>
                 <libDirectory>${project.basedir}/src/main/antlr</libDirectory>
+                <!-- The package of the shared lexer MUST be set here, not with @header in the grammar. -->
+                <arguments>
+                    <argument>-package</argument>
+                    <argument>rsql.antlr.lexer</argument>
+                </arguments>
             </configuration>
         </execution>
         <!-- Additional executions for other grammars -->
     </executions>
 </plugin>
 ```
+
+> ⚠ **Do not add `@header { package ...; }` to `RsqlCommonLexer.g4`.** ANTLR inherits a `@header` from an
+> imported grammar, and `RsqlWhere.g4` and `RsqlHaving.g4` both do `import RsqlCommonLexer;`. Their generated
+> sources would then contain two `package` declarations and fail to compile. Use the plugin's `-package`
+> argument for the shared lexer; the importing grammars keep their own `@header` as usual.
 
 ## Working with ANTLR Grammar Files
 
