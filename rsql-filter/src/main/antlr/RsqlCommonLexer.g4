@@ -1,5 +1,8 @@
 lexer grammar RsqlCommonLexer;
 
+@header {
+package rsql.antlr.lexer;
+}
 
 DOT:                                 '.';
 LR_BRACKET:                          '(';

@@ -57,14 +57,40 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
         return field.toString();
     }
 
+    /**
+     * Render a value as a JPQL string literal, doubling an embedded single quote.
+     */
+    private static String quote(String value) {
+        return "'" + value.replace("'", "''") + "'";
+    }
+
+    /**
+     * Render a single in-list element according to its type.
+     * <p>
+     * String and enum literals go through the shared helper (so a doubled delimiter is un-escaped) and are
+     * re-emitted as valid JPQL string literals; date and datetime literals are normalized to quoted values;
+     * numbers, parameters and field references are passed through unchanged.
+     */
+    private String renderInListElement(RsqlWhereParser.InListElementContext ctx) {
+        if (ctx.STRING_LITERAL() != null) {
+            return quote(getStringFromStringLiteral(ctx.STRING_LITERAL()));
+        } else if (ctx.ENUM_LITERAL() != null) {
+            return quote(getStringFromStringLiteral(ctx.ENUM_LITERAL()));
+        } else if (ctx.DATE_LITERAL() != null) {
+            return getStringFromDateLiteral(ctx.DATE_LITERAL());
+        } else if (ctx.DATETIME_LITERAL() != null) {
+            return getStringFromDatetimeLiteral(ctx.DATETIME_LITERAL());
+        }
+        // DECIMAL_LITERAL, REAL_LITERAL, PARAM_LITERAL and field are rendered as-is
+        return ctx.getText();
+    }
+
     @Override
     public String visitInList(RsqlWhereParser.InListContext ctx) {
-        StringBuilder l = new StringBuilder(ctx.inListElement(0).getText());
+        StringBuilder l = new StringBuilder(renderInListElement(ctx.inListElement(0)));
 
-        if (ctx.getChildCount() > 1) {
-            for (int i = 1; i < ctx.inListElement().size(); i++) {
-                l.append(',').append(ctx.inListElement(i).getText());
-            }
+        for (int i = 1; i < ctx.inListElement().size(); i++) {
+            l.append(',').append(renderInListElement(ctx.inListElement(i)));
         }
         return l.toString();
     }
@@ -124,22 +150,24 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
     }
 
     @Override
+    public String visitOperatorNLIKE(RsqlWhereParser.OperatorNLIKEContext ctx) {
+        return " not like ";
+    }
+
+    @Override
     public String visitSingleConditionBetween(RsqlWhereParser.SingleConditionBetweenContext ctx) {
         String field = visitField(ctx.field());
-        String operator = " between ";
-        if (ctx.inListElement(0).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
-            String first = getStringFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
-            String second = getStringFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
-            return field + operator + first + " and " + second;
-        } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
-            String first = getStringFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
-            String second = getStringFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
-            return field + operator + first + " and " + second;
-        } else {
-            String first = ctx.inListElement(0).getText();
-            String second = ctx.inListElement(1).getText();
-            return field + operator + first + " and " + second;
-        }
+        String first = renderInListElement(ctx.inListElement(0));
+        String second = renderInListElement(ctx.inListElement(1));
+        return field + " between " + first + " and " + second;
+    }
+
+    @Override
+    public String visitSingleConditionNotBetween(RsqlWhereParser.SingleConditionNotBetweenContext ctx) {
+        String field = visitField(ctx.field());
+        String first = renderInListElement(ctx.inListElement(0));
+        String second = renderInListElement(ctx.inListElement(1));
+        return field + " not between " + first + " and " + second;
     }
 
     @Override
@@ -247,24 +275,24 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
     @Override
     public String visitSingleConditionString(RsqlWhereParser.SingleConditionStringContext ctx) {
         String field = visitField(ctx.field());
-        String text = ctx.STRING_LITERAL().getText();
+        // the value goes through the shared helper, so a doubled delimiter is un-escaped,
+        // and is re-emitted as a valid JPQL string literal regardless of the original delimiter
+        String value = getStringFromStringLiteral(ctx.STRING_LITERAL());
         RsqlWhereParser.OperatorContext op = ctx.operator();
 
         if (op.operatorLIKE() != null) {
-            // case-insensitive LIKE (unchanged): lower(field) like 'lowercased-pattern'
-            text = text.replace('*', '%').toLowerCase(Locale.ROOT);
-            return "lower(".concat(field).concat(") like ").concat(text);
+            // case-insensitive LIKE: lower(field) like 'lowercased-pattern'
+            return "lower(".concat(field).concat(") like ").concat(quote(value.replace('*', '%').toLowerCase(Locale.ROOT)));
+        } else if (op.operatorNLIKE() != null) {
+            return "lower(".concat(field).concat(") not like ").concat(quote(value.replace('*', '%').toLowerCase(Locale.ROOT)));
         } else if (op.operatorCLIKE() != null) {
             // case-sensitive LIKE: no lower(), pattern keeps its original case
-            text = text.replace('*', '%');
-            return field + " like " + text;
+            return field + " like " + quote(value.replace('*', '%'));
         } else if (op.operatorCNLIKE() != null) {
-            text = text.replace('*', '%');
-            return field + " not like " + text;
+            return field + " not like " + quote(value.replace('*', '%'));
         } else {
             // all other operators (==, !=, <, >, ...) rendered via visitOperator
-            String operator = visitOperator(op);
-            return field + operator + text;
+            return field + visitOperator(op) + quote(value);
         }
     }
 

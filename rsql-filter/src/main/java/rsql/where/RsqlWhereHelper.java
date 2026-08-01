@@ -107,15 +107,34 @@ public class RsqlWhereHelper {
         throw new IllegalArgumentException("Unknown property: " + ctx.getText());
     }
 
+    /**
+     * Extract the value of a string literal, removing the delimiters and un-escaping a doubled delimiter.
+     * <p>
+     * The grammar allows a delimiter to be escaped by doubling it ({@code 'it''s'}, {@code "say ""hi"""},
+     * {@code `a``b`}), so the doubled delimiter has to be collapsed back into a single character. This mirrors
+     * the semantics of the HAVING path (see {@code HavingSpecificationVisitor}).
+     * <p>
+     * The method is shared with {@code ENUM_LITERAL} ({@code #NAME#}); the {@code #} delimiter deliberately
+     * falls through untouched, so enum values keep their current behaviour.
+     * <p>
+     * Backslash escaping is <em>not</em> handled here - it is out of scope.
+     *
+     * @param stringLiteral The STRING_LITERAL or ENUM_LITERAL terminal node
+     * @return The literal value without delimiters, with a doubled delimiter un-escaped
+     */
     static String getStringFromStringLiteral(TerminalNode stringLiteral) {
         String s = stringLiteral.getText();
-        if (s.length() > 1) {
-            s = s.substring(1, s.length() - 1);
-        } else {
-            s = "";
+        if (s.length() < 2) {
+            return "";
+        }
+        String body = s.substring(1, s.length() - 1);
+        char delimiter = s.charAt(0);
+        if (delimiter == '"' || delimiter == '\'' || delimiter == '`') {
+            String d = String.valueOf(delimiter);
+            return body.replace(d + d, d);
         }
 
-        return s;
+        return body;
     }
 
     static String getParamFromLiteral(TerminalNode literal) {
