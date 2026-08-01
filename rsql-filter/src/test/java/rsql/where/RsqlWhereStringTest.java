@@ -432,4 +432,124 @@ class RsqlWhereStringTest {
         assertEquals("field1 not like 'A%'", parser.parseString("field1=!^*'A*'"));
         assertEquals("field1 not like 'A%'", parser.parseString("field1!=^*'A*'"));
     }
+
+    // ---- §3: un-escaping of a doubled delimiter ----
+
+    @Test
+    void unescapeDoubledDelimiterSingleQuote() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='it''s'", parser.parseString("field1=='it''s'"));
+    }
+
+    @Test
+    void unescapeDoubledDelimiterDoubleQuote() {
+        RsqlWhereString parser = new RsqlWhereString();
+        // "say ""hi""" -> value: say "hi" -> re-emitted as a valid JPQL literal
+        assertEquals("field1='say \"hi\"'", parser.parseString("field1==\"say \"\"hi\"\"\""));
+    }
+
+    @Test
+    void unescapeDoubledDelimiterBacktick() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='a`b'", parser.parseString("field1==`a``b`"));
+    }
+
+    @Test
+    void otherDelimiterStaysLiteral() {
+        RsqlWhereString parser = new RsqlWhereString();
+        // a double quote inside a single-quoted literal is an ordinary character
+        assertEquals("field1='a\"\"b'", parser.parseString("field1=='a\"\"b'"));
+    }
+
+    @Test
+    void embeddedSingleQuoteIsDoubledOnOutput() {
+        RsqlWhereString parser = new RsqlWhereString();
+        // value it's must be emitted as 'it''s', otherwise the JPQL cannot be parsed
+        assertEquals("field1='it''s'", parser.parseString("field1==\"it's\""));
+        assertEquals("lower(field1) like 'it''s%'", parser.parseString("field1=*\"it's*\""));
+    }
+
+    @Test
+    void unescapeInLikePattern() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("lower(field1) like 'say \"hi\"%'", parser.parseString("field1=*\"say \"\"hi\"\"*\""));
+    }
+
+    @Test
+    void emptyStringLiteralIsUnchanged() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1=''", parser.parseString("field1==''"));
+        assertEquals("lower(field1) like ''", parser.parseString("field1=*''"));
+    }
+
+    // ---- missing NLIKE rendering (operator used to render as the literal text "null") ----
+
+    @Test
+    void fieldNotLikeString() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("lower(field1) not like 'a%'", parser.parseString("field1=!*'A*'"));
+        assertEquals("lower(field1) not like 'a%'", parser.parseString("field1=nlike='A*'"));
+        assertEquals("lower(field1) not like 'a%'", parser.parseString("field1!=*'A*'"));
+    }
+
+    @Test
+    void notLikeOperatorInNonStringContexts() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 not like field2", parser.parseString("field1=!*field2"));
+        assertEquals("field1 not like 1", parser.parseString("field1=!*1"));
+        assertEquals("field1 not like 1.5", parser.parseString("field1=!*1.5"));
+        assertEquals("field1 not like :p1", parser.parseString("field1=!*:p1"));
+    }
+
+    // ---- missing NOT BETWEEN rendering (used to return null) ----
+
+    @Test
+    void fieldNotBetweenString() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 not between 'Aa' and 'Bb'", parser.parseString("field1=nbt=('Aa','Bb')"));
+    }
+
+    @Test
+    void fieldNotBetweenInt() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 not between 1 and 2", parser.parseString("field1=nbt=(1,2)"));
+    }
+
+    // ---- type-aware rendering of in-list and between elements ----
+
+    @Test
+    void inListStringElementIsUnescaped() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 in ('a\"b')", parser.parseString("field1=in=(\"a\"\"b\")"));
+        assertEquals("field1 not in ('a\"b')", parser.parseString("field1=nin=(\"a\"\"b\")"));
+    }
+
+    @Test
+    void inListNormalizesDatesAndEnums() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 in ('2020-01-01','a')", parser.parseString("field1=in=(#2020-01-01#,'a')"));
+        assertEquals("field1 in ('ENUM1','ENUM2')", parser.parseString("field1=in=(#ENUM1#,#ENUM2#)"));
+    }
+
+    @Test
+    void betweenStringElementIsUnescaped() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 between 'a\"b' and 'c'", parser.parseString("field1=bt=(\"a\"\"b\",'c')"));
+    }
+
+    @Test
+    void betweenNonStringElementsAreUnchanged() {
+        RsqlWhereString parser = new RsqlWhereString();
+        // regression guard: these branches already rendered correctly and must not change
+        assertEquals("field1 between 1 and 10", parser.parseString("field1=bt=(1,10)"));
+        assertEquals("field1 between 1.5 and 10.5", parser.parseString("field1=bt=(1.5,10.5)"));
+        assertEquals("field1 between :p1 and :p2", parser.parseString("field1=bt=(:p1,:p2)"));
+        assertEquals("field1 between field2 and field3", parser.parseString("field1=bt=(field2,field3)"));
+    }
+
+    @Test
+    void inListNumbersAreUnchanged() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1 in (1,2,3)", parser.parseString("field1=in=(1,2,3)"));
+    }
 }
