@@ -755,4 +755,79 @@ public class CompilerWhereTextIT {
         assertThat(rsqlQuery.where).isEqualTo("a0.seq=:p1 and a0.parent.seq=:p2 and a0.product.seq=:p3");
     }
 
+    // ---- §3 execution tests: a doubled delimiter must be un-escaped on the RsqlQuery path ----
+    // A double-quoted literal is used on purpose: with a single-quoted one the old and the new
+    // behaviour would be indistinguishable for some of these cases.
+
+    @Test
+    void unescapeDoubledDelimiterOnEquals() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name==\"say \"\"hi\"\"\"", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.name=:p1");
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("say \"hi\"");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnNotEquals() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name!=\"say \"\"hi\"\"\"", rsqlContext);
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("say \"hi\"");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnLike() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=*\"*say \"\"hi\"\"*\"", rsqlContext);
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("%say \"hi\"%");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnNotLike() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=!*\"*say \"\"hi\"\"*\"", rsqlContext);
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("%say \"hi\"%");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnClike() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=clike=\"*say \"\"hi\"\"*\"", rsqlContext);
+        // case-sensitive variant keeps the original case
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("%say \"hi\"%");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnIn() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=in=(\"say \"\"hi\"\"\",\"b\")", rsqlContext);
+        assertThat(rsqlQuery.paramLists.get(0).list).containsExactly("say \"hi\"", "b");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnNotIn() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=nin=(\"say \"\"hi\"\"\")", rsqlContext);
+        assertThat(rsqlQuery.paramLists.get(0).list).containsExactly("say \"hi\"");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnBetween() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=bt=(\"a\"\"b\",\"c\")", rsqlContext);
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("a\"b");
+        assertThat(rsqlQuery.params.get(1).value).isEqualTo("c");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterOnNotBetween() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=nbt=(\"a\"\"b\",\"c\")", rsqlContext);
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("a\"b");
+        assertThat(rsqlQuery.params.get(1).value).isEqualTo("c");
+    }
+
+    @Test
+    void unescapeDoubledDelimiterBacktickAndSingleQuote() {
+        assertThat(compiler.compileToRsqlQuery("name==`a``b`", rsqlContext).params.get(0).value).isEqualTo("a`b");
+        assertThat(compiler.compileToRsqlQuery("name=='it''s'", rsqlContext).params.get(0).value).isEqualTo("it's");
+    }
+
+    @Test
+    void enumLiteralIsNotAffectedByUnescape() {
+        // regression guard (R5): the helper is shared with ENUM_LITERAL, the # delimiter must fall through
+        final RsqlQuery rsqlQuery = compilerForProduct.compileToRsqlQuery("status==#ACTIVE#", rsqlContextProduct);
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo(StandardRecordStatus.ACTIVE);
+    }
+
 }

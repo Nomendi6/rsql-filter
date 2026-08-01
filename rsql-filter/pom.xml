@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.nomendi6</groupId>
         <artifactId>rsql-filter-parent</artifactId>
-        <version>0.6.17</version>
+        <version>0.6.18</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -168,6 +168,39 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Purge the generated ANTLR sources before every build.
+
+                 Why this is needed: the four antlr4-maven-plugin executions below each use <includes> with a
+                 single grammar, so the plugin never learns that RsqlWhere.g4 and RsqlHaving.g4 depend on the
+                 lexer they import (RsqlCommonLexer.g4). Changing only the shared lexer would regenerate the
+                 lexer alone and silently leave RsqlWhereLexer/RsqlHavingLexer with stale token definitions -
+                 with a green build and green tests. Deleting the output directories first makes every build
+                 regenerate all four grammars from the .g4 files, which is the only source of truth.
+
+                 <excludeDefaultDirectories>true</excludeDefaultDirectories> is REQUIRED: without it this
+                 execution would also wipe target/ on every build and destroy incremental compilation. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>purge-antlr-generated</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset><directory>${project.basedir}/src/main/java/rsql/antlr/lexer</directory></fileset>
+                                <fileset><directory>${project.basedir}/src/main/java/rsql/antlr/select</directory></fileset>
+                                <fileset><directory>${project.basedir}/src/main/java/rsql/antlr/where</directory></fileset>
+                                <fileset><directory>${project.basedir}/src/main/java/rsql/antlr/having</directory></fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- ANTLR4 Plugin for generating code from grammar files -->
             <plugin>
                 <groupId>org.antlr</groupId>
@@ -192,6 +225,13 @@
                             </includes>
                             <outputDirectory>${project.basedir}/src/main/java/rsql/antlr/lexer</outputDirectory>
                             <libDirectory>${project.basedir}/src/main/antlr</libDirectory>
+                            <!-- Set the package here, not with @header in RsqlCommonLexer.g4: an @header
+                                 would also be inherited by RsqlWhere.g4 and RsqlHaving.g4, which import
+                                 this lexer, and would add a second package declaration to their sources. -->
+                            <arguments>
+                                <argument>-package</argument>
+                                <argument>rsql.antlr.lexer</argument>
+                            </arguments>
                         </configuration>
                     </execution>
                     <!-- RsqlSelect.g4 -->

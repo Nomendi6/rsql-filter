@@ -907,4 +907,29 @@ public class PredicateToTextIT {
         assertThat(compileToPredicate("code!=^*'A*'")).isEqualTo("code not like 'A%'");
     }
 
+    // ---- an embedded single quote must be doubled, otherwise the rendered text is not valid JPQL ----
+
+    @Test
+    void embeddedSingleQuoteIsDoubledOnEquals() {
+        // value it's -> code = 'it''s' ; without the doubling the text could not be parsed
+        assertThat(compileToPredicate("code==\"it's\"")).isEqualTo("code = 'it''s'");
+        assertThat(compileToPredicate("code=='it''s'")).isEqualTo("code = 'it''s'");
+    }
+
+    @Test
+    void embeddedSingleQuoteIsDoubledOnLike() {
+        assertThat(compileToPredicate("code=*\"*it's*\"")).isEqualTo("lower(code) like '%it''s%'");
+    }
+
+    @Test
+    void embeddedSingleQuoteIsDoubledOnIn() {
+        assertThat(compileToPredicate("code=in=(\"it's\",'b')")).isEqualTo("code in ('it''s', 'b')");
+    }
+
+    @Test
+    void doubledDelimiterIsUnescapedInPredicateText() {
+        // the value is say "hi" - a double quote needs no escaping inside a JPQL single-quoted literal
+        assertThat(compileToPredicate("code==\"say \"\"hi\"\"\"")).isEqualTo("code = 'say \"hi\"'");
+    }
+
 }
