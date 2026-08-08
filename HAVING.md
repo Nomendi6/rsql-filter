@@ -65,6 +65,26 @@ HAVING supports all standard RSQL comparison operators:
 | `=ge=` | Greater or equal | `COUNT(*)=ge=3` |
 | `=lt=` | Less than | `MAX(price)=lt=1000` |
 | `=le=` | Less or equal | `MIN(quantity)=le=5` |
+| `=*` or `=like=` | Like | `MAX(code)=like='ABC%'` |
+| `=!*`, `!=*` or `=nlike=` | Not like | `MAX(code)=nlike='ABC%'` |
+
+> **Note — HAVING `like` differs from WHERE `like`.** It does **not** map `*` to `%` (write `%` yourself)
+> and does **not** wrap the expression in `lower(...)`, so matching is case-sensitive.
+
+### String literals
+
+String literals follow exactly the same rules as in `WHERE` — the lexer is shared. Pick a delimiter
+(`"`, `'` or `` ` ``) and escape it inside the value by **doubling it**; a backslash has no special meaning
+and is passed through unchanged, so a value may also end with one:
+
+```
+MAX(code)=="say ""hi"""     -> value: say "hi"
+MAX(code)=="C:\dir\"        -> value: C:\dir\
+```
+
+> **Changed in 0.7.4 / 0.6.19.** A backslash immediately before the active delimiter used to protect it and
+> is now a syntax error; rewrite by doubling the delimiter. Conditions must also be separated by an explicit
+> logical operator (`;` or `,`) — juxtaposed conditions used to be accepted, keeping only the last one.
 
 **Examples:**
 ```java

@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import rsql.RsqlCompiler;
+import rsql.exceptions.SyntaxErrorException;
 import rsql.helper.AggregateField;
 import rsql.helper.AggregateField.AggregateFunction;
 import rsql.helper.SimpleQueryExecutor;
@@ -24,6 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration tests for HAVING clause functionality.
@@ -468,5 +470,42 @@ public class HavingClauseIT {
         // Electronics matches: total=1100 (>1000 AND <=1200)
         // Clothing matches: count=1 AND total=30 (<=1200)
         assertThat(result).hasSize(2);
+    }
+
+    /**
+     * The HAVING path shares the lexer with WHERE, so conditions must be joined by an explicit
+     * logical operator. Juxtaposed conditions used to be accepted, keeping only the last one -
+     * which made the result wider than the filter asked for.
+     */
+    @Test
+    void havingConditionsWithoutLogicalOperatorAreRejected() {
+        List<AggregateField> selectFields = Arrays.asList(
+            AggregateField.groupBy("productType.name", "typeName"),
+            AggregateField.of("id", AggregateFunction.COUNT, "productCount")
+        );
+        List<String> groupByFields = Arrays.asList("productType.name");
+
+        assertThatThrownBy(() -> SimpleQueryExecutor.getAggregateQueryResult(
+            Product.class, Tuple.class, selectFields, groupByFields, "",
+            "COUNT(id)=gt=1 COUNT(id)=lt=100", null, rsqlContext, compiler
+        )).isInstanceOf(SyntaxErrorException.class);
+    }
+
+    /**
+     * Regression guard: an explicit logical operator still works on the HAVING path.
+     */
+    @Test
+    void havingWithExplicitLogicalOperatorStillWorks() {
+        List<AggregateField> selectFields = Arrays.asList(
+            AggregateField.groupBy("productType.name", "typeName"),
+            AggregateField.of("id", AggregateFunction.COUNT, "productCount")
+        );
+        List<String> groupByFields = Arrays.asList("productType.name");
+
+        List<Tuple> result = SimpleQueryExecutor.getAggregateQueryResult(
+            Product.class, Tuple.class, selectFields, groupByFields, "",
+            "COUNT(id)=gt=0;COUNT(id)=lt=100", null, rsqlContext, compiler
+        );
+        assertThat(result).isNotEmpty();
     }
 }
