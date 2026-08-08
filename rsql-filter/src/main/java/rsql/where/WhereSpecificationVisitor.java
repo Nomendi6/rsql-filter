@@ -605,25 +605,23 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
             } else if (operator.operatorNEQ() != null) {
                 return criteriaBuilder.notEqual(path, value);
             } else if (operator.operatorLIKE() != null) {
-                final String likeString = value.replace('*', '%').toLowerCase(Locale.ROOT);
+                final String likeString = toLikePattern(value).toLowerCase(Locale.ROOT);
 
-                return criteriaBuilder.like(criteriaBuilder.lower(path), likeString);
-                //                return criteriaBuilder.like(path, likeString);
+                return criteriaBuilder.like(criteriaBuilder.lower(path), likeString, LIKE_ESCAPE_CHARACTER);
             } else if (operator.operatorNLIKE() != null) {
-                final String likeString = value.replace('*', '%').toLowerCase(Locale.ROOT);
+                final String likeString = toLikePattern(value).toLowerCase(Locale.ROOT);
 
-                return criteriaBuilder.notLike(criteriaBuilder.lower(path), likeString);
-                //                return criteriaBuilder.like(path, likeString);
+                return criteriaBuilder.notLike(criteriaBuilder.lower(path), likeString, LIKE_ESCAPE_CHARACTER);
             } else if (operator.operatorCLIKE() != null) {
                 // case-sensitive LIKE: no lower() on column, no toLowerCase() on pattern (keeps index sargable)
-                final String likeString = value.replace('*', '%');
+                final String likeString = toLikePattern(value);
 
-                return criteriaBuilder.like(path, likeString);
+                return criteriaBuilder.like(path, likeString, LIKE_ESCAPE_CHARACTER);
             } else if (operator.operatorCNLIKE() != null) {
                 // case-sensitive NOT LIKE
-                final String likeString = value.replace('*', '%');
+                final String likeString = toLikePattern(value);
 
-                return criteriaBuilder.notLike(path, likeString);
+                return criteriaBuilder.notLike(path, likeString, LIKE_ESCAPE_CHARACTER);
             }
 
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());

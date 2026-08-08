@@ -688,7 +688,29 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
         String operation = predicate.isNegated() ? " not like " : " like ";
         String pattern = getExpressionValue(predicate.getPattern());
 
-        return leftExpression + operation + pattern;
+        return leftExpression + operation + pattern + renderEscapeClause(predicate.getEscapeCharacter());
+    }
+
+    /**
+     * Render the {@code ESCAPE} clause of a LIKE predicate, or an empty string when there is none.
+     * <p>
+     * The escape character is a {@code Character} wrapped in a {@code SqmLiteral}, and
+     * {@code convertValueToString} has no branch for {@code Character} - it would return the bare character
+     * without quotes, producing {@code escape \} instead of {@code escape '\'}. So the literal is unwrapped
+     * and quoted here.
+     *
+     * @param escapeCharacter The escape expression of the predicate, may be {@code null}
+     * @return {@code " escape '<char>'"}, or an empty string when no escape character is set
+     */
+    private String renderEscapeClause(SqmExpression<?> escapeCharacter) {
+        if (escapeCharacter == null) {
+            return "";
+        }
+        if (escapeCharacter instanceof SqmLiteral<?> literal) {
+            return " escape " + quote(String.valueOf(literal.getLiteralValue()));
+        }
+        // not produced by this library, but keep the rendering honest if it ever happens
+        return " escape " + getExpressionValue(escapeCharacter);
     }
 
     @Override

@@ -17,6 +17,40 @@ import java.util.Set;
 public class RsqlWhereHelper {
 
     /**
+     * Escape character emitted with every generated LIKE predicate.
+     * <p>
+     * Without an explicit {@code ESCAPE} clause the meaning of a backslash in the pattern is left to the
+     * database (and to the dialect), so the same filter could behave differently depending on where it runs.
+     */
+    public static final char LIKE_ESCAPE_CHARACTER = '\\';
+
+    /**
+     * Escape the characters that would otherwise be consumed by the escape character itself.
+     * <p>
+     * Only the backslash is doubled. {@code %} and {@code _} are deliberately left alone: they stay SQL
+     * wildcards, which is the documented behaviour of this library.
+     *
+     * @param value The raw value
+     * @return The value with every backslash doubled
+     */
+    public static String escapeLikePattern(String value) {
+        return value.replace("\\", "\\\\");
+    }
+
+    /**
+     * Build a WHERE LIKE pattern: escape the backslash, then map the RSQL wildcard {@code *} to SQL {@code %}.
+     * <p>
+     * Note that HAVING does <em>not</em> map {@code *} - there the user writes {@code %} directly - so the
+     * HAVING path uses {@link #escapeLikePattern(String)} on its own.
+     *
+     * @param value The value taken from the string literal
+     * @return The pattern to pass to {@code like} / {@code notLike}
+     */
+    static String toLikePattern(String value) {
+        return escapeLikePattern(value).replace('*', '%');
+    }
+
+    /**
      * Extract the field name (or the field path) from the FieldContext
      *
      * @param ctx The field context
