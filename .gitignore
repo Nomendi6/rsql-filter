@@ -92,3 +92,6 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 /agent/
 /.idea/dataSources.xml
+
+# Local Codex CLI / IDE MCP config
+.codex/

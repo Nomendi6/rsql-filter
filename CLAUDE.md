@@ -82,7 +82,7 @@ npm run prettier:check
 
 ```bash
 # Generate ANTLR code from grammar files
-mvn antlr4:antlr4 -pl rsql-filter
+mvn -pl rsql-filter generate-sources
 
 # Run checkstyle
 mvn checkstyle:check
@@ -229,7 +229,7 @@ mvn test -pl rsql-filter-integration-tests
 ### ANTLR Grammar Compilation
 The ANTLR grammar files need to be compiled before building. This happens automatically during build, but can be done manually:
 ```bash
-mvn antlr4:antlr4 -pl rsql-filter
+mvn -pl rsql-filter generate-sources
 ```
 
 ### Package Structure Changes
@@ -275,7 +275,7 @@ The project was recently restructured:
 
 #### Adding a New WHERE Operator
 1. Update the grammar file (RsqlWhere.g4)
-2. Regenerate ANTLR code: `mvn antlr4:antlr4 -pl rsql-filter`
+2. Regenerate ANTLR code: `mvn -pl rsql-filter generate-sources`
 3. Update WhereSpecificationVisitor to handle the new operator
 4. Add integration tests
 
@@ -312,7 +312,7 @@ for (SelectExpression expr : expressions) {
 When modifying `RsqlSelect.g4`, keep in mind:
 1. **Rule order matters**: In `selectElement`, `seExpression` MUST come before `seField` and `seFuncCall` to prevent ambiguity with the `*` operator
 2. Expression precedence is handled by grammar structure (multiplication/division before addition/subtraction)
-3. After changing grammar, regenerate: `mvn antlr4:antlr4 -pl rsql-filter`
+3. After changing grammar, regenerate: `mvn -pl rsql-filter generate-sources`
 4. Update `SelectExpressionVisitor` if adding new expression types
 5. Run tests: `mvn test -pl rsql-filter` and `mvn test -pl rsql-filter-integration-tests`
 

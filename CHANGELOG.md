@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-08-01
+
+### Fixed
+- **The `RsqlCommonLexer` package is now set with the `-package` argument of `antlr4-maven-plugin` instead of
+  an `@header` block in the grammar.** The `@header` introduced in 0.7.2 fixed the lexer itself, but ANTLR
+  inherits a `@header` from an imported grammar — and `RsqlWhere.g4`, `RsqlSelect.g4` and `RsqlHaving.g4` all
+  import `RsqlCommonLexer`. Regenerating them therefore produced sources with **two** `package` declarations
+  (their own plus `rsql.antlr.lexer`), which do not compile.
+  The sources committed in 0.7.2 each carry exactly one `package` declaration, so the **published 0.7.2
+  artifact is fine** and applications depending on it are unaffected. **Building 0.7.2 from source is not** —
+  on a tree without `target/` (a fresh clone, a CI job, `mvn clean install`) the plugin regenerates the
+  grammars, rewrites 12 of the 19 generated files with two `package` declarations, and compilation fails with
+  `class, interface, enum, or record expected`. Verified on a fresh checkout of the 0.7.2 tag.
+  With 0.7.3 a fresh build succeeds and all 19 generated files carry exactly one `package` declaration;
+  regeneration of all four grammars is idempotent.
+- **Changing only `RsqlCommonLexer.g4` no longer leaves the WHERE/HAVING parsers with stale tokens.** Each of
+  the four `antlr4-maven-plugin` executions restricts itself to a single grammar with `<includes>`, so the
+  plugin never learned that `RsqlWhere.g4` and `RsqlHaving.g4` depend on the lexer they import. Editing the
+  shared token set therefore regenerated the lexer only and silently left `RsqlWhereLexer`/`RsqlHavingLexer`
+  on the previous token definitions — with a green build and green tests. A `maven-clean-plugin` execution
+  bound to `initialize` now purges the four generated directories before each build, so every build
+  regenerates all four grammars from the `.g4` files. Generation is deterministic, so the working tree stays
+  clean, and `<excludeDefaultDirectories>` keeps `target/` (and incremental compilation) intact.
+
 ## [0.7.2] - 2026-08-01
 
 ### Fixed
@@ -28,9 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `=bt=` had the same problem for string and enum bounds and for a mixed pair such as `(#2020-01-01#,'a')`;
     a pair of two date or two datetime bounds was already rendered correctly and is unchanged;
   - values are now always emitted as valid JPQL string literals, with an embedded single quote doubled.
-- `RsqlCommonLexer.g4` now declares `@header { package rsql.antlr.lexer; }`, like the other three grammars.
-  Regenerating the parsers used to strip the `package` declaration from `RsqlCommonLexer.java`, which had to be
-  restored by hand; regeneration is now idempotent. (Same fix as the one applied to `RsqlWhere.g4` in 0.7.1.)
+- Regenerating the parsers used to strip the `package` declaration from `RsqlCommonLexer.java`, which had to be
+  restored by hand. Fixed by declaring `@header { package rsql.antlr.lexer; }` in `RsqlCommonLexer.g4`.
+  ⚠ That approach turned out to be wrong — see 0.7.3, which replaces it with the plugin's `-package` argument.
 
 ## [0.7.1] - 2026-06-24
 
