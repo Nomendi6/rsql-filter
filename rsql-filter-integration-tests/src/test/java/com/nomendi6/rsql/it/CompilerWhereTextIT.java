@@ -823,6 +823,65 @@ public class CompilerWhereTextIT {
         assertThat(compiler.compileToRsqlQuery("name=='it''s'", rsqlContext).params.get(0).value).isEqualTo("it's");
     }
 
+    // ---- a backslash is an ordinary character (0.7.4): a value may end with one ----
+
+    @Test
+    void valueEndingWithBackslash() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name==\"abc\\\"", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.name=:p1");
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("abc\\");
+    }
+
+    @Test
+    void windowsPathEndingWithBackslash() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name==\"C:\\dir\\\"", rsqlContext);
+        assertThat(rsqlQuery.params.get(0).value).isEqualTo("C:\\dir\\");
+    }
+
+    @Test
+    void backslashInTheMiddleIsUnchanged() {
+        assertThat(compiler.compileToRsqlQuery("name==\"C:\\dir\\file\"", rsqlContext).params.get(0).value)
+            .isEqualTo("C:\\dir\\file");
+        assertThat(compiler.compileToRsqlQuery("name==\"a\\\\\"", rsqlContext).params.get(0).value)
+            .isEqualTo("a\\\\");
+    }
+
+    @Test
+    void backslashNoLongerProtectsTheDelimiter() {
+        // breaking change: used to parse and yield a\"b
+        assertThrows(SyntaxErrorException.class, () -> compiler.compileToRsqlQuery("name==\"a\\\"b\"", rsqlContext));
+    }
+
+    @Test
+    void valueEndingWithBackslashInOtherBranches() {
+        assertThat(compiler.compileToRsqlQuery("name=in=(\"abc\\\")", rsqlContext).paramLists.get(0).list)
+            .containsExactly("abc\\");
+        final RsqlQuery bt = compiler.compileToRsqlQuery("name=bt=(\"a\\\",\"b\\\")", rsqlContext);
+        assertThat(bt.params.get(0).value).isEqualTo("a\\");
+        assertThat(bt.params.get(1).value).isEqualTo("b\\");
+    }
+
+    // ---- the whole input must be turned into one filter expression (0.7.4) ----
+
+    @Test
+    void conditionsWithoutLogicalOperatorAreRejected() {
+        // used to silently keep only the last condition, so the executed query was wider than the filter
+        assertThrows(SyntaxErrorException.class, () -> compiler.compileToRsqlQuery("name=='a' code=='b'", rsqlContext));
+        assertThrows(SyntaxErrorException.class, () -> compiler.compileToSpecification("name=='a' code=='b'", rsqlContext));
+    }
+
+    @Test
+    void trailingInputIsRejected() {
+        assertThrows(SyntaxErrorException.class, () -> compiler.compileToRsqlQuery("name=='a' 123", rsqlContext));
+    }
+
+    @Test
+    void logicalOperatorsStillWork() {
+        final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=='a' and code=='b'", rsqlContext);
+        assertThat(rsqlQuery.where).isEqualTo("a0.name=:p1 and a0.code=:p2");
+        assertThat(rsqlQuery.params).hasSize(2);
+    }
+
     @Test
     void enumLiteralIsNotAffectedByUnescape() {
         // regression guard (R5): the helper is shared with ENUM_LITERAL, the # delimiter must fall through

@@ -357,4 +357,43 @@ class HavingTreeParserTest {
             parser.parseStream(CharStreams.fromString(whitespaceHaving));
         });
     }
+
+    /**
+     * The whole input must become one HAVING expression - conditions next to each other without a
+     * logical operator used to be accepted, keeping only the last one.
+     */
+    @Test
+    void testConditionsWithoutLogicalOperatorAreRejected() {
+        assertThrows(SyntaxErrorException.class, () -> {
+            parser.parseStream(CharStreams.fromString("count(id)=gt=1 count(seq)=gt=2"));
+        });
+    }
+
+    /**
+     * Trailing input that the parser did not interpret used to be discarded silently.
+     */
+    @Test
+    void testTrailingInputIsRejected() {
+        assertThrows(SyntaxErrorException.class, () -> {
+            parser.parseStream(CharStreams.fromString("count(id)=gt=1 123"));
+        });
+    }
+
+    /**
+     * Regression guard: an explicit logical operator still works.
+     */
+    @Test
+    void testLogicalOperatorStillWorks() {
+        ParseTree tree = parser.parseStream(CharStreams.fromString("count(id)=gt=1;count(seq)=gt=2"));
+        assertNotNull(tree);
+    }
+
+    /**
+     * A value may end with a backslash (0.7.4) - the shared lexer applies to HAVING as well.
+     */
+    @Test
+    void testValueEndingWithBackslash() {
+        ParseTree tree = parser.parseStream(CharStreams.fromString("max(code)==\"C:\\dir\\\""));
+        assertNotNull(tree);
+    }
 }

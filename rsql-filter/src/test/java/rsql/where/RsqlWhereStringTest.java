@@ -552,4 +552,103 @@ class RsqlWhereStringTest {
         RsqlWhereString parser = new RsqlWhereString();
         assertEquals("field1 in (1,2,3)", parser.parseString("field1=in=(1,2,3)"));
     }
+
+    // ---- a backslash is an ordinary character: a value may end with one ----
+
+    @Test
+    void valueEndingWithBackslash() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='abc\\'", parser.parseString("field1==\"abc\\\""));
+        assertEquals("field1='abc\\'", parser.parseString("field1=='abc\\'"));
+        assertEquals("field1='abc\\'", parser.parseString("field1==`abc\\`"));
+    }
+
+    @Test
+    void windowsPathEndingWithBackslash() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='C:\\dir\\'", parser.parseString("field1==\"C:\\dir\\\""));
+    }
+
+    @Test
+    void backslashBeforeDelimiterInsideValue() {
+        RsqlWhereString parser = new RsqlWhereString();
+        // the delimiter is escaped by doubling it; the backslash stays literal
+        assertEquals("field1='a\\\"b'", parser.parseString("field1==\"a\\\"\"b\""));
+    }
+
+    @Test
+    void allThreeDelimitersInOneValue() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='d\" s''s t`'", parser.parseString("field1==\"d\"\" s's t`\""));
+    }
+
+    @Test
+    void backslashInTheMiddleIsUnchanged() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='C:\\dir\\file'", parser.parseString("field1==\"C:\\dir\\file\""));
+        assertEquals("field1='a\\\\'", parser.parseString("field1==\"a\\\\\""));
+    }
+
+    @Test
+    void backslashNoLongerProtectsTheDelimiter() {
+        // breaking change: this used to parse and yield a\"b, now the delimiter closes the literal
+        RsqlWhereString parser = new RsqlWhereString();
+        assertThrows(RuntimeException.class, () -> parser.parseString("field1==\"a\\\"b\""));
+        assertThrows(RuntimeException.class, () -> parser.parseString("field1=='it\\'s'"));
+    }
+
+    // ---- the whole input must be turned into one filter expression ----
+
+    @Test
+    void conditionsWithoutLogicalOperatorAreRejected() {
+        RsqlWhereString parser = new RsqlWhereString();
+        // used to silently keep only the last condition
+        assertThrows(RuntimeException.class, () -> parser.parseString("field1=='a' field2==1"));
+        assertThrows(RuntimeException.class, () -> parser.parseString("field1=='a' field2==1 field3==2"));
+        assertThrows(RuntimeException.class, () -> parser.parseString("(field1=='a') (field2==1)"));
+    }
+
+    @Test
+    void trailingInputIsRejected() {
+        RsqlWhereString parser = new RsqlWhereString();
+        // used to be discarded silently
+        assertThrows(RuntimeException.class, () -> parser.parseString("field1=='a' 123"));
+    }
+
+    @Test
+    void logicalOperatorsStillWork() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='a' and field2=1", parser.parseString("field1=='a' and field2==1"));
+        assertEquals("field1='a' and field2=1", parser.parseString("field1=='a';field2==1"));
+        assertEquals("field1='a' or field2=1", parser.parseString("field1=='a',field2==1"));
+        assertEquals("(field1='a') and (field2=1)", parser.parseString("(field1=='a') and (field2==1)"));
+    }
+
+    @Test
+    void trailingNewlineIsTolerated() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("field1='a'", parser.parseString("field1=='a'\n"));
+        assertEquals("field1='a'", parser.parseString("field1=='a'\n\n"));
+    }
+
+    @Test
+    void parseFileWithTrailingNewline() throws java.io.IOException {
+        // guard: a file normally ends with a newline, and NEWLINE is a real token here -
+        // a naive "stream fully consumed" check would reject every such file
+        java.nio.file.Path f = java.nio.file.Files.createTempFile("rsql", ".txt");
+        try {
+            java.nio.file.Files.writeString(f, "field1=='a'\n");
+            assertEquals("field1='a'", new RsqlWhereString().parseFile(f.toString()));
+        } finally {
+            java.nio.file.Files.deleteIfExists(f);
+        }
+    }
+
+    @Test
+    void backslashBeforeClosingDelimiterIsRejected() {
+        // the silent branch: this used to parse as a\" with the surplus quote quietly discarded
+        RsqlWhereString parser = new RsqlWhereString();
+        assertThrows(RuntimeException.class, () -> parser.parseString("field1==\"a\\\"\""));
+        assertThrows(RuntimeException.class, () -> parser.parseString("field1==\"a\\\"\";field2==1"));
+    }
 }
