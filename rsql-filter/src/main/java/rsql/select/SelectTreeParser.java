@@ -2,9 +2,11 @@ package rsql.select;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import rsql.antlr.select.RsqlSelectLexer;
 import rsql.antlr.select.RsqlSelectParser;
+import rsql.exceptions.SyntaxErrorException;
 import rsql.where.CustomErrorStrategy;
 
 /**
@@ -35,7 +37,28 @@ public class SelectTreeParser {
         parser.addErrorListener(new SelectErrorListener());
         parser.setErrorHandler(new CustomErrorStrategy());
 
-        // Parse and return the parse tree (entry point is 'select' rule)
-        return parser.select();
+        // Parse the 'select' rule (entry point)
+        ParseTree tree = parser.select();
+        verifyWholeInputWasUsed(tokens);
+
+        return tree;
+    }
+
+    /**
+     * Reject input that the parser did not fully consume.
+     * <p>
+     * The start rule {@code select: selectElements+} is not anchored to {@code EOF}, so without this check
+     * leftover tokens are discarded silently - {@code name)} parses as {@code name}.
+     *
+     * @param tokens The token stream the parser consumed from
+     */
+    private void verifyWholeInputWasUsed(CommonTokenStream tokens) {
+        // unlike the WHERE/HAVING grammars, RsqlSelect.g4 skips all whitespace (WS rule),
+        // so there is no trailing token to tolerate here
+        if (tokens.LA(1) != Token.EOF) {
+            throw new SyntaxErrorException(
+                "Unexpected input after the select expression at position " + tokens.LT(1).getStartIndex()
+            );
+        }
     }
 }

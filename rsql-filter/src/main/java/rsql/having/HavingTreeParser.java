@@ -2,9 +2,11 @@ package rsql.having;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import rsql.antlr.having.RsqlHavingLexer;
 import rsql.antlr.having.RsqlHavingParser;
+import rsql.exceptions.SyntaxErrorException;
 import rsql.where.CustomErrorStrategy;
 
 /**
@@ -34,7 +36,38 @@ public class HavingTreeParser {
         parser.addErrorListener(new HavingErrorListener());
         parser.setErrorHandler(new CustomErrorStrategy());
 
-        // Parse and return the 'having' rule (entry point)
-        return parser.having();
+        // Parse the 'having' rule (entry point)
+        ParseTree tree = parser.having();
+        verifyWholeInputWasUsed(tokens, tree);
+
+        return tree;
+    }
+
+    /**
+     * Reject input that the parser did not fully turn into a single HAVING expression.
+     * <p>
+     * The start rule is {@code having: havingCondition+}, which is not anchored to {@code EOF} and which
+     * accepts several conditions next to each other without a logical operator. Without this check both
+     * cases pass silently: leftover tokens are discarded, and of several juxtaposed conditions the visitor
+     * keeps only the last one.
+     *
+     * @param tokens The token stream the parser consumed from
+     * @param tree   The parse tree returned by the start rule
+     */
+    private void verifyWholeInputWasUsed(CommonTokenStream tokens, ParseTree tree) {
+        // trailing NEWLINE tokens are not consumed by any parser rule, so they are not an error
+        int i = 1;
+        while (tokens.LA(i) == RsqlHavingLexer.NEWLINE) {
+            i++;
+        }
+        if (tokens.LA(i) != Token.EOF) {
+            throw new SyntaxErrorException(
+                "Unexpected input after the having expression at position " + tokens.LT(i).getStartIndex()
+            );
+        }
+
+        if (tree.getChildCount() > 1) {
+            throw new SyntaxErrorException("Missing logical operator between conditions");
+        }
     }
 }

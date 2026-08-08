@@ -22,7 +22,10 @@ import rsql.RsqlQueryService;
 import java.math.BigDecimal;
 import java.util.List;
 
+import rsql.exceptions.SyntaxErrorException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * End-to-end tests for un-escaping of a doubled delimiter on the WHERE path.
@@ -42,6 +45,8 @@ public class SpecialCharsIT {
     private static final String A_B = "a\"b";
     private static final String A_TICK_B = "a`b";
     private static final String PLAIN = "plain";
+    /** value ending with a single backslash - not expressible before 0.7.4 */
+    private static final String TRAILING_BS = "C:\\dir\\";
 
     @Autowired
     private EntityManager em;
@@ -68,7 +73,7 @@ public class SpecialCharsIT {
             new ProductType().withCode("T").withName("Type").withDescription("t"));
 
         // seeded through the repository, not through RSQL, so the values are exactly these
-        for (String code : new String[] { SAY_HI, ITS, A_B, A_TICK_B, PLAIN }) {
+        for (String code : new String[] { SAY_HI, ITS, A_B, A_TICK_B, PLAIN, TRAILING_BS }) {
             productRepository.save(new Product()
                 .withCode(code)
                 .withName(code)
@@ -116,7 +121,7 @@ public class SpecialCharsIT {
     @Test
     void notEqualsWithDoubledDelimiter() {
         assertThat(codes("code!=\"say \"\"hi\"\"\""))
-            .containsExactlyInAnyOrder(ITS, A_B, A_TICK_B, PLAIN);
+            .containsExactlyInAnyOrder(ITS, A_B, A_TICK_B, PLAIN, TRAILING_BS);
     }
 
     @Test
@@ -128,7 +133,7 @@ public class SpecialCharsIT {
     @Test
     void notInListWithDoubledDelimiter() {
         assertThat(codes("code=nin=(\"say \"\"hi\"\"\",'it''s')"))
-            .containsExactlyInAnyOrder(A_B, A_TICK_B, PLAIN);
+            .containsExactlyInAnyOrder(A_B, A_TICK_B, PLAIN, TRAILING_BS);
     }
 
     @Test
@@ -141,7 +146,7 @@ public class SpecialCharsIT {
     @Test
     void notBetweenWithDoubledDelimiter() {
         assertThat(codes("code=nbt=(\"a\"\"a\",\"a\"\"c\")"))
-            .containsExactlyInAnyOrder(SAY_HI, ITS, A_TICK_B, PLAIN);
+            .containsExactlyInAnyOrder(SAY_HI, ITS, A_TICK_B, PLAIN, TRAILING_BS);
     }
 
     @Test
@@ -152,7 +157,7 @@ public class SpecialCharsIT {
     @Test
     void notLikeWithDoubledDelimiter() {
         assertThat(codes("code=!*\"*say \"\"hi\"\"*\""))
-            .containsExactlyInAnyOrder(ITS, A_B, A_TICK_B, PLAIN);
+            .containsExactlyInAnyOrder(ITS, A_B, A_TICK_B, PLAIN, TRAILING_BS);
     }
 
     @Test
@@ -170,7 +175,26 @@ public class SpecialCharsIT {
     void enumLiteralIsNotAffected() {
         // regression guard (R5): the helper is shared with ENUM_LITERAL and must leave # alone
         assertThat(codes("status==#ACTIVE#"))
-            .containsExactlyInAnyOrder(SAY_HI, ITS, A_B, A_TICK_B, PLAIN);
+            .containsExactlyInAnyOrder(SAY_HI, ITS, A_B, A_TICK_B, PLAIN, TRAILING_BS);
+    }
+
+    @Test
+    void valueEndingWithBackslashIsMatched() {
+        // not expressible before 0.7.4 - the filter used to fail on the lexer
+        assertThat(codes("code==\"C:\\dir\\\"")).containsExactly(TRAILING_BS);
+    }
+
+    @Test
+    void valueEndingWithBackslashInList() {
+        assertThat(codes("code=in=(\"C:\\dir\\\",'plain')"))
+            .containsExactlyInAnyOrder(TRAILING_BS, PLAIN);
+    }
+
+    @Test
+    void conditionsWithoutLogicalOperatorAreRejected() {
+        // used to silently drop the first condition, so the query returned more rows than the filter asked for
+        assertThatThrownBy(() -> codes("code=='plain' name=='plain'"))
+            .isInstanceOf(SyntaxErrorException.class);
     }
 
     @Test

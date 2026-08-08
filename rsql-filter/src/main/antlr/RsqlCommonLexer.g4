@@ -85,8 +85,11 @@ fragment Z : [zZ];
 fragment ID_LITERAL  :   [a-zA-Z_$][0-9a-zA-Z_$]* ;      // match identifiers <label id="code.tour.expr.3"/>
 fragment EXPONENT_NUM_PART:          'E' [-+]? DEC_DIGIT+;
 fragment DEC_DIGIT :   [0-9] ;
-fragment DQUOTA_STRING: '"' ( '\\'. | '""' | ~('"'| '\\') )* '"';
-fragment SQUOTA_STRING: '\'' ('\\'. | '\'\'' | ~('\'' | '\\'))* '\'';
-fragment BQUOTA_STRING: '`' ( '\\'. | '``' | ~('`'|'\\'))* '`';
+// The only escape mechanism is doubling the delimiter. A backslash is an ordinary character:
+// it does not protect the next one, so a value may end with a backslash. Encoding is therefore total -
+// any value can be written as delimiter + value.replace(delimiter, delimiter+delimiter) + delimiter.
+fragment DQUOTA_STRING: '"' ( '""' | ~'"' )* '"';
+fragment SQUOTA_STRING: '\'' ( '\'\'' | ~'\'' )* '\'';
+fragment BQUOTA_STRING: '`' ( '``' | ~'`' )* '`';
 NEWLINE:'\r'? '\n' ;     // return newlines to parser (is end-statement signal)
 WS  :   [ \t]+ -> skip ; // toss out whitespace
