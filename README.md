@@ -141,6 +141,25 @@ name==`say "hi"`        -> value: say "hi"    (no doubling needed)
 This works the same way in `WHERE` and in `HAVING`, and for every operator that takes a string
 (`==`, `!=`, `=in=`, `=nin=`, `=bt=`, `=nbt=`, and the whole `LIKE` family).
 
+**A backslash has no special meaning** — it is an ordinary character that is passed through unchanged, so a
+value may also *end* with one:
+
+```
+name=="C:\dir\file"     -> value: C:\dir\file
+name=="C:\dir\"         -> value: C:\dir\
+```
+
+Because doubling is the only escape mechanism and backslash is inert, **every value can be encoded**:
+
+```
+encode(value, delimiter) = delimiter + value.replace(delimiter, delimiter+delimiter) + delimiter
+```
+
+> **Changed in 0.7.4 / 0.6.19.** Earlier versions treated `\` as a lexer-level escape that protected the
+> next character while staying in the value, which made a value ending in `\` impossible to write. A
+> backslash placed immediately before the active delimiter (`name=="a\"b"`) used to parse and is now a
+> syntax error — rewrite it by doubling the delimiter (`name=="a\""b"`).
+
 > **Changed in 0.7.2 / 0.6.18.** Earlier versions accepted the doubled delimiter but did not collapse it
 > back in the `WHERE` path, so `name=="say ""hi"""` searched for the literal text `say ""hi""` and
 > silently returned nothing. If you worked around this by *not* doubling the delimiter, note that such a

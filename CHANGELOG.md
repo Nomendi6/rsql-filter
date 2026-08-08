@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-08-08
+
+### Fixed
+- **A filter is no longer silently truncated.** The start rules (`where: condition+`, `having:
+  havingCondition+`) are not anchored to `EOF`, and the tree parsers did not check that the token stream was
+  consumed. Two kinds of input passed silently as a result:
+  - **conditions next to each other without a logical operator** — `name=='a' code=='b'` (a space instead of
+    `;` or `and`) compiled to `a0.code=:p2` with a **single** parameter: the `name` condition was dropped and
+    the executed query returned **more rows than the filter asked for**;
+  - **trailing uninterpreted input** — `name=='a' 123` compiled to `name='a'`.
+
+  Both now raise `SyntaxErrorException`. The check covers the WHERE, HAVING and SELECT paths; a trailing
+  newline is still accepted, so `parseFile` on a file ending with `\n` keeps working.
+- **A backslash is now an ordinary character in string literals, so a value may end with one.** The lexer
+  used to treat `\X` as a unit that protected `X`, while the reader never removed the backslash — so `\`
+  stayed in the value and a value ending in `\` (a Windows path such as `C:\dir\`) could not be written at
+  all: the only encoding that parsed, `"abc\\"`, silently yielded `abc\\`. Doubling the delimiter is now the
+  single escape mechanism, which makes encoding **total** — every value can be written as
+  `delimiter + value.replace(delimiter, delimiter+delimiter) + delimiter`.
+
+### Changed
+- ⚠ **Breaking:** a backslash placed immediately before the active delimiter no longer protects it.
+  `name=="a\"b"` and `name=='it\'s'` used to parse (yielding a value that still contained the backslash) and
+  are now a syntax error; rewrite them by doubling the delimiter — `name=="a\""b"`, `name=='it''s'`.
+- ⚠ **Known silent change (three forms).** `name=="""\"`, `name=='''\'` and ``name==```\` `` used to return
+  an **empty string** and now return `"\`, `'\` and `` `\ `` respectively, without an error. These inputs
+  were already returning nonsense, so they are documented rather than guarded against.
+- ⚠ **Native SQL note.** A LIKE pattern ending in a single backslash is now expressible in RSQL. Through
+  Hibernate/JPQL it works correctly, but if `RsqlQuery.where` is executed as **native SQL** (see
+  `fixIdsForNativeQuery`), PostgreSQL rejects it with `LIKE pattern must not end with escape character`,
+  because the `ESCAPE` clause is not emitted yet. Guard such values on the client until that is delivered.
+
 ## [0.7.3] - 2026-08-01
 
 ### Fixed
