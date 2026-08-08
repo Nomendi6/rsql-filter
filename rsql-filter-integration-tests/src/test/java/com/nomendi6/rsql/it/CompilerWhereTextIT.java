@@ -680,31 +680,31 @@ public class CompilerWhereTextIT {
     @Test
     void fieldLikeString1() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=*'A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) like :p1 escape '\\'");
     }
 
     @Test
     void fieldLikeString2() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=like='A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) like :p1 escape '\\'");
     }
 
     @Test
     void fieldNotLikeString1() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=!*'A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1 escape '\\'");
     }
 
     @Test
     void fieldNotLikeString2() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name!=*'A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1 escape '\\'");
     }
 
     @Test
     void fieldNotLikeString3() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=nlike='A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("lower(a0.name) not like :p1 escape '\\'");
     }
 
     // ---- case-sensitive LIKE: no lower(), pattern keeps original case ----
@@ -712,28 +712,28 @@ public class CompilerWhereTextIT {
     @Test
     void fieldCLikeKeyword() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=clike='A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("a0.name like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("a0.name like :p1 escape '\\'");
         assertThat(rsqlQuery.params.get(0).value).isEqualTo("A%"); // case preserved, * -> %
     }
 
     @Test
     void fieldCLikeSymbolic() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=^*'A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("a0.name like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("a0.name like :p1 escape '\\'");
         assertThat(rsqlQuery.params.get(0).value).isEqualTo("A%");
     }
 
     @Test
     void fieldCNotLikeKeyword() {
         final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("name=cnlike='A*'", rsqlContext);
-        assertThat(rsqlQuery.where).isEqualTo("a0.name not like :p1");
+        assertThat(rsqlQuery.where).isEqualTo("a0.name not like :p1 escape '\\'");
         assertThat(rsqlQuery.params.get(0).value).isEqualTo("A%");
     }
 
     @Test
     void fieldCNotLikeSymbolic() {
-        assertThat(compiler.compileToRsqlQuery("name=!^*'A*'", rsqlContext).where).isEqualTo("a0.name not like :p1");
-        assertThat(compiler.compileToRsqlQuery("name!=^*'A*'", rsqlContext).where).isEqualTo("a0.name not like :p1");
+        assertThat(compiler.compileToRsqlQuery("name=!^*'A*'", rsqlContext).where).isEqualTo("a0.name not like :p1 escape '\\'");
+        assertThat(compiler.compileToRsqlQuery("name!=^*'A*'", rsqlContext).where).isEqualTo("a0.name not like :p1 escape '\\'");
     }
 
     @Test

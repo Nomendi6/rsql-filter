@@ -1155,12 +1155,14 @@ Fixes ID field references for native SQL queries.
 **Parameters:**
 - `query` - RsqlQuery to modify
 
-> ⚠ **Since 0.7.4 / 0.6.19 — LIKE patterns ending in a backslash.** A value ending in `\` is now
-> expressible in RSQL, so a `LIKE` pattern may end in one. Executed through Hibernate/JPQL this works
-> correctly, but executed as **native SQL** PostgreSQL rejects it with
-> `LIKE pattern must not end with escape character`, because `RsqlQuery.where` does not carry an `ESCAPE`
-> clause yet. Until that is delivered, reject such values on the client for pattern searches
-> (`=like=`, `=clike=`, …). Equality and `=in=` are unaffected.
+> **Since 0.6.20 — LIKE patterns are self-contained.** `RsqlQuery.where` now carries an explicit
+> `ESCAPE '\'` clause and the pattern has its backslashes escaped, so the text is safe to execute as native
+> SQL: a backslash matches literally and a pattern may end with one. The 0.6.19 restriction (reject values
+> ending in `\` for pattern searches) no longer applies.
+>
+> ⚠ Verified on PostgreSQL. The emitted `escape '\'` is a valid string literal there, on DB2, Oracle, H2 and
+> SQL Server, but **not on MySQL/MariaDB** without `NO_BACKSLASH_ESCAPES`; those are outside the supported
+> native-SQL contract.
 
 ## Common Usage Patterns
 
