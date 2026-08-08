@@ -393,14 +393,14 @@ class RsqlWhereStringTest {
     void fieldLikeString() {
         RsqlWhereString parser = new RsqlWhereString();
         String result = parser.parseString("field1=*'A*'");
-        assertEquals("lower(field1) like 'a%'", result);
+        assertEquals("lower(field1) like 'a%' escape '\\'", result);
     }
 
     @Test
     void fieldLikeString2() {
         RsqlWhereString parser = new RsqlWhereString();
         String result = parser.parseString("field1=like='A*'");
-        assertEquals("lower(field1) like 'a%'", result);
+        assertEquals("lower(field1) like 'a%' escape '\\'", result);
     }
 
     // ---- case-sensitive LIKE (=clike= / =^*) : no lower(), pattern keeps its case ----
@@ -409,28 +409,28 @@ class RsqlWhereStringTest {
     void fieldCLikeKeyword() {
         RsqlWhereString parser = new RsqlWhereString();
         String result = parser.parseString("field1=clike='A*'");
-        assertEquals("field1 like 'A%'", result);
+        assertEquals("field1 like 'A%' escape '\\'", result);
     }
 
     @Test
     void fieldCLikeSymbolic() {
         RsqlWhereString parser = new RsqlWhereString();
         String result = parser.parseString("field1=^*'A*'");
-        assertEquals("field1 like 'A%'", result);
+        assertEquals("field1 like 'A%' escape '\\'", result);
     }
 
     @Test
     void fieldCNLikeKeyword() {
         RsqlWhereString parser = new RsqlWhereString();
         String result = parser.parseString("field1=cnlike='A*'");
-        assertEquals("field1 not like 'A%'", result);
+        assertEquals("field1 not like 'A%' escape '\\'", result);
     }
 
     @Test
     void fieldCNLikeSymbolic() {
         RsqlWhereString parser = new RsqlWhereString();
-        assertEquals("field1 not like 'A%'", parser.parseString("field1=!^*'A*'"));
-        assertEquals("field1 not like 'A%'", parser.parseString("field1!=^*'A*'"));
+        assertEquals("field1 not like 'A%' escape '\\'", parser.parseString("field1=!^*'A*'"));
+        assertEquals("field1 not like 'A%' escape '\\'", parser.parseString("field1!=^*'A*'"));
     }
 
     // ---- §3: un-escaping of a doubled delimiter ----
@@ -466,20 +466,20 @@ class RsqlWhereStringTest {
         RsqlWhereString parser = new RsqlWhereString();
         // value it's must be emitted as 'it''s', otherwise the JPQL cannot be parsed
         assertEquals("field1='it''s'", parser.parseString("field1==\"it's\""));
-        assertEquals("lower(field1) like 'it''s%'", parser.parseString("field1=*\"it's*\""));
+        assertEquals("lower(field1) like 'it''s%' escape '\\'", parser.parseString("field1=*\"it's*\""));
     }
 
     @Test
     void unescapeInLikePattern() {
         RsqlWhereString parser = new RsqlWhereString();
-        assertEquals("lower(field1) like 'say \"hi\"%'", parser.parseString("field1=*\"say \"\"hi\"\"*\""));
+        assertEquals("lower(field1) like 'say \"hi\"%' escape '\\'", parser.parseString("field1=*\"say \"\"hi\"\"*\""));
     }
 
     @Test
     void emptyStringLiteralIsUnchanged() {
         RsqlWhereString parser = new RsqlWhereString();
         assertEquals("field1=''", parser.parseString("field1==''"));
-        assertEquals("lower(field1) like ''", parser.parseString("field1=*''"));
+        assertEquals("lower(field1) like '' escape '\\'", parser.parseString("field1=*''"));
     }
 
     // ---- missing NLIKE rendering (operator used to render as the literal text "null") ----
@@ -487,9 +487,9 @@ class RsqlWhereStringTest {
     @Test
     void fieldNotLikeString() {
         RsqlWhereString parser = new RsqlWhereString();
-        assertEquals("lower(field1) not like 'a%'", parser.parseString("field1=!*'A*'"));
-        assertEquals("lower(field1) not like 'a%'", parser.parseString("field1=nlike='A*'"));
-        assertEquals("lower(field1) not like 'a%'", parser.parseString("field1!=*'A*'"));
+        assertEquals("lower(field1) not like 'a%' escape '\\'", parser.parseString("field1=!*'A*'"));
+        assertEquals("lower(field1) not like 'a%' escape '\\'", parser.parseString("field1=nlike='A*'"));
+        assertEquals("lower(field1) not like 'a%' escape '\\'", parser.parseString("field1!=*'A*'"));
     }
 
     @Test

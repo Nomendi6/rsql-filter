@@ -69,7 +69,9 @@ HAVING supports all standard RSQL comparison operators:
 | `=!*`, `!=*` or `=nlike=` | Not like | `MAX(code)=nlike='ABC%'` |
 
 > **Note — HAVING `like` differs from WHERE `like`.** It does **not** map `*` to `%` (write `%` yourself)
-> and does **not** wrap the expression in `lower(...)`, so matching is case-sensitive.
+> and does **not** wrap the expression in `lower(...)`, so matching is case-sensitive. Since 0.6.20
+> the pattern is backslash-escaped and carries `ESCAPE '\'`, so a backslash matches literally - but `*`
+> remains an ordinary character here.
 
 ### String literals
 
@@ -82,7 +84,7 @@ MAX(code)=="say ""hi"""     -> value: say "hi"
 MAX(code)=="C:\dir\"        -> value: C:\dir\
 ```
 
-> **Changed in 0.7.4 / 0.6.19.** A backslash immediately before the active delimiter used to protect it and
+> **Changed in 0.6.19.** A backslash immediately before the active delimiter used to protect it and
 > is now a syntax error; rewrite by doubling the delimiter. Conditions must also be separated by an explicit
 > logical operator (`;` or `,`) — juxtaposed conditions used to be accepted, keeping only the last one.
 

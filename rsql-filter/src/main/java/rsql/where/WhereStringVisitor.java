@@ -13,6 +13,10 @@ import static rsql.where.RsqlWhereHelper.*;
 
 public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
 
+    /** JPQL {@code ESCAPE} clause; two backslashes here is a single one in the emitted text. */
+    private static final String LIKE_ESCAPE_CLAUSE = " escape '\\'";
+
+
     public WhereStringVisitor() {}
 
     @Override
@@ -281,15 +285,17 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
         RsqlWhereParser.OperatorContext op = ctx.operator();
 
         if (op.operatorLIKE() != null) {
-            // case-insensitive LIKE: lower(field) like 'lowercased-pattern'
-            return "lower(".concat(field).concat(") like ").concat(quote(value.replace('*', '%').toLowerCase(Locale.ROOT)));
+            // case-insensitive LIKE: lower(field) like 'lowercased-pattern' escape '\'
+            return "lower(".concat(field).concat(") like ")
+                .concat(quote(toLikePattern(value).toLowerCase(Locale.ROOT))).concat(LIKE_ESCAPE_CLAUSE);
         } else if (op.operatorNLIKE() != null) {
-            return "lower(".concat(field).concat(") not like ").concat(quote(value.replace('*', '%').toLowerCase(Locale.ROOT)));
+            return "lower(".concat(field).concat(") not like ")
+                .concat(quote(toLikePattern(value).toLowerCase(Locale.ROOT))).concat(LIKE_ESCAPE_CLAUSE);
         } else if (op.operatorCLIKE() != null) {
             // case-sensitive LIKE: no lower(), pattern keeps its original case
-            return field + " like " + quote(value.replace('*', '%'));
+            return field + " like " + quote(toLikePattern(value)) + LIKE_ESCAPE_CLAUSE;
         } else if (op.operatorCNLIKE() != null) {
-            return field + " not like " + quote(value.replace('*', '%'));
+            return field + " not like " + quote(toLikePattern(value)) + LIKE_ESCAPE_CLAUSE;
         } else {
             // all other operators (==, !=, <, >, ...) rendered via visitOperator
             return field + visitOperator(op) + quote(value);

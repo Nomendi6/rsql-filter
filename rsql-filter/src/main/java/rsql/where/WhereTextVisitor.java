@@ -31,6 +31,16 @@ import static rsql.where.RsqlWhereHelper.*;
 @Service
 public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
 
+    /**
+     * JPQL {@code ESCAPE} clause appended to every generated LIKE predicate.
+     * <p>
+     * In Java source this is two backslashes, which is a single backslash in the emitted JPQL:
+     * {@code escape '\'}. Writing two backslashes in the JPQL text instead would be rejected by Hibernate
+     * ("Escape character literals must have exactly a single character").
+     */
+    private static final String LIKE_ESCAPE_CLAUSE = " escape '\\'";
+
+
     private static final String ALIAS_FOR_STARTROOT = "a0";
     private final Logger log = LoggerFactory.getLogger(WhereSpecificationVisitor.class);
 
@@ -822,18 +832,18 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         } else if (operator.operatorNEQ() != null) {
             query.where = fieldPath + "!=:" + p1;
         } else if (operator.operatorLIKE() != null) {
-            value = value.replace('*', '%').toLowerCase(Locale.ROOT);
-            query.where = "lower(".concat(fieldPath).concat(") like :").concat(p1);
+            value = toLikePattern(value).toLowerCase(Locale.ROOT);
+            query.where = "lower(".concat(fieldPath).concat(") like :").concat(p1).concat(LIKE_ESCAPE_CLAUSE);
         } else if (operator.operatorNLIKE() != null) {
-            value = value.replace('*', '%').toLowerCase(Locale.ROOT);
-            query.where = "lower(".concat(fieldPath).concat(") not like :").concat(p1);
+            value = toLikePattern(value).toLowerCase(Locale.ROOT);
+            query.where = "lower(".concat(fieldPath).concat(") not like :").concat(p1).concat(LIKE_ESCAPE_CLAUSE);
         } else if (operator.operatorCLIKE() != null) {
             // case-sensitive LIKE: no lower(), keep original case in the pattern
-            value = value.replace('*', '%');
-            query.where = fieldPath.concat(" like :").concat(p1);
+            value = toLikePattern(value);
+            query.where = fieldPath.concat(" like :").concat(p1).concat(LIKE_ESCAPE_CLAUSE);
         } else if (operator.operatorCNLIKE() != null) {
-            value = value.replace('*', '%');
-            query.where = fieldPath.concat(" not like :").concat(p1);
+            value = toLikePattern(value);
+            query.where = fieldPath.concat(" not like :").concat(p1).concat(LIKE_ESCAPE_CLAUSE);
         } else {
             throw new SyntaxErrorException("Unknown operator: " + operator.getText());
         }

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.20] - 2026-08-08
+
+### Fixed
+- **Every generated LIKE predicate now carries an explicit `ESCAPE '\'` clause, and the pattern has its
+  backslashes escaped.** Until now the meaning of a backslash in a LIKE pattern was left to the database and
+  to the Hibernate dialect, so the same filter could behave differently depending on where it ran. Concretely,
+  a filter such as `code=like='*C:\temp*'` executed as **native SQL** on PostgreSQL matched `C:temp` instead
+  of `C:\temp`, and a pattern ending in a backslash was rejected outright with
+  `LIKE pattern must not end with escape character`. Both now work: the pattern is emitted as
+  `%c:\\temp%` with `escape '\'`.
+
+  Applies to all four WHERE operators (`=like=`, `=nlike=`, `=clike=`, `=cnlike=`) on the Specification, the
+  JPQL-text and the string-rendering paths, and to `=like=` / `=nlike=` on the HAVING path.
+- `PredicateToText` renders the escape character, so the printed predicate is again a faithful - and
+  re-executable - representation of the query.
+
+### Changed
+- ⚠ The generated JPQL/SQL text changed: every LIKE predicate gained a ` escape '\'` suffix and every
+  backslash in the pattern is doubled. Query **results are unchanged** through Hibernate, which already
+  neutralised the database default escape; what changes is the native-SQL path, which now behaves the same
+  way as the Hibernate one. Assertions that compare generated query text verbatim need updating.
+- `%` and `_` are still **not** escaped - they remain SQL wildcards, so `code=like='50%'` also matches `500`.
+- On the HAVING path only the backslash is escaped: `*` is **not** mapped to `%` and the expression is not
+  lower-cased, exactly as before.
+
 ## [0.6.19] - 2026-08-08
 
 ### Fixed

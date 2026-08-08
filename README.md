@@ -110,14 +110,19 @@ The following table shows the list of supported operators:
 
 #### Case-sensitive vs. case-insensitive LIKE
 
-The `LIKE` family comes in two variants. In all of them, the `*` in the pattern is mapped to the SQL `%` wildcard.
+The `LIKE` family comes in two variants. In all of them, the `*` in the pattern is mapped to the SQL `%` wildcard, and every predicate is
+emitted with an explicit `ESCAPE '\'` clause so that a backslash always matches literally,
+independently of the database and the Hibernate dialect.
 
 - **Case-insensitive** (`=like=` / `=*`, `=nlike=` / `=!*` / `!=*`): both the column and the pattern are lower-cased, e.g. `name=like='A*'` generates `lower(name) like 'a%'`. This is unchanged.
 - **Case-sensitive** (`=clike=` / `=^*`, `=cnlike=` / `=!^*` / `!=^*`): the column is **not** wrapped in `lower(...)` and the pattern keeps its original case, e.g. `name=clike='A*'` generates `name like 'A%'`. Use this when you need exact-case matching, or to keep a plain B-tree index usable (the case-insensitive variant is non-sargable because it wraps the column in `lower(...)`).
 
 Notes:
 - The actual case-sensitivity of `=clike=` ultimately depends on the database collation (e.g. H2 default and PostgreSQL are case-sensitive; MySQL with a `_ci` collation may still match case-insensitively).
-- Like the existing operators, `=clike=` does **not** escape literal `%` / `_`, and parameter-bound patterns (`field=clike=:p`) are not supported.
+- No LIKE operator escapes literal `%` / `_` - they stay SQL wildcards, so `code=like='50%'` also matches
+  `500`. A literal backslash **is** escaped: since 0.6.20 the pattern is backslash-escaped and
+  carries `ESCAPE '\'`, so `code=like='*C:\temp*'` matches the literal text `C:\temp`.
+  Parameter-bound patterns (`field=clike=:p`) are still not supported.
 
 #### Escaping the delimiter in string literals
 
@@ -155,12 +160,12 @@ Because doubling is the only escape mechanism and backslash is inert, **every va
 encode(value, delimiter) = delimiter + value.replace(delimiter, delimiter+delimiter) + delimiter
 ```
 
-> **Changed in 0.7.4 / 0.6.19.** Earlier versions treated `\` as a lexer-level escape that protected the
+> **Changed in 0.6.19.** Earlier versions treated `\` as a lexer-level escape that protected the
 > next character while staying in the value, which made a value ending in `\` impossible to write. A
 > backslash placed immediately before the active delimiter (`name=="a\"b"`) used to parse and is now a
 > syntax error — rewrite it by doubling the delimiter (`name=="a\""b"`).
 
-> **Changed in 0.7.2 / 0.6.18.** Earlier versions accepted the doubled delimiter but did not collapse it
+> **Changed in 0.6.18.** Earlier versions accepted the doubled delimiter but did not collapse it
 > back in the `WHERE` path, so `name=="say ""hi"""` searched for the literal text `say ""hi""` and
 > silently returned nothing. If you worked around this by *not* doubling the delimiter, note that such a
 > filter never parsed; if you doubled it and relied on the old (broken) result, the result will now change.

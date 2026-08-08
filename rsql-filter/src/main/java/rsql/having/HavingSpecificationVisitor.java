@@ -287,8 +287,18 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
             case "=lt=" -> builder.lessThan((Expression<Comparable>) left, (Comparable) right);
             case "=ge=" -> builder.greaterThanOrEqualTo((Expression<Comparable>) left, (Comparable) right);
             case "=le=" -> builder.lessThanOrEqualTo((Expression<Comparable>) left, (Comparable) right);
-            case "=*", "=like=" -> builder.like((Expression<String>) left, (String) right);
-            case "=!*", "!=*", "=nlike=" -> builder.notLike((Expression<String>) left, (String) right);
+            // HAVING deliberately does NOT map * to % and does NOT lower() the expression - the user writes
+            // the SQL wildcards directly - so only the backslash is escaped here.
+            case "=*", "=like=" -> builder.like(
+                (Expression<String>) left,
+                RsqlWhereHelper.escapeLikePattern((String) right),
+                RsqlWhereHelper.LIKE_ESCAPE_CHARACTER
+            );
+            case "=!*", "!=*", "=nlike=" -> builder.notLike(
+                (Expression<String>) left,
+                RsqlWhereHelper.escapeLikePattern((String) right),
+                RsqlWhereHelper.LIKE_ESCAPE_CHARACTER
+            );
             default -> throw new SyntaxErrorException("Unknown operator: " + operator);
         };
     }

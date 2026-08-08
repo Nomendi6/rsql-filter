@@ -198,6 +198,25 @@ public class SpecialCharsIT {
     }
 
     @Test
+    void likeMatchesLiteralBackslash() {
+        // the pattern is backslash-escaped and carries ESCAPE '\\', so \\ matches a literal backslash
+        assertThat(codes("code=*\"*C:\\dir*\"")).containsExactly(TRAILING_BS);
+        assertThat(codes("code=clike=\"*C:\\dir*\"")).containsExactly(TRAILING_BS);
+    }
+
+    @Test
+    void likePatternEndingWithBackslash() {
+        // not expressible before 0.7.4, and a database error on the native path before 0.7.5
+        assertThat(codes("code=*\"*dir\\*\"")).containsExactly(TRAILING_BS);
+    }
+
+    @Test
+    void percentStaysAWildcard() {
+        // documented behaviour: % and _ are NOT escaped, they stay SQL wildcards
+        assertThat(codes("code=*'%'")).hasSize(6);
+    }
+
+    @Test
     void plainValueIsUnchanged() {
         // backward compatibility: a value without a doubled delimiter must behave exactly as before
         assertThat(codes("code=='plain'")).containsExactly(PLAIN);
