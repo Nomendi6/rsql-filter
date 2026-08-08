@@ -508,4 +508,31 @@ public class HavingClauseIT {
         );
         assertThat(result).isNotEmpty();
     }
+
+    /**
+     * HAVING like carries ESCAPE too, but - unlike WHERE - it does NOT map * to % and does NOT lower()
+     * the expression. The user writes the SQL wildcards directly, so * stays a literal character.
+     */
+    @Test
+    void havingLikeKeepsStarLiteralAndEscapesBackslash() {
+        List<AggregateField> selectFields = Arrays.asList(
+            AggregateField.groupBy("productType.name", "typeName"),
+            AggregateField.of("id", AggregateFunction.COUNT, "productCount")
+        );
+        List<String> groupByFields = Arrays.asList("productType.name");
+
+        // % is the wildcard here, not *
+        List<Tuple> withPercent = SimpleQueryExecutor.getAggregateQueryResult(
+            Product.class, Tuple.class, selectFields, groupByFields, "",
+            "MAX(productType.name)=like='Elect%'", null, rsqlContext, compiler
+        );
+        assertThat(withPercent).isNotEmpty();
+
+        // * is a literal character on the HAVING path, so it matches nothing here
+        List<Tuple> withStar = SimpleQueryExecutor.getAggregateQueryResult(
+            Product.class, Tuple.class, selectFields, groupByFields, "",
+            "MAX(productType.name)=like='Elect*'", null, rsqlContext, compiler
+        );
+        assertThat(withStar).isEmpty();
+    }
 }

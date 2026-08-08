@@ -110,14 +110,19 @@ The following table shows the list of supported operators:
 
 #### Case-sensitive vs. case-insensitive LIKE
 
-The `LIKE` family comes in two variants. In all of them, the `*` in the pattern is mapped to the SQL `%` wildcard.
+The `LIKE` family comes in two variants. In all of them, the `*` in the pattern is mapped to the SQL `%` wildcard, and every predicate is
+emitted with an explicit `ESCAPE '\'` clause so that a backslash always matches literally,
+independently of the database and the Hibernate dialect.
 
 - **Case-insensitive** (`=like=` / `=*`, `=nlike=` / `=!*` / `!=*`): both the column and the pattern are lower-cased, e.g. `name=like='A*'` generates `lower(name) like 'a%'`. This is unchanged.
 - **Case-sensitive** (`=clike=` / `=^*`, `=cnlike=` / `=!^*` / `!=^*`): the column is **not** wrapped in `lower(...)` and the pattern keeps its original case, e.g. `name=clike='A*'` generates `name like 'A%'`. Use this when you need exact-case matching, or to keep a plain B-tree index usable (the case-insensitive variant is non-sargable because it wraps the column in `lower(...)`).
 
 Notes:
 - The actual case-sensitivity of `=clike=` ultimately depends on the database collation (e.g. H2 default and PostgreSQL are case-sensitive; MySQL with a `_ci` collation may still match case-insensitively).
-- Like the existing operators, `=clike=` does **not** escape literal `%` / `_`, and parameter-bound patterns (`field=clike=:p`) are not supported.
+- No LIKE operator escapes literal `%` / `_` - they stay SQL wildcards, so `code=like='50%'` also matches
+  `500`. A literal backslash **is** escaped: since 0.7.5 / 0.6.20 the pattern is backslash-escaped and
+  carries `ESCAPE '\'`, so `code=like='*C:\temp*'` matches the literal text `C:\temp`.
+  Parameter-bound patterns (`field=clike=:p`) are still not supported.
 
 #### Escaping the delimiter in string literals
 

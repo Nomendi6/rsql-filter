@@ -847,7 +847,7 @@ public class PredicateToTextIT {
     @Test
     void fieldLikeString1() {
         String rsql = "code=*'A*'";
-        String expected = "lower(code) like 'a%'";
+        String expected = "lower(code) like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -855,7 +855,7 @@ public class PredicateToTextIT {
     @Test
     void fieldLikeString2() {
         String rsql = "code=like='A*'";
-        String expected = "lower(code) like 'a%'";
+        String expected = "lower(code) like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -863,7 +863,7 @@ public class PredicateToTextIT {
     @Test
     void fieldNotLikeString1() {
         String rsql = "code=!*'A*'";
-        String expected = "lower(code) not like 'a%'";
+        String expected = "lower(code) not like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -871,7 +871,7 @@ public class PredicateToTextIT {
     @Test
     void fieldNotLikeString2() {
         String rsql = "code!=*'A*'";
-        String expected = "lower(code) not like 'a%'";
+        String expected = "lower(code) not like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -879,7 +879,7 @@ public class PredicateToTextIT {
     @Test
     void fieldNotLikeString3() {
         String rsql = "code=nlike='A*'";
-        String expected = "lower(code) not like 'a%'";
+        String expected = "lower(code) not like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -888,23 +888,23 @@ public class PredicateToTextIT {
 
     @Test
     void fieldCLikeKeyword() {
-        assertThat(compileToPredicate("code=clike='A*'")).isEqualTo("code like 'A%'");
+        assertThat(compileToPredicate("code=clike='A*'")).isEqualTo("code like 'A%' escape '\\'");
     }
 
     @Test
     void fieldCLikeSymbolic() {
-        assertThat(compileToPredicate("code=^*'A*'")).isEqualTo("code like 'A%'");
+        assertThat(compileToPredicate("code=^*'A*'")).isEqualTo("code like 'A%' escape '\\'");
     }
 
     @Test
     void fieldCNotLikeKeyword() {
-        assertThat(compileToPredicate("code=cnlike='A*'")).isEqualTo("code not like 'A%'");
+        assertThat(compileToPredicate("code=cnlike='A*'")).isEqualTo("code not like 'A%' escape '\\'");
     }
 
     @Test
     void fieldCNotLikeSymbolic() {
-        assertThat(compileToPredicate("code=!^*'A*'")).isEqualTo("code not like 'A%'");
-        assertThat(compileToPredicate("code!=^*'A*'")).isEqualTo("code not like 'A%'");
+        assertThat(compileToPredicate("code=!^*'A*'")).isEqualTo("code not like 'A%' escape '\\'");
+        assertThat(compileToPredicate("code!=^*'A*'")).isEqualTo("code not like 'A%' escape '\\'");
     }
 
     // ---- an embedded single quote must be doubled, otherwise the rendered text is not valid JPQL ----
@@ -918,7 +918,7 @@ public class PredicateToTextIT {
 
     @Test
     void embeddedSingleQuoteIsDoubledOnLike() {
-        assertThat(compileToPredicate("code=*\"*it's*\"")).isEqualTo("lower(code) like '%it''s%'");
+        assertThat(compileToPredicate("code=*\"*it's*\"")).isEqualTo("lower(code) like '%it''s%' escape '\\'");
     }
 
     @Test
