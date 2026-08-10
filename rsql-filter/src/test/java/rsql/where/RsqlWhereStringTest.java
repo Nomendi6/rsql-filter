@@ -698,7 +698,11 @@ class RsqlWhereStringTest {
      */
     @Test
     void deeplyNestedAndFlatParenthesesParseInLinearTime() throws InterruptedException {
-        assertParsesWithin("(".repeat(400) + "field1==1" + ")".repeat(400));
+        // capped at the nesting limit from RsqlWhereTreeParser - still a decisive regression test, since
+        // the old grammar took 12.7 s at 26 levels and doubled with every further one
+        int nesting = RsqlWhereTreeParser.getMaxNestingDepth();
+        assertParsesWithin("(".repeat(nesting) + "field1==1" + ")".repeat(nesting));
+        // flat groups nest one level deep however many there are, so the limit does not apply
         assertParsesWithin(String.join(";", java.util.Collections.nCopies(400, "(field1==1)")));
     }
 

@@ -46,11 +46,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removes `MissingOpeningParenthesisContext`, `ErrorConditionContext`, `MissingClosingParenthesis2Context`
   and the matching visitor and listener methods, and renumbers the `RULE_*` constants.
 
-### Known limitations
-- Very deeply nested filters still exhaust the stack: roughly 2 800 nested parentheses, or a chain of about
-  3 800 conditions, throw `StackOverflowError` rather than `SyntaxErrorException`. This is a pre-existing
-  limit that also affects the SELECT and HAVING parsers, and it is not addressed here. Applications that
-  accept filters from untrusted input should bound their size until a guard ships.
+### Added
+- **The WHERE and HAVING parsers now reject filters that would exhaust the stack**, instead of throwing
+  `StackOverflowError`. That was an `Error`, so `catch (SyntaxErrorException)` never saw it and a bad request
+  surfaced as a 500.
+
+  Two limits, because there are two recursions. `RsqlWhereTreeParser.getMaxNestingDepth()` (default 100)
+  bounds the parser, which descends one frame per level of grouping parentheses.
+  `getMaxTreeDepth()` (default 500) bounds the visitors, which walk the parse tree recursively. Both are
+  settable, and both apply to HAVING as well.
+
+  Measured overflow on this code base, one fresh JVM per data point: about 1 237 nested levels and a
+  1 630-condition chain on a 512k stack, 2 801 and 3 750 on a 1M one. The defaults sit well below the
+  smaller figures, since 512k is a common container default.
+
+  Parentheses that do not nest a condition are not counted, so nothing valid is rejected: `IN` / `NIN` /
+  `BETWEEN` argument lists, aggregate call parentheses, and parentheses inside a string literal. A filter of
+  200 flat groups, or an `IN` list of 1 000 elements, still parses. The same limits apply to WHERE, HAVING
+  and SELECT.
+
+- **SELECT clauses parse in linear time, and a missing separator is now an error.** The start rule was
+  `select: selectElements+`, which let a second group of elements begin at any position. Since a group may
+  start with `*`, and `*` is also the multiplication operator, the parser had to decide at every `*` whether
+  the current expression continued or a new group began - a decision needing lookahead over the whole
+  expression:
+
+  | select clause | before | after |
+  |---|---|---|
+  | `a+b*c` x100 (401 characters) | ~2 900 ms | ~6 ms |
+  | `a+b*c` x200 (801 characters) | ~14 000 ms | ~6 ms |
+  | `a+b*c` x400 (1 601 characters) | > 120 s | ~5 ms |
+
+  The same `+` also made `code name` parse as though the comma were there, because the visitors iterate
+  every group and accumulate. Such input is now rejected. Comma-separated clauses are unaffected.
 
 ## [0.6.20] - 2026-08-08
 
