@@ -9,18 +9,36 @@ package rsql.antlr.where;
 /** The start rule; begin parsing here. */
 where:   condition+ ;
 
+/*
+ * NOTE: this rule deliberately has NO error alternatives for a stray ')'.
+ *
+ * Up to 0.6.20 it carried two of them, both emitting "Missing opening parenthesis":
+ *     | '(' condition ')' ')' { ... }
+ *     | condition ')'         { ... }
+ * They made every ')' ambiguous - it could either close a conditionParens or start the tail of
+ * missingOpeningParenthesis - so the adaptive prediction explored 2^n paths on n parentheses, and
+ * paid that price on VALID input: "((((...a==1...))))" with 26 levels (56 characters) took ~13 s.
+ * They also rejected valid filters: a trailing newline after a grouping ')' made the inner
+ * condition swallow the ')', leaving the outer '(' condition ')' unclosed - so "(a==1)\n" failed
+ * with "Missing opening parenthesis" even though no parenthesis was missing.
+ *
+ * A stray ')' is now caught by RsqlWhereTreeParser.verifyWholeInputWasUsed instead, which reports
+ * the position as well. Do not reintroduce them.
+ */
 condition:
         singleCondition # conditionSingle
     | '(' condition ')'        # conditionParens
     | condition (AND | SEMI) condition  # conditionAnd
     | condition (OR | COMMA) condition   # conditionOr
-    | '(' condition ')' ')' { notifyErrorListeners("Missing opening parenthesis"); } # missingOpeningParenthesis
-    | condition ')' { notifyErrorListeners("Missing opening parenthesis"); }        # missingOpeningParenthesis
 ;
 
-errorCondition:
-      '(' condition         { notifyErrorListeners("Missing closing parenthesis"); }       # missingClosingParenthesis2
-;
+/*
+ * NOTE: there used to be an `errorCondition` rule here, emitting "Missing closing parenthesis".
+ * No rule ever invoked it, so that message was never produced - which is why the assertion for it in
+ * CompilerWhereTextIT was commented out. Removed in 0.6.21.
+ *
+ * An unclosed parenthesis is reported by CustomErrorStrategy instead.
+ */
 
 
 inList

@@ -43,11 +43,14 @@ class RsqlWhereStringTest {
 
     @Test
     void errorMissingOpeningParentheses() {
+        // the surplus ')' is rejected by verifyWholeInputWasUsed, not by the grammar - the two error
+        // alternatives that used to report "Missing opening parenthesis" were removed because they made
+        // every ')' ambiguous (see the note in RsqlWhere.g4). The replacement message carries the position.
         SyntaxErrorException thrown = assertThrows(SyntaxErrorException.class, () -> {
             RsqlWhereString parser = new RsqlWhereString();
             parser.parseString("(field1==1 or field2==2)) and field3==3");
         });
-        assertTrue(thrown.getMessage().contains("Missing opening parenthesis"));
+        assertTrue(thrown.getMessage().contains("Unexpected input after the filter expression"));
     }
 
     @Test
@@ -642,6 +645,88 @@ class RsqlWhereStringTest {
         } finally {
             java.nio.file.Files.deleteIfExists(f);
         }
+    }
+
+    /**
+     * Up to 0.6.20 a trailing newline after a GROUPING ')' was rejected with
+     * "Missing opening parenthesis", even though no parenthesis was missing: the inner condition
+     * swallowed the ')' through the {@code condition ')'} error alternative, leaving the outer
+     * {@code '(' condition ')'} unclosed, and error recovery then consumed the NEWLINE.
+     * <p>
+     * The two tests above missed it only because their fixture ends in {@code 'a'}, not in ')'.
+     */
+    @Test
+    void trailingNewlineAfterClosingParenthesisIsTolerated() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertEquals("(field1='a')", parser.parseString("(field1=='a')\n"));
+        assertEquals("(field1='a')", parser.parseString("(field1=='a')\r\n"));
+        assertEquals("(field1='a')", parser.parseString("(field1=='a') \n"));
+        assertEquals("((field1='a'))", parser.parseString("((field1=='a'))\n"));
+        assertEquals("(field1='a') and (field2=1)", parser.parseString("(field1=='a');(field2==1)\n"));
+        assertEquals("(field1 in ('a','b'))", parser.parseString("(field1=in=('a','b'))\n"));
+    }
+
+    @Test
+    void parseFileEndingWithClosingParenthesis() throws java.io.IOException {
+        java.nio.file.Path f = java.nio.file.Files.createTempFile("rsql", ".txt");
+        try {
+            java.nio.file.Files.writeString(f, "(field1=='a');(field2==1)\n");
+            assertEquals("(field1='a') and (field2=1)", new RsqlWhereString().parseFile(f.toString()));
+        } finally {
+            java.nio.file.Files.deleteIfExists(f);
+        }
+    }
+
+    /**
+     * Leading and inner newlines were rejected before this change and still are - NEWLINE is a real
+     * token that only the trailing-token check in RsqlWhereTreeParser tolerates. Pinned here so the
+     * scope of the fix stays honest.
+     */
+    @Test
+    void leadingAndInnerNewlineAreStillRejected() {
+        RsqlWhereString parser = new RsqlWhereString();
+        assertThrows(SyntaxErrorException.class, () -> parser.parseString("\nfield1=='a'"));
+        assertThrows(SyntaxErrorException.class, () -> parser.parseString("field1=='a';\nfield2==1"));
+    }
+
+    /**
+     * The parentheses used to be parsed in exponential time: 26 nested levels (56 characters) took
+     * roughly 13 seconds, and 200 flat groups roughly 9 seconds. Both are linear now.
+     * <p>
+     * Runs on a thread with an explicit stack size so the outcome does not depend on the CI default,
+     * and rethrows from the worker - join() alone would swallow the failure.
+     */
+    @Test
+    void deeplyNestedAndFlatParenthesesParseInLinearTime() throws InterruptedException {
+        // capped at the nesting limit from RsqlWhereTreeParser - still a decisive regression test, since
+        // the old grammar took 12.7 s at 26 levels and doubled with every further one
+        int nesting = RsqlWhereTreeParser.getMaxNestingDepth();
+        assertParsesWithin("(".repeat(nesting) + "field1==1" + ")".repeat(nesting));
+        // flat groups nest one level deep however many there are, so the limit does not apply
+        assertParsesWithin(String.join(";", java.util.Collections.nCopies(400, "(field1==1)")));
+    }
+
+    private void assertParsesWithin(String filter) throws InterruptedException {
+        final Throwable[] failure = new Throwable[1];
+        final long[] elapsedMs = new long[1];
+        Thread worker = new Thread(null, () -> {
+            long start = System.nanoTime();
+            try {
+                new RsqlWhereString().parseString(filter);
+            } catch (Throwable t) {
+                failure[0] = t;
+            }
+            elapsedMs[0] = (System.nanoTime() - start) / 1_000_000;
+        }, "rsql-parse", 8L << 20);
+        worker.start();
+        worker.join();
+        if (failure[0] != null) {
+            throw new AssertionError("parsing failed for a " + filter.length() + " character filter", failure[0]);
+        }
+        assertTrue(
+            elapsedMs[0] < 2000,
+            "parsing a " + filter.length() + " character filter took " + elapsedMs[0] + " ms"
+        );
     }
 
     @Test

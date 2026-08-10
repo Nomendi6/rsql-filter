@@ -5,6 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-08-10
+
+### Fixed
+- **Filters ending in a grouping `)` followed by a newline are no longer rejected.** `(name=='a')\n` failed
+  with `SyntaxErrorException: Missing opening parenthesis`, even though no parenthesis was missing. This broke
+  `RsqlWhereString.parseFile` systematically, since files normally end with a newline, and it reached every
+  entry point - `compileToSpecification`, `compileToRsqlQuery`, `parseString` and `parseFile` all share the
+  same tree parser.
+
+  Only the *trailing* newline is affected. A leading or inner newline was rejected before and still is;
+  `NEWLINE` is a real token that only the trailing-token check tolerates.
+
+- **Parsing parentheses is no longer exponential.** Two error alternatives in the `condition` rule, added to
+  produce a nicer error message, made every `)` ambiguous - it could either close a `conditionParens` or start
+  the tail of `missingOpeningParenthesis` - so the adaptive prediction explored 2^n paths on n parentheses.
+  The cost was paid on **valid** input:
+
+  | filter | before | after |
+  |---|---|---|
+  | 26 nested levels (56 characters) | ~12 700 ms | ~2 ms |
+  | 200 flat groups (1 399 characters) | ~9 200 ms | ~19 ms |
+  | 5 000 nested levels | unreachable | ~12 ms |
+
+  Both problems had the same cause and the same fix: the two alternatives were removed.
+
+### Changed
+- **The message for a stray `)` changed.** It used to be `Missing opening parenthesis`; it is now
+  `Unexpected input after the filter expression at position N`, which also carries the position. The exception
+  type is unchanged (`SyntaxErrorException`), and every valid filter parses exactly as before - verified over
+  474 filters collected from the test suites, with identical parse trees.
+
+  Code that matches on the *text* of the exception message needs updating.
+
+- The `errorCondition` rule was removed. No rule ever invoked it, so the `Missing closing parenthesis` message
+  it carried was never produced - which is why the assertion for it had been commented out. An unclosed
+  parenthesis is reported by `CustomErrorStrategy`, as before.
+
+- Classes under `rsql.antlr.*` are generated ANTLR output and **not a supported public API**. This release
+  removes `MissingOpeningParenthesisContext`, `ErrorConditionContext`, `MissingClosingParenthesis2Context`
+  and the matching visitor and listener methods, and renumbers the `RULE_*` constants.
+
+### Added
+- **The WHERE and HAVING parsers now reject filters that would exhaust the stack**, instead of throwing
+  `StackOverflowError`. That was an `Error`, so `catch (SyntaxErrorException)` never saw it and a bad request
+  surfaced as a 500.
+
+  Two limits, because there are two recursions. `RsqlWhereTreeParser.getMaxNestingDepth()` (default 100)
+  bounds the parser, which descends one frame per level of grouping parentheses.
+  `getMaxTreeDepth()` (default 500) bounds the visitors, which walk the parse tree recursively. Both are
+  settable, and both apply to HAVING as well.
+
+  Measured overflow on this code base, one fresh JVM per data point: about 1 237 nested levels and a
+  1 630-condition chain on a 512k stack, 2 801 and 3 750 on a 1M one. The defaults sit well below the
+  smaller figures, since 512k is a common container default.
+
+  Parentheses that do not nest a condition are not counted, so nothing valid is rejected: `IN` / `NIN` /
+  `BETWEEN` argument lists, aggregate call parentheses, and parentheses inside a string literal. A filter of
+  200 flat groups, or an `IN` list of 1 000 elements, still parses. The same limits apply to WHERE, HAVING
+  and SELECT.
+
+- **SELECT clauses parse in linear time, and a missing separator is now an error.** The start rule was
+  `select: selectElements+`, which let a second group of elements begin at any position. Since a group may
+  start with `*`, and `*` is also the multiplication operator, the parser had to decide at every `*` whether
+  the current expression continued or a new group began - a decision needing lookahead over the whole
+  expression:
+
+  | select clause | before | after |
+  |---|---|---|
+  | `a+b*c` x100 (401 characters) | ~2 900 ms | ~6 ms |
+  | `a+b*c` x200 (801 characters) | ~14 000 ms | ~6 ms |
+  | `a+b*c` x400 (1 601 characters) | > 120 s | ~5 ms |
+
+  The same `+` also made `code name` parse as though the comma were there, because the visitors iterate
+  every group and accumulate. Such input is now rejected. Comma-separated clauses are unaffected.
+
 ## [0.7.5] - 2026-08-08
 
 ### Fixed

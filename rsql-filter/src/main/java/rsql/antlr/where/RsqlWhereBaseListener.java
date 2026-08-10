@@ -43,18 +43,6 @@ public class RsqlWhereBaseListener implements RsqlWhereListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterMissingOpeningParenthesis(RsqlWhereParser.MissingOpeningParenthesisContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitMissingOpeningParenthesis(RsqlWhereParser.MissingOpeningParenthesisContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
 	@Override public void enterConditionAnd(RsqlWhereParser.ConditionAndContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -86,18 +74,6 @@ public class RsqlWhereBaseListener implements RsqlWhereListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitConditionParens(RsqlWhereParser.ConditionParensContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
