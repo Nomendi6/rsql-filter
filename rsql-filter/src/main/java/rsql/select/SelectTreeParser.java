@@ -8,12 +8,34 @@ import rsql.antlr.select.RsqlSelectLexer;
 import rsql.antlr.select.RsqlSelectParser;
 import rsql.exceptions.SyntaxErrorException;
 import rsql.where.CustomErrorStrategy;
+import rsql.where.RsqlWhereTreeParser;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
 
 /**
  * SelectTreeParser is a class that parses a SELECT string into a ParseTree.
  * It uses ANTLR-generated RsqlSelectLexer and RsqlSelectParser.
  */
 public class SelectTreeParser {
+
+    /*
+     * RsqlSelect.g4 writes its parentheses as inline literals, so ANTLR names them T__n and renumbers them
+     * whenever the grammar gains or loses a literal. Resolving them from the vocabulary keeps this code
+     * correct across such edits.
+     */
+    private static final int LEFT_PARENTHESIS = tokenTypeOf("'('");
+    private static final int RIGHT_PARENTHESIS = tokenTypeOf("')'");
+
+    private static int tokenTypeOf(String literal) {
+        for (int type = 0; type <= RsqlSelectLexer.VOCABULARY.getMaxTokenType(); type++) {
+            if (literal.equals(RsqlSelectLexer.VOCABULARY.getLiteralName(type))) {
+                return type;
+            }
+        }
+        throw new IllegalStateException("RsqlSelect.g4 no longer defines the " + literal + " token");
+    }
 
     /**
      * Parses a CharStream input into a ParseTree.
@@ -31,6 +53,8 @@ public class SelectTreeParser {
         // Create token stream
         CommonTokenStream tokens = new CommonTokenStream(lexer);
 
+        verifyNestingIsWithinLimit(tokens);
+
         // Create parser with custom error handling
         RsqlSelectParser parser = new RsqlSelectParser(tokens);
         parser.removeErrorListeners();
@@ -40,8 +64,79 @@ public class SelectTreeParser {
         // Parse the 'select' rule (entry point)
         ParseTree tree = parser.select();
         verifyWholeInputWasUsed(tokens);
+        verifyTreeDepthIsWithinLimit(tree);
 
         return tree;
+    }
+
+    /**
+     * The parentheses of {@code '(' expression ')'} are the only ones that nest a rule, and the parser
+     * descends one JVM frame per level. An aggregate call such as {@code SUM(price)} does not nest, so its
+     * parentheses must not count - otherwise a clause of a few hundred aggregates would be rejected.
+     * <p>
+     * Shares its limits with {@link RsqlWhereTreeParser}: a caller tuning one would mean the other.
+     *
+     * @param tokens The token stream, which this method fills
+     */
+    private void verifyNestingIsWithinLimit(CommonTokenStream tokens) {
+        // fill() is required: getTokens() returns an empty list on an unfilled stream, which would leave
+        // this check silently doing nothing while every valid clause still parsed
+        tokens.fill();
+        List<Token> all = tokens.getTokens();
+
+        int maxNestingDepth = RsqlWhereTreeParser.getMaxNestingDepth();
+        Deque<Boolean> functionCall = new ArrayDeque<>();
+        int depth = 0;
+
+        for (int i = 0; i < all.size(); i++) {
+            int type = all.get(i).getType();
+            if (type == LEFT_PARENTHESIS) {
+                int previous = i >= 1 ? all.get(i - 1).getType() : Token.INVALID_TYPE;
+                boolean isFunctionCall = previous == RsqlSelectLexer.AVG || previous == RsqlSelectLexer.MAX
+                    || previous == RsqlSelectLexer.MIN || previous == RsqlSelectLexer.SUM
+                    || previous == RsqlSelectLexer.COUNT || previous == RsqlSelectLexer.GRP;
+                functionCall.push(isFunctionCall);
+                if (!isFunctionCall && ++depth > maxNestingDepth) {
+                    throw new SyntaxErrorException(
+                        "Select expression is nested too deeply at position " + all.get(i).getStartIndex()
+                            + " - at most " + maxNestingDepth + " levels of parentheses are allowed"
+                    );
+                }
+            } else if (type == RIGHT_PARENTHESIS) {
+                if (!functionCall.isEmpty() && !functionCall.pop()) {
+                    depth--;
+                }
+            }
+        }
+    }
+
+    /**
+     * Bound the recursion the select visitors are about to do. Walks iteratively, so measuring cannot
+     * itself overflow.
+     *
+     * @param tree The parse tree returned by the start rule
+     */
+    private void verifyTreeDepthIsWithinLimit(ParseTree tree) {
+        int maxTreeDepth = RsqlWhereTreeParser.getMaxTreeDepth();
+        Deque<ParseTree> nodes = new ArrayDeque<>();
+        Deque<Integer> depths = new ArrayDeque<>();
+        nodes.push(tree);
+        depths.push(1);
+
+        while (!nodes.isEmpty()) {
+            ParseTree node = nodes.pop();
+            int depth = depths.pop();
+            if (depth > maxTreeDepth) {
+                throw new SyntaxErrorException(
+                    "Select expression is structured too deeply - at most " + maxTreeDepth
+                        + " levels of nesting are allowed"
+                );
+            }
+            for (int i = 0; i < node.getChildCount(); i++) {
+                nodes.push(node.getChild(i));
+                depths.push(depth + 1);
+            }
+        }
     }
 
     /**

@@ -38,16 +38,10 @@ public class SelectAggregateVisitor extends RsqlSelectBaseVisitor<List<Aggregate
 
     @Override
     public List<AggregateField> visitSelect(RsqlSelectParser.SelectContext ctx) {
-        List<AggregateField> allFields = new ArrayList<>();
-
-        for (RsqlSelectParser.SelectElementsContext elementsCtx : ctx.selectElements()) {
-            List<AggregateField> fields = visit(elementsCtx);
-            if (fields != null) {
-                allFields.addAll(fields);
-            }
-        }
-
-        return allFields;
+        // one selectElements per clause since 0.6.21 - the start rule used to be `selectElements+`,
+        // which silently accepted "code name" as if the comma were there
+        List<AggregateField> fields = visit(ctx.selectElements());
+        return fields != null ? fields : new ArrayList<>();
     }
 
     @Override

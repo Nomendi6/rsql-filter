@@ -4,8 +4,19 @@ grammar RsqlSelect;
 package rsql.antlr.select;
 }
 
-/** The start rule; begin parsing here. */
-select:   selectElements+ ;
+/*
+ * The start rule.
+ *
+ * NOTE: no '+' here, deliberately. Up to 0.6.20 this read `selectElements+`, which let a second group of
+ * elements begin at any position. That had two effects, both bad:
+ *   - "code name" parsed as though the comma were there, because the visitors iterate every selectElements
+ *     and accumulate;
+ *   - since selectElements may start with '*', and '*' is also the multiplication operator, the parser had
+ *     to decide at every '*' whether the current expression continued or a new group began. That decision
+ *     needs lookahead over the whole expression, so "a+b*c" repeated 200 times took about 14 seconds.
+ * A missing separator is now caught by SelectTreeParser.verifyWholeInputWasUsed.
+ */
+select:   selectElements ;
 
 selectElements
     : (star='*' | selectElement) (',' selectElement)*
