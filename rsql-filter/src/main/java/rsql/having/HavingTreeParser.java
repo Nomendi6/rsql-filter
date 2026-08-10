@@ -56,9 +56,11 @@ public class HavingTreeParser {
      * {@link RsqlWhereTreeParser}: measured on a 1M stack, HAVING overflows at about 5 000 nested
      * parentheses. The limits are shared with the WHERE side, since a caller tuning one would mean the other.
      * <p>
-     * Two kinds of parenthesis do not nest {@code havingCondition} and so must not count: the argument list
-     * of {@code IN} / {@code NIN} / {@code BT} / {@code NBT}, and the argument list of an aggregate function
-     * such as {@code SUM(price)}.
+     * Every parenthesis counts, including the argument list of an aggregate function. {@code functionArg}
+     * may itself be a {@code functionCall} (RsqlHaving.g4), so {@code SUM(SUM(SUM(...)))} is a genuinely
+     * recursive path through the parser - exempting those parentheses hid it, and 1 000 levels overflowed the
+     * stack before the tree depth check could run. Exempting them was never necessary either: the depth is
+     * decremented on the closing token, so a clause of 300 aggregates never exceeds one level.
      *
      * @param tokens The token stream, which this method fills
      */
@@ -69,43 +71,20 @@ public class HavingTreeParser {
         List<Token> all = tokens.getTokens();
 
         int maxNestingDepth = RsqlWhereTreeParser.getMaxNestingDepth();
-        Deque<Boolean> argumentList = new ArrayDeque<>();
         int depth = 0;
-
-        for (int i = 0; i < all.size(); i++) {
-            int type = all.get(i).getType();
+        for (Token token : all) {
+            int type = token.getType();
             if (type == RsqlHavingLexer.LR_BRACKET) {
-                if (!isGroupingParenthesis(all, i)) {
-                    argumentList.push(true);
-                } else {
-                    argumentList.push(false);
-                    if (++depth > maxNestingDepth) {
-                        throw new SyntaxErrorException(
-                            "HAVING clause is nested too deeply at position " + all.get(i).getStartIndex()
-                                + " - at most " + maxNestingDepth + " levels of parentheses are allowed"
-                        );
-                    }
+                if (++depth > maxNestingDepth) {
+                    throw new SyntaxErrorException(
+                        "HAVING clause is nested too deeply at position " + token.getStartIndex()
+                            + " - at most " + maxNestingDepth + " levels of parentheses are allowed"
+                    );
                 }
             } else if (type == RsqlHavingLexer.RR_BRACKET) {
-                if (!argumentList.isEmpty() && !argumentList.pop()) {
-                    depth--;
-                }
+                depth--;
             }
         }
-    }
-
-    private boolean isGroupingParenthesis(List<Token> all, int index) {
-        // an aggregate function puts its name immediately before the '('
-        int previous = index >= 1 ? all.get(index - 1).getType() : Token.INVALID_TYPE;
-        if (previous == RsqlHavingLexer.SUM || previous == RsqlHavingLexer.AVG
-            || previous == RsqlHavingLexer.COUNT || previous == RsqlHavingLexer.MIN
-            || previous == RsqlHavingLexer.MAX || previous == RsqlHavingLexer.GRP) {
-            return false;
-        }
-        // operatorIN is '=' IN '=', three tokens, so its keyword sits two places back
-        int operator = index >= 2 ? all.get(index - 2).getType() : Token.INVALID_TYPE;
-        return operator != RsqlHavingLexer.IN && operator != RsqlHavingLexer.NIN
-            && operator != RsqlHavingLexer.BT && operator != RsqlHavingLexer.NBT;
     }
 
     /**
