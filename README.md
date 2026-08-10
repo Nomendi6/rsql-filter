@@ -58,6 +58,7 @@ implementation 'com.nomendi6:rsql-filter:0.6.7'
 - **HAVING Clause**: Filter aggregated results with full RSQL syntax support
 - **LOV Queries**: List of Values queries for dropdowns/autocomplete
 - **ANTLR Based**: Robust parser built with ANTLR4
+- **Filter Descriptions**: Turn a filter into readable text or table rows for a report header
 - **Error Handling**: Detailed error messages for invalid queries
 
 ## Usage
@@ -258,6 +259,77 @@ Complete example application can be found [here](./rsql-filter-demo).
 > Note: `rsql-filter-demo` is excluded from `0.7.x` releases until the demo migration to the same platform stack is completed. For Spring Boot 3 compatibility, use the `0.6.x` line from `release-3.x`.
 
 ## Advanced Usage
+
+### Describing a Filter
+
+A report that shows filtered data usually has to state which filter produced it. `RsqlFilterDescription` turns
+the filter string into readable text and into table rows, without an `EntityManager` - it works on the parse
+tree alone.
+
+```java
+RsqlFilterDescription describer = new RsqlFilterDescription();
+
+describer.describe("name=*'A*';price=gt=100").getText();
+// name starts with (ignoring case) "A" and price is greater than 100
+```
+
+Values are quoted and escaped so the line cannot be read back as a different filter: `name=='A and b=='` does
+not turn into two conditions, a comma inside a value is not the separator of an `IN` list, and a value
+containing a newline still prints on one line.
+
+#### Readable Names
+
+Without a resolver the description prints technical field paths. `MapFilterLabelResolver` is the smallest fix:
+
+```java
+FilterLabelResolver labels = new MapFilterLabelResolver(Map.of(
+    "productType.name", "Product type",
+    "price",            "Price"));
+
+describer.describe("productType.name=='A';price=gt=100", labels).getText();
+// Product type is "A" and Price is greater than 100
+```
+
+For a translated report the operators and the "and"/"or" have to be translated too, which is what
+`ResourceBundleFilterLabelResolver` adds:
+
+```properties
+# messages_hr.properties
+field.productType.name    = Vrsta proizvoda
+field.price               = Cijena
+operator.EQ               = je
+operator.GT               = je veći od
+operator.LIKE.STARTS_WITH = počinje s
+junction.AND              = i
+junction.OR               = ili
+```
+
+```java
+FilterLabelResolver labels = new ResourceBundleFilterLabelResolver(
+    ResourceBundle.getBundle("messages", locale));
+```
+
+A key that is missing falls back to the built-in English, so a partial translation still prints. Use
+`ResourceBundleFilterLabelResolver.fieldKey(...)`, `.operatorKey(...)` and `.junctionKey(...)` to generate a
+starter bundle. Implement `FilterLabelResolver` directly (or extend `DelegatingFilterLabelResolver`) to change
+how values are formatted or to mask them.
+
+#### Table Rows for JasperReports
+
+`getRows()` returns JavaBeans ready for `JRBeanCollectionDataSource`:
+
+```java
+FilterDescription description = describer.describe(filter, labels);
+parameters.put("filterRows", new JRBeanCollectionDataSource(description.getRows()));
+parameters.put("filterText", description.getText(200));   // truncated with an ellipsis
+```
+
+Each row has `field`, `operator`, `value`, `connector` (the `and`/`or` in front of it, `null` for the first),
+`depth`, `openGroups` and `closeGroups`. The last three only matter when the filter contains an `OR`; check
+`isPureAndChain()` to know whether a plain table renders the filter exactly.
+
+Masking applies to `getRows()` and `getText()`, which pass every part through the resolver. `getRoot()` returns
+the tree with the raw values and deliberately bypasses it.
 
 ### Sorting
 Add sort parameter to your requests:

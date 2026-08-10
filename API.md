@@ -18,6 +18,12 @@ This document provides detailed information about all the methods available in t
   - [Compilation Methods](#compilation-methods)
   - [Parameter Binding Methods](#parameter-binding-methods)
   - [Helper Methods](#helper-methods)
+- [RsqlFilterDescription](#rsqlfilterdescription)
+  - [Describing Methods](#describing-methods)
+  - [FilterDescription](#filterdescription)
+  - [FilterRow](#filterrow)
+  - [FilterLabelResolver](#filterlabelresolver)
+  - [The Filter Tree](#the-filter-tree)
 
 ## RsqlQueryService
 
@@ -1040,6 +1046,22 @@ Compiles an RSQL string into a JPA Specification.
 
 **Throws:** `SyntaxErrorException` if the RSQL expression is invalid
 
+#### compileToFilterNode
+```java
+public FilterNode compileToFilterNode(String inputString)
+```
+Compiles an RSQL string into a neutral filter tree, for describing or rewriting a filter rather than executing
+it. No `RsqlContext` is needed, since nothing is resolved against the entity.
+
+**Parameters:**
+- `inputString` - RSQL filter expression; `null` or blank gives `null`
+
+**Returns:** The tree root, a `FilterGroup` or a `FilterCondition`, or `null` for an empty filter
+
+**Throws:** `SyntaxErrorException` if the RSQL expression is invalid
+
+See [RsqlFilterDescription](#rsqlfilterdescription) for what to do with it.
+
 #### compileSelectToExpressions
 ```java
 public List<SelectExpression> compileSelectToExpressions(
@@ -1163,6 +1185,135 @@ Fixes ID field references for native SQL queries.
 > ⚠ Verified on PostgreSQL. The emitted `escape '\'` is a valid string literal there, on DB2, Oracle, H2 and
 > SQL Server, but **not on MySQL/MariaDB** without `NO_BACKSLASH_ESCAPES`; those are outside the supported
 > native-SQL contract.
+
+---
+
+## RsqlFilterDescription
+
+Turns a WHERE filter into text a reader understands. Purely textual: no `EntityManager` and no `RsqlContext`,
+because the description is built from the parse tree alone. Deep or malformed input is rejected by the same tree
+parser the query path uses, so any filter that can be executed can also be described.
+
+```java
+RsqlFilterDescription describer = new RsqlFilterDescription();
+```
+
+### Describing Methods
+
+#### describe
+```java
+public FilterDescription describe(String filter)
+public FilterDescription describe(String filter, FilterLabelResolver labels)
+public FilterDescription describe(String filter, FilterLabelResolver labels, Map<String, Object> parameters)
+```
+Parses a filter and describes it.
+
+**Parameters:**
+- `filter` - RSQL filter expression; `null` or blank gives an empty description
+- `labels` - How the parts are named; defaults to `FilterLabelResolver.TECHNICAL`. Must not be `null`
+- `parameters` - Values for `:name` placeholders. A parameter that is absent prints as `:name`; one bound to
+  `null` prints as `null`
+
+**Returns:** A `FilterDescription`
+
+**Throws:** `SyntaxErrorException` if the filter does not parse
+
+#### describeNode
+```java
+public FilterDescription describeNode(FilterNode root, FilterLabelResolver labels)
+public FilterDescription describeNode(FilterNode root, FilterLabelResolver labels, Map<String, Object> parameters)
+```
+The same, for a tree already parsed or built by hand. Named differently rather than overloaded so that a `null`
+argument needs no cast.
+
+#### parse
+```java
+public FilterNode parse(String filter)
+```
+Parses a filter into a tree without describing it, for an application that wants to inspect or rewrite it.
+Returns `null` for a blank filter. `RsqlCompiler.compileToFilterNode(String)` does the same.
+
+**Example:**
+```java
+RsqlFilterDescription describer = new RsqlFilterDescription();
+FilterDescription description = describer.describe(
+    "productType.name=*'A*';(price=gt=:min,status==#ACTIVE#)",
+    labels,
+    Map.of("min", 100));
+
+description.getText();
+// Product type starts with (ignoring case) "A" and (Price is greater than 100 or Status is "ACTIVE")
+```
+
+### FilterDescription
+
+| Method | Returns |
+|---|---|
+| `getRoot()` | The tree. The faithful form - and the only one that bypasses the resolver, so also the raw one |
+| `getRows()` | `List<FilterRow>`, ready for `JRBeanCollectionDataSource` |
+| `getText()` | The whole filter on one line |
+| `getText(int maxLength)` | The same, truncated with an ellipsis |
+| `isPureAndChain()` | Whether the filter contains no `OR`, in which case a plain table renders it exactly |
+| `isEmpty()` | Whether the filter was empty |
+
+### FilterRow
+
+A JavaBean, so JasperReports can introspect it.
+
+| Property | Meaning |
+|---|---|
+| `field` | The left-hand side |
+| `operator` | The operator |
+| `value` | The right-hand side; empty for `IS NULL` / `IS NOT NULL` |
+| `connector` | The `and` / `or` in front of this row, `null` for the first |
+| `depth` | Nesting level, `0` at the top |
+| `openGroups` | Parentheses opening before this row |
+| `closeGroups` | Parentheses closing after it |
+
+`connector` carries the junction of the lowest common ancestor of this row and the previous one, so reading the
+rows top to bottom reproduces the filter.
+
+### FilterLabelResolver
+
+Every method has a default, so an implementation overrides only what it changes. `FilterLabelResolver.TECHNICAL`
+is the all-defaults instance: technical paths and English operators.
+
+| Method | Purpose |
+|---|---|
+| `operandLabel(Operand)` | The left-hand side |
+| `operatorLabel(FilterCondition)` | The operator. Takes the whole condition because the four LIKE forms read differently depending on where the wildcards are |
+| `valueLabel(Operand, Object)` | A value. Strings go through `FilterLabelResolver.quote(String)` by default |
+| `patternValueLabel(Operand, Object, PatternShape, String)` | A LIKE value; shows the needle rather than the raw pattern, since the operator label already says "starts with" |
+| `parameterLabel(Operand, String, ParameterResolution)` | A `:name` placeholder |
+| `rightSideLabel(Operand, RightSide)` | A right-hand side this version does not know |
+| `junctionLabel(Junction)` | `and` / `or` |
+| `joinList(List<String>)`, `joinRange(String, String)` | How rendered parts are joined |
+
+Supplied implementations:
+
+- `MapFilterLabelResolver(Map<String, String> fieldLabels[, FilterLabelResolver delegate])` - field labels from
+  a map; unknown paths keep their technical form
+- `ResourceBundleFilterLabelResolver(ResourceBundle bundle[, String prefix][, FilterLabelResolver delegate])` -
+  fields, operators and junctions from a bundle. Keys: `field.<path>`, `operator.<NAME>`,
+  `operator.<NAME>.<SHAPE>` for the LIKE family, `junction.AND` / `junction.OR`. A missing key falls back to the
+  delegate
+- `DelegatingFilterLabelResolver(FilterLabelResolver delegate)` - forwards everything, as a base for a resolver
+  that overrides one or two methods without discarding a collaborator
+
+### The Filter Tree
+
+`FilterNode` is `sealed`, permitting `FilterGroup` (a junction and its children) and `FilterCondition` (a
+left-hand side, a `FilterOperator`, and a `RightSide`). The tree is normalised: nested groups sharing a junction
+are flattened, and a group of one child is replaced by that child, so `a;b;c` is one group of three.
+
+`RightSide` has six built-in shapes: `SingleValue`, `NoValue` (for `IS NULL`), `FieldRef`, `Parameter`,
+`ValueList` (for `IN`) and `Range` (for `BETWEEN`). It is not `sealed` - an unknown shape is rendered through
+`rightSideLabel`, so masking still applies.
+
+`FilterCondition` validates itself: an operator and a right-hand side that contradict each other are rejected,
+and for a LIKE condition the `PatternShape` and the needle must be the ones actually derived from the value.
+
+---
 
 ## Common Usage Patterns
 
