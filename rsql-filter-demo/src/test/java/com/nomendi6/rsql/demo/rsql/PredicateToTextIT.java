@@ -847,7 +847,7 @@ public class PredicateToTextIT {
     @Test
     void fieldLikeString1() {
         String rsql = "code=*'A*'";
-        String expected = "lower(code) like 'a%'";
+        String expected = "lower(code) like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -855,7 +855,7 @@ public class PredicateToTextIT {
     @Test
     void fieldLikeString2() {
         String rsql = "code=like='A*'";
-        String expected = "lower(code) like 'a%'";
+        String expected = "lower(code) like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -863,7 +863,7 @@ public class PredicateToTextIT {
     @Test
     void fieldNotLikeString1() {
         String rsql = "code=!*'A*'";
-        String expected = "lower(code) not like 'a%'";
+        String expected = "lower(code) not like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -871,7 +871,7 @@ public class PredicateToTextIT {
     @Test
     void fieldNotLikeString2() {
         String rsql = "code!=*'A*'";
-        String expected = "lower(code) not like 'a%'";
+        String expected = "lower(code) not like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }
@@ -879,7 +879,7 @@ public class PredicateToTextIT {
     @Test
     void fieldNotLikeString3() {
         String rsql = "code=nlike='A*'";
-        String expected = "lower(code) not like 'a%'";
+        String expected = "lower(code) not like 'a%' escape '\\'";
         String actual = compileToPredicate(rsql);
         assertThat(actual).isEqualTo(expected);
     }

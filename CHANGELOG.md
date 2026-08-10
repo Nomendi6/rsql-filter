@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.21] - 2026-08-10
+
+### Fixed
+- **Filters ending in a grouping `)` followed by a newline are no longer rejected.** `(name=='a')\n` failed
+  with `SyntaxErrorException: Missing opening parenthesis`, even though no parenthesis was missing. This broke
+  `RsqlWhereString.parseFile` systematically, since files normally end with a newline, and it reached every
+  entry point - `compileToSpecification`, `compileToRsqlQuery`, `parseString` and `parseFile` all share the
+  same tree parser.
+
+  Only the *trailing* newline is affected. A leading or inner newline was rejected before and still is;
+  `NEWLINE` is a real token that only the trailing-token check tolerates.
+
+- **Parsing parentheses is no longer exponential.** Two error alternatives in the `condition` rule, added to
+  produce a nicer error message, made every `)` ambiguous - it could either close a `conditionParens` or start
+  the tail of `missingOpeningParenthesis` - so the adaptive prediction explored 2^n paths on n parentheses.
+  The cost was paid on **valid** input:
+
+  | filter | before | after |
+  |---|---|---|
+  | 26 nested levels (56 characters) | ~12 700 ms | ~2 ms |
+  | 200 flat groups (1 399 characters) | ~9 200 ms | ~19 ms |
+  | 5 000 nested levels | unreachable | ~12 ms |
+
+  Both problems had the same cause and the same fix: the two alternatives were removed.
+
+### Changed
+- **The message for a stray `)` changed.** It used to be `Missing opening parenthesis`; it is now
+  `Unexpected input after the filter expression at position N`, which also carries the position. The exception
+  type is unchanged (`SyntaxErrorException`), and every valid filter parses exactly as before - verified over
+  474 filters collected from the test suites, with identical parse trees.
+
+  Code that matches on the *text* of the exception message needs updating.
+
+- The `errorCondition` rule was removed. No rule ever invoked it, so the `Missing closing parenthesis` message
+  it carried was never produced - which is why the assertion for it had been commented out. An unclosed
+  parenthesis is reported by `CustomErrorStrategy`, as before.
+
+- Classes under `rsql.antlr.*` are generated ANTLR output and **not a supported public API**. This release
+  removes `MissingOpeningParenthesisContext`, `ErrorConditionContext`, `MissingClosingParenthesis2Context`
+  and the matching visitor and listener methods, and renumbers the `RULE_*` constants.
+
+### Known limitations
+- Very deeply nested filters still exhaust the stack: roughly 2 800 nested parentheses, or a chain of about
+  3 800 conditions, throw `StackOverflowError` rather than `SyntaxErrorException`. This is a pre-existing
+  limit that also affects the SELECT and HAVING parsers, and it is not addressed here. Applications that
+  accept filters from untrusted input should bound their size until a guard ships.
+
 ## [0.6.20] - 2026-08-08
 
 ### Fixed

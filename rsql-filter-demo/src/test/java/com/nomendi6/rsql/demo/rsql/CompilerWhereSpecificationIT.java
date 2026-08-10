@@ -700,18 +700,22 @@ public class CompilerWhereSpecificationIT {
 
     @Test
     void errorMissingClosingParenthesis() {
-        SyntaxErrorException thrown = assertThrows(SyntaxErrorException.class, () -> {
-            compileToSpecificationAndGetWhere("seq==10 or seq==11)");
+        // was a copy of errorMissingOpeningParenthesis - same input, same assert. Now it really
+        // exercises an unclosed parenthesis.
+        assertThrows(SyntaxErrorException.class, () -> {
+            compileToSpecificationAndGetWhere("(seq==10 or seq==11");
         });
-        assertTrue(thrown.getMessage().contains("Missing opening parenthesis"));
     }
 
     @Test
     void errorMissingOpeningParenthesis() {
+        // the surplus ')' is now rejected by verifyWholeInputWasUsed rather than by the grammar;
+        // the two error alternatives that reported "Missing opening parenthesis" made every ')'
+        // ambiguous (see the note in RsqlWhere.g4)
         SyntaxErrorException thrown = assertThrows(SyntaxErrorException.class, () -> {
             compileToSpecificationAndGetWhere("seq==10 or seq==11)");
         });
-        assertTrue(thrown.getMessage().contains("Missing opening parenthesis"));
+        assertTrue(thrown.getMessage().contains("Unexpected input after the filter expression"));
     }
 
     @Test

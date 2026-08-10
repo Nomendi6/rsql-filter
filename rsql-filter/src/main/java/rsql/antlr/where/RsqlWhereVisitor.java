@@ -26,13 +26,6 @@ public interface RsqlWhereVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitConditionSingle(RsqlWhereParser.ConditionSingleContext ctx);
 	/**
-	 * Visit a parse tree produced by the {@code missingOpeningParenthesis}
-	 * labeled alternative in {@link RsqlWhereParser#condition}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitMissingOpeningParenthesis(RsqlWhereParser.MissingOpeningParenthesisContext ctx);
-	/**
 	 * Visit a parse tree produced by the {@code conditionAnd}
 	 * labeled alternative in {@link RsqlWhereParser#condition}.
 	 * @param ctx the parse tree
@@ -53,13 +46,6 @@ public interface RsqlWhereVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitConditionParens(RsqlWhereParser.ConditionParensContext ctx);
-	/**
-	 * Visit a parse tree produced by the {@code missingClosingParenthesis2}
-	 * labeled alternative in {@link RsqlWhereParser#errorCondition}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx);
 	/**
 	 * Visit a parse tree produced by {@link RsqlWhereParser#inList}.
 	 * @param ctx the parse tree

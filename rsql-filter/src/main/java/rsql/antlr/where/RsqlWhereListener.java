@@ -32,18 +32,6 @@ public interface RsqlWhereListener extends ParseTreeListener {
 	 */
 	void exitConditionSingle(RsqlWhereParser.ConditionSingleContext ctx);
 	/**
-	 * Enter a parse tree produced by the {@code missingOpeningParenthesis}
-	 * labeled alternative in {@link RsqlWhereParser#condition}.
-	 * @param ctx the parse tree
-	 */
-	void enterMissingOpeningParenthesis(RsqlWhereParser.MissingOpeningParenthesisContext ctx);
-	/**
-	 * Exit a parse tree produced by the {@code missingOpeningParenthesis}
-	 * labeled alternative in {@link RsqlWhereParser#condition}.
-	 * @param ctx the parse tree
-	 */
-	void exitMissingOpeningParenthesis(RsqlWhereParser.MissingOpeningParenthesisContext ctx);
-	/**
 	 * Enter a parse tree produced by the {@code conditionAnd}
 	 * labeled alternative in {@link RsqlWhereParser#condition}.
 	 * @param ctx the parse tree
@@ -79,18 +67,6 @@ public interface RsqlWhereListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitConditionParens(RsqlWhereParser.ConditionParensContext ctx);
-	/**
-	 * Enter a parse tree produced by the {@code missingClosingParenthesis2}
-	 * labeled alternative in {@link RsqlWhereParser#errorCondition}.
-	 * @param ctx the parse tree
-	 */
-	void enterMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx);
-	/**
-	 * Exit a parse tree produced by the {@code missingClosingParenthesis2}
-	 * labeled alternative in {@link RsqlWhereParser#errorCondition}.
-	 * @param ctx the parse tree
-	 */
-	void exitMissingClosingParenthesis2(RsqlWhereParser.MissingClosingParenthesis2Context ctx);
 	/**
 	 * Enter a parse tree produced by {@link RsqlWhereParser#inList}.
 	 * @param ctx the parse tree
