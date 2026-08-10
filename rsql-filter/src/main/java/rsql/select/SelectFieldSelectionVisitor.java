@@ -1,5 +1,7 @@
 package rsql.select;
 
+import org.antlr.v4.runtime.tree.TerminalNode;
+
 import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.ManagedType;
@@ -152,8 +154,10 @@ public class SelectFieldSelectionVisitor extends RsqlSelectBaseVisitor<List<Sele
     private String getFieldPath(RsqlSelectParser.FieldContext ctx) {
         StringBuilder sb = new StringBuilder(ctx.ID().getText());
 
-        for (int i = 0; i < ctx.DOT_ID().size(); i++) {
-            sb.append(ctx.DOT_ID(i).getText());
+        // hoisted: ctx.DOT_ID() is getRuleContexts(), which rebuilds the list by scanning every child,
+        // so calling it per iteration makes this O(n^2) in the length of the field path
+        for (TerminalNode segment : ctx.DOT_ID()) {
+            sb.append(segment.getText());
         }
 
         return sb.toString();

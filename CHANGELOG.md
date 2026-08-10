@@ -70,6 +70,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than for grouping parentheses (roughly 1 000-1 500 levels on a 512k stack against 1 184), which the default
   of 100 clears by an order of magnitude.
 
+- **Long `IN` lists and long field paths no longer render in quadratic time.** `ctx.inListElement()` and
+  `ctx.DOT_ID()` are `getRuleContexts` calls, and each one rebuilds its list by scanning every child of the
+  node. Calling them once per loop iteration - as eight visitor loops did - made rendering O(n^2), while the
+  parser itself was linear throughout.
+
+  | input | before | after |
+  |---|---|---|
+  | `IN` list of 16 000 elements | ~5 000 ms | ~54 ms |
+  | field path of 16 000 segments | ~2 068 ms | ~33 ms |
+
+  Affects `WhereStringVisitor`, `RsqlWhereHelper` and the five SELECT visitors. No behaviour changes.
+
 - **SELECT clauses parse in linear time, and a missing separator is now an error.** The start rule was
   `select: selectElements+`, which let a second group of elements begin at any position. Since a group may
   start with `*`, and `*` is also the multiplication operator, the parser had to decide at every `*` whether

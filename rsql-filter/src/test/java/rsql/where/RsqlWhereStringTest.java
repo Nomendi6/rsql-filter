@@ -706,6 +706,32 @@ class RsqlWhereStringTest {
         assertParsesWithin(String.join(";", java.util.Collections.nCopies(400, "(field1==1)")));
     }
 
+
+    /**
+     * {@code ctx.inListElement()} and {@code ctx.DOT_ID()} are {@code getRuleContexts} calls: each one
+     * rebuilds its list by scanning every child. Calling them once per loop iteration made rendering
+     * quadratic - an IN list of 16 000 elements took about 5 s, and a 16 000-segment field path about 2 s,
+     * while the parser handled both in tens of milliseconds. Both are hoisted now.
+     */
+    @Test
+    void longInListsAndFieldPathsRenderInLinearTime() {
+        RsqlWhereString parser = new RsqlWhereString();
+        for (int i = 0; i < 5; i++) parser.parseString("a=in=(1,2,3)");   // warm up
+
+        String longInList = "a=in=(" + String.join(",", java.util.Collections.nCopies(16_000, "1")) + ")";
+        assertUnder(1000, parser, longInList, "IN list of 16 000 elements");
+
+        String deepPath = "a" + ".b".repeat(16_000) + "==1";
+        assertUnder(1000, parser, deepPath, "field path of 16 000 segments");
+    }
+
+    private void assertUnder(long budgetMs, RsqlWhereString parser, String filter, String what) {
+        long start = System.nanoTime();
+        parser.parseString(filter);
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+        assertTrue(elapsedMs < budgetMs, what + " took " + elapsedMs + " ms");
+    }
+
     private void assertParsesWithin(String filter) throws InterruptedException {
         final Throwable[] failure = new Throwable[1];
         final long[] elapsedMs = new long[1];
