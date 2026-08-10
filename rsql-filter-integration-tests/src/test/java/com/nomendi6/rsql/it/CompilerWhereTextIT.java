@@ -178,7 +178,8 @@ public class CompilerWhereTextIT {
         assertThrows(SyntaxErrorException.class, () -> {
             final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("(seq==10 or seq==11", rsqlContext);
         });
-//        assertTrue(thrown.getMessage().contains("Missing closing parenthesis"));
+        // the dead errorCondition rule that carried "Missing closing parenthesis" was removed in 0.6.21;
+        // an unclosed parenthesis is reported by CustomErrorStrategy
     }
 
     @Test
@@ -186,7 +187,7 @@ public class CompilerWhereTextIT {
         SyntaxErrorException thrown = assertThrows(SyntaxErrorException.class, () -> {
             final RsqlQuery rsqlQuery = compiler.compileToRsqlQuery("seq==10 or seq==11)", rsqlContext);
         });
-        assertTrue(thrown.getMessage().contains("Missing opening parenthesis"));
+        assertTrue(thrown.getMessage().contains("Unexpected input after the filter expression"));
     }
 
     @Test
