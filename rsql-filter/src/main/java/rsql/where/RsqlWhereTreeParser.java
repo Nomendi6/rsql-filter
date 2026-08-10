@@ -92,10 +92,16 @@ public class RsqlWhereTreeParser {
     /**
      * Bound the recursion the <em>parser</em> is about to do, before it does it.
      * <p>
-     * Only grouping parentheses count. The ones that delimit an {@code IN} / {@code NIN} / {@code BT} /
-     * {@code NBT} argument list do not nest the {@code condition} rule, so counting them would reject filters
-     * such as {@code a=in=(1,2);b=in=(3,4)} that parse in microseconds. Parentheses inside a string literal
-     * never reach this loop at all - the lexer has already folded them into a single token.
+     * Every parenthesis counts. An earlier version exempted {@code IN} / {@code NIN} / {@code BT} /
+     * {@code NBT} argument lists, on the theory that they do not nest the {@code condition} rule - but the
+     * exemption was both unnecessary and harmful. Unnecessary because the depth is decremented on the closing
+     * token, so {@code a=in=(1,2);b=in=(3,4)} never exceeds one level however many conditions follow. Harmful
+     * because the same reasoning, applied to the aggregate calls of SELECT and HAVING, hid a genuinely
+     * recursive path: {@code functionArg} may itself be a {@code functionCall}, so {@code SUM(SUM(SUM(...)))}
+     * recursed in the parser while the check saw nothing.
+     * <p>
+     * Parentheses inside a string literal never reach this loop - the lexer has already folded them into a
+     * single token.
      *
      * @param tokens The token stream, which this method fills
      */
@@ -105,29 +111,18 @@ public class RsqlWhereTreeParser {
         tokens.fill();
         List<Token> all = tokens.getTokens();
 
-        Deque<Boolean> argumentList = new ArrayDeque<>();
         int depth = 0;
-
-        for (int i = 0; i < all.size(); i++) {
-            int type = all.get(i).getType();
+        for (Token token : all) {
+            int type = token.getType();
             if (type == RsqlWhereLexer.LR_BRACKET) {
-                // operatorIN is '=' IN '=', three tokens, so the operator sits two places back - not one
-                int operator = i >= 2 ? all.get(i - 2).getType() : Token.INVALID_TYPE;
-                boolean isArgumentList = operator == RsqlWhereLexer.IN
-                    || operator == RsqlWhereLexer.NIN
-                    || operator == RsqlWhereLexer.BT
-                    || operator == RsqlWhereLexer.NBT;
-                argumentList.push(isArgumentList);
-                if (!isArgumentList && ++depth > maxNestingDepth) {
+                if (++depth > maxNestingDepth) {
                     throw new SyntaxErrorException(
-                        "Filter is nested too deeply at position " + all.get(i).getStartIndex()
+                        "Filter is nested too deeply at position " + token.getStartIndex()
                             + " - at most " + maxNestingDepth + " levels of parentheses are allowed"
                     );
                 }
             } else if (type == RsqlWhereLexer.RR_BRACKET) {
-                if (!argumentList.isEmpty() && !argumentList.pop()) {
-                    depth--;
-                }
+                depth--;
             }
         }
     }

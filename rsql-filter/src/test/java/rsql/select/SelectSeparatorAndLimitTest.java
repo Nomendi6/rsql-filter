@@ -96,6 +96,33 @@ class SelectSeparatorAndLimitTest {
         assertNotNull(parse(many.toString()));
     }
 
+
+    /**
+     * {@code functionArg} may itself be a {@code functionCall}, so a nested aggregate is a genuinely
+     * recursive path through the parser. An earlier version of the limit exempted aggregate parentheses and
+     * so never saw it: 1 000 levels overflowed the stack during parsing, before the tree depth check ran.
+     */
+    @Test
+    void nestedAggregateCallsAreBoundedToo() throws InterruptedException {
+        String select = "SUM(".repeat(5_000) + "price" + ")".repeat(5_000);
+        final String[] outcome = new String[1];
+        Thread worker = new Thread(null, () -> {
+            try {
+                parse(select);
+                outcome[0] = "parsed";
+            } catch (StackOverflowError e) {
+                outcome[0] = "StackOverflowError";
+            } catch (SyntaxErrorException e) {
+                outcome[0] = "SyntaxErrorException";
+            } catch (Throwable t) {
+                outcome[0] = t.getClass().getSimpleName();
+            }
+        }, "rsql-nested-agg", 512L * 1024);
+        worker.start();
+        worker.join();
+        assertEquals("SyntaxErrorException", outcome[0]);
+    }
+
     // ------------------------------------------------------------------------------------------ cost
 
     /**
