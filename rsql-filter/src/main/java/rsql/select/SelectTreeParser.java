@@ -70,9 +70,11 @@ public class SelectTreeParser {
     }
 
     /**
-     * The parentheses of {@code '(' expression ')'} are the only ones that nest a rule, and the parser
-     * descends one JVM frame per level. An aggregate call such as {@code SUM(price)} does not nest, so its
-     * parentheses must not count - otherwise a clause of a few hundred aggregates would be rejected.
+     * Every parenthesis counts, including an aggregate call such as {@code SUM(price)}. {@code functionArg}
+     * may itself be a {@code functionCall} (RsqlSelect.g4:64-67), so {@code SUM(SUM(SUM(...)))} recurses
+     * through the parser - exempting those parentheses hid it, and 1 000 levels overflowed the stack before
+     * the tree depth check could run. Exempting them was never necessary: the depth is decremented on the
+     * closing token, so a clause of 300 aggregates never exceeds one level.
      * <p>
      * Shares its limits with {@link RsqlWhereTreeParser}: a caller tuning one would mean the other.
      *
@@ -85,27 +87,18 @@ public class SelectTreeParser {
         List<Token> all = tokens.getTokens();
 
         int maxNestingDepth = RsqlWhereTreeParser.getMaxNestingDepth();
-        Deque<Boolean> functionCall = new ArrayDeque<>();
         int depth = 0;
-
-        for (int i = 0; i < all.size(); i++) {
-            int type = all.get(i).getType();
+        for (Token token : all) {
+            int type = token.getType();
             if (type == LEFT_PARENTHESIS) {
-                int previous = i >= 1 ? all.get(i - 1).getType() : Token.INVALID_TYPE;
-                boolean isFunctionCall = previous == RsqlSelectLexer.AVG || previous == RsqlSelectLexer.MAX
-                    || previous == RsqlSelectLexer.MIN || previous == RsqlSelectLexer.SUM
-                    || previous == RsqlSelectLexer.COUNT || previous == RsqlSelectLexer.GRP;
-                functionCall.push(isFunctionCall);
-                if (!isFunctionCall && ++depth > maxNestingDepth) {
+                if (++depth > maxNestingDepth) {
                     throw new SyntaxErrorException(
-                        "Select expression is nested too deeply at position " + all.get(i).getStartIndex()
+                        "Select expression is nested too deeply at position " + token.getStartIndex()
                             + " - at most " + maxNestingDepth + " levels of parentheses are allowed"
                     );
                 }
             } else if (type == RIGHT_PARENTHESIS) {
-                if (!functionCall.isEmpty() && !functionCall.pop()) {
-                    depth--;
-                }
+                depth--;
             }
         }
     }

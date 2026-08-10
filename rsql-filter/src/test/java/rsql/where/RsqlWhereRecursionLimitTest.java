@@ -1,10 +1,16 @@
 package rsql.where;
 
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import rsql.exceptions.SyntaxErrorException;
 
 import java.util.Collections;
+import java.util.List;
+
+import rsql.antlr.where.RsqlWhereLexer;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -122,21 +128,41 @@ class RsqlWhereRecursionLimitTest {
      * The check runs on every parse, so it has to be linear. An {@code LA(i)} loop over
      * {@code CommonTokenStream} would be O(n^2) - 160 kB of input took 43 s that way.
      */
+    /**
+     * The check runs on every parse, so it has to be linear. An {@code LA(i)} loop over
+     * {@code CommonTokenStream} would be O(n^2) - 160 kB of input took 43 s that way.
+     * <p>
+     * Driven directly rather than through the facade: the parser is not linear on every shape either - an
+     * {@code IN} list of n elements costs roughly O(n^2) to parse - so going through {@code parseString}
+     * would measure that instead of this.
+     */
     @Test
     void limitCheckIsLinear() {
-        // an IN list stays 6 levels deep however long it gets, so this measures the scan and not the
-        // recursion it protects against
-        String small = inList(2_000);
-        String large = inList(16_000);                       // 8x the input
-        RsqlWhereString parser = new RsqlWhereString();
-        for (int i = 0; i < 3; i++) parser.parseString(small);   // warm up
+        List<Token> small = tokensOf(4_000);
+        List<Token> large = tokensOf(32_000);                 // 8x the tokens
+        for (int i = 0; i < 50; i++) {                        // warm up
+            RsqlWhereTreeParser.verifyNestingIsWithinLimit(small, Integer.MAX_VALUE);
+        }
 
-        long smallMs = timeOf(parser, small);
-        long largeMs = timeOf(parser, large);
+        long smallNs = timeOfScan(small);
+        long largeNs = timeOfScan(large);
         assertTrue(
-            largeMs < Math.max(50, smallMs * 40),
-            "8x the input took " + largeMs + " ms against " + smallMs + " ms - looks super-linear"
+            largeNs < smallNs * 40,
+            "8x the tokens took " + largeNs / 1000 + " us against " + smallNs / 1000 + " us - looks super-linear"
         );
+    }
+
+    private static List<Token> tokensOf(int conditions) {
+        CommonTokenStream tokens = new CommonTokenStream(
+            new RsqlWhereLexer(CharStreams.fromString(chain(conditions))));
+        tokens.fill();
+        return tokens.getTokens();
+    }
+
+    private static long timeOfScan(List<Token> tokens) {
+        long start = System.nanoTime();
+        RsqlWhereTreeParser.verifyNestingIsWithinLimit(tokens, Integer.MAX_VALUE);
+        return System.nanoTime() - start;
     }
 
     // --------------------------------------------------------------------------------------- helpers
