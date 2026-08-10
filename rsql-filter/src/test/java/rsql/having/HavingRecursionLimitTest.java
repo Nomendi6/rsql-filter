@@ -17,8 +17,9 @@ class HavingRecursionLimitTest {
 
     @Test
     void nestingAtTheLimitIsAccepted() {
+        // the aggregate call contributes one level of its own, so the grouping parentheses go to max - 1
         int max = RsqlWhereTreeParser.getMaxNestingDepth();
-        String having = "(".repeat(max) + "SUM(price)=gt=1" + ")".repeat(max);
+        String having = "(".repeat(max - 1) + "SUM(price)=gt=1" + ")".repeat(max - 1);
         assertNotNull(new HavingTreeParser().parseStream(CharStreams.fromString(having)));
     }
 
@@ -65,5 +66,27 @@ class HavingRecursionLimitTest {
         StringBuilder many = new StringBuilder("SUM(f0)=gt=1");
         for (int i = 1; i < 200; i++) many.append(";SUM(f").append(i).append(")=gt=1");
         assertNotNull(parser.parseStream(CharStreams.fromString(many.toString())));
+    }
+
+    /** Same recursive path as in SELECT: functionArg may be a functionCall. */
+    @Test
+    void nestedAggregateCallsAreBoundedToo() throws InterruptedException {
+        String having = "SUM(".repeat(5_000) + "price" + ")".repeat(5_000) + "=gt=1";
+        final String[] outcome = new String[1];
+        Thread worker = new Thread(null, () -> {
+            try {
+                new HavingTreeParser().parseStream(CharStreams.fromString(having));
+                outcome[0] = "parsed";
+            } catch (StackOverflowError e) {
+                outcome[0] = "StackOverflowError";
+            } catch (SyntaxErrorException e) {
+                outcome[0] = "SyntaxErrorException";
+            } catch (Throwable t) {
+                outcome[0] = t.getClass().getSimpleName();
+            }
+        }, "rsql-having-nested", 512L * 1024);
+        worker.start();
+        worker.join();
+        assertEquals("SyntaxErrorException", outcome[0]);
     }
 }

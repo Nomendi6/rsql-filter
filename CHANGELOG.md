@@ -60,10 +60,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1 630-condition chain on a 512k stack, 2 801 and 3 750 on a 1M one. The defaults sit well below the
   smaller figures, since 512k is a common container default.
 
-  Parentheses that do not nest a condition are not counted, so nothing valid is rejected: `IN` / `NIN` /
-  `BETWEEN` argument lists, aggregate call parentheses, and parentheses inside a string literal. A filter of
-  200 flat groups, or an `IN` list of 1 000 elements, still parses. The same limits apply to WHERE, HAVING
-  and SELECT.
+  Every parenthesis counts towards the nesting depth, but the depth is decremented on the closing token, so
+  nothing valid is rejected: an `IN` list of 1 000 elements, 200 flat groups, 300 aggregate calls and 21 `IN`
+  conditions all stay at depth 1, and parentheses inside a string literal are part of a single token and never
+  reach the check at all. The same limits apply to WHERE, HAVING and SELECT.
+
+  Nested aggregate calls are covered too. `functionArg` may itself be a `functionCall`, so
+  `SUM(SUM(SUM(...)))` is a genuinely recursive path through the parser; measured thresholds for it are lower
+  than for grouping parentheses (roughly 1 000-1 500 levels on a 512k stack against 1 184), which the default
+  of 100 clears by an order of magnitude.
 
 - **SELECT clauses parse in linear time, and a missing separator is now an error.** The start rule was
   `select: selectElements+`, which let a second group of elements begin at any position. Since a group may
