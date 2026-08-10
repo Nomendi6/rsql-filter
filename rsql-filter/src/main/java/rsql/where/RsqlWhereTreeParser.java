@@ -109,8 +109,18 @@ public class RsqlWhereTreeParser {
         // fill() is required: getTokens() returns an empty list on an unfilled stream, which would make this
         // check silently do nothing while every valid filter still parsed
         tokens.fill();
-        List<Token> all = tokens.getTokens();
+        verifyNestingIsWithinLimit(tokens.getTokens(), maxNestingDepth);
+    }
 
+    /**
+     * Package-private so a test can drive it directly. Measuring it through the public facade would mix its
+     * cost with the parser's, and the parser is not linear on every shape - an {@code IN} list of n elements,
+     * for one, costs roughly O(n^2) to parse.
+     *
+     * @param all             The filled token list
+     * @param maxNestingDepth The limit to enforce
+     */
+    static void verifyNestingIsWithinLimit(List<Token> all, int maxNestingDepth) {
         int depth = 0;
         for (Token token : all) {
             int type = token.getType();
