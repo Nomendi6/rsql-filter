@@ -1,5 +1,9 @@
 package rsql.where;
 
+import java.util.List;
+
+import org.antlr.v4.runtime.tree.TerminalNode;
+
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ErrorNodeImpl;
 import rsql.antlr.where.RsqlWhereBaseVisitor;
@@ -54,8 +58,10 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
     @Override
     public String visitField(RsqlWhereParser.FieldContext ctx) {
         StringBuilder field = new StringBuilder(ctx.ID().getText());
-        for (int i = 0; i < ctx.DOT_ID().size(); i++) {
-            field.append(ctx.DOT_ID(i).getText());
+        // hoisted: ctx.DOT_ID() is getRuleContexts(), which rebuilds the list by scanning every child,
+        // so calling it per iteration makes this O(n^2) in the length of the field path
+        for (TerminalNode segment : ctx.DOT_ID()) {
+            field.append(segment.getText());
         }
 
         return field.toString();
@@ -91,10 +97,13 @@ public class WhereStringVisitor extends RsqlWhereBaseVisitor<String> {
 
     @Override
     public String visitInList(RsqlWhereParser.InListContext ctx) {
-        StringBuilder l = new StringBuilder(renderInListElement(ctx.inListElement(0)));
+        // hoisted: ctx.inListElement() is getRuleContexts(), which rebuilds the list by scanning every
+        // child. Calling it per iteration made this O(n^2) - an IN list of 16 000 elements took ~5 s.
+        List<RsqlWhereParser.InListElementContext> elements = ctx.inListElement();
 
-        for (int i = 1; i < ctx.inListElement().size(); i++) {
-            l.append(',').append(renderInListElement(ctx.inListElement(i)));
+        StringBuilder l = new StringBuilder(renderInListElement(elements.get(0)));
+        for (int i = 1; i < elements.size(); i++) {
+            l.append(',').append(renderInListElement(elements.get(i)));
         }
         return l.toString();
     }

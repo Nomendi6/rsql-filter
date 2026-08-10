@@ -58,8 +58,10 @@ public class RsqlWhereHelper {
      */
     static String getFieldName(RsqlWhereParser.FieldContext ctx) {
         StringBuilder field = new StringBuilder(ctx.ID().getText());
-        for (int i = 0; i < ctx.DOT_ID().size(); i++) {
-            field.append(ctx.DOT_ID(i).getText());
+        // hoisted: ctx.DOT_ID() is getRuleContexts(), which rebuilds the list by scanning every child,
+        // so calling it per iteration makes this O(n^2) in the length of the field path
+        for (TerminalNode segment : ctx.DOT_ID()) {
+            field.append(segment.getText());
         }
 
         return field.toString();
