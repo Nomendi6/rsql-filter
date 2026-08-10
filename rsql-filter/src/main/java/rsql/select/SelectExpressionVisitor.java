@@ -45,16 +45,10 @@ public class SelectExpressionVisitor extends RsqlSelectBaseVisitor<List<SelectEx
 
     @Override
     public List<SelectExpression> visitSelect(RsqlSelectParser.SelectContext ctx) {
-        List<SelectExpression> allExpressions = new ArrayList<>();
-
-        for (RsqlSelectParser.SelectElementsContext elementsCtx : ctx.selectElements()) {
-            List<SelectExpression> expressions = visit(elementsCtx);
-            if (expressions != null) {
-                allExpressions.addAll(expressions);
-            }
-        }
-
-        return allExpressions;
+        // one selectElements per clause since 0.6.21 - the start rule used to be `selectElements+`,
+        // which silently accepted "code name" as if the comma were there
+        List<SelectExpression> expressions = visit(ctx.selectElements());
+        return expressions != null ? expressions : new ArrayList<>();
     }
 
     @Override

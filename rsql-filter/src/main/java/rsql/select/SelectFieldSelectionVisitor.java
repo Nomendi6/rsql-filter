@@ -52,16 +52,10 @@ public class SelectFieldSelectionVisitor extends RsqlSelectBaseVisitor<List<Sele
 
     @Override
     public List<Selection<?>> visitSelect(RsqlSelectParser.SelectContext ctx) {
-        List<Selection<?>> allSelections = new ArrayList<>();
-
-        for (RsqlSelectParser.SelectElementsContext elementsCtx : ctx.selectElements()) {
-            List<Selection<?>> selections = visit(elementsCtx);
-            if (selections != null) {
-                allSelections.addAll(selections);
-            }
-        }
-
-        return allSelections;
+        // one selectElements per clause since 0.6.21 - the start rule used to be `selectElements+`,
+        // which silently accepted "code name" as if the comma were there
+        List<Selection<?>> selections = visit(ctx.selectElements());
+        return selections != null ? selections : new ArrayList<>();
     }
 
     @Override
