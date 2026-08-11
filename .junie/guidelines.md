@@ -1,9 +1,5 @@
 # RSQL Filter Project Guidelines
 
-> **Filename warning:** JetBrains Junie loads `.junie/guidelines.md`, but this file is named
-> `.junie/guidelilnes.md` (transposed letters), so Junie never reads it. Until a maintainer renames it, treat
-> this as ordinary project documentation and do not expect the tool to pick it up.
-
 This document provides guidelines and information for developers working on the RSQL Filter project.
 
 ## Build/Configuration Instructions
