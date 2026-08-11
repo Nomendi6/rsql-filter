@@ -4,11 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Maven multi-module project implementing RSQL (RESTful Service Query Language) filtering for Spring Boot JPA applications. The project has been restructured into three modules:
+This is a Maven multi-module project implementing RSQL (RESTful Service Query Language) filtering for Spring Boot JPA applications. On this branch the root `pom.xml` declares **two** modules:
 
 1. **rsql-filter** - The core library providing RSQL filtering capabilities
 2. **rsql-filter-integration-tests** - Standalone integration tests without JHipster dependencies
-3. **rsql-filter-demo** - A JHipster-based demo application (previously test-appl)
+
+A third directory, **rsql-filter-demo** (a JHipster-based demo application), is still on disk but is commented
+out of the reactor on the 0.7.x line: it depends on JHipster 8 / Spring Boot 3 and is built only on
+`release-3`. Nothing in this reactor downloads Node or npm.
 
 ## Build and Development Commands
 
@@ -21,18 +24,10 @@ mvn clean install
 # Build without tests
 mvn clean install -DskipTests
 
-# Build specific module
+# Build specific module. `-pl rsql-filter-demo` fails here with "Could not find the selected project
+# in the reactor" - that module exists only on release-3
 mvn clean install -pl rsql-filter
 mvn clean install -pl rsql-filter-integration-tests
-mvn clean install -pl rsql-filter-demo
-
-# Build with specific profile. A plain `mvn clean install` already builds the Angular frontend, because
-# rsql-filter-demo's `webapp` profile is activeByDefault and carries install-node-and-npm plus
-# `npm run webapp:build`. Naming ANY profile switches the activeByDefault ones off, so -Pdev is the
-# faster build - it drops the frontend entirely - while -Pprod builds the production bundle
-# (`npm run webapp:prod`). Check with: mvn help:active-profiles -pl rsql-filter-demo
-mvn clean install -Pdev
-mvn clean install -Pprod
 ```
 
 ### Testing Commands
@@ -42,52 +37,26 @@ mvn clean install -Pprod
 mvn test
 
 # Run integration tests. In rsql-filter-integration-tests surefire is configured to include **/*IT.java,
-# so `mvn test` has already run them; in rsql-filter-demo surefire excludes **/*IT* and failsafe runs them
+# so `mvn test` has already run them - there is nothing left for failsafe on this branch
 mvn verify
 
 # Run tests for specific module
 mvn test -pl rsql-filter
 mvn test -pl rsql-filter-integration-tests
-mvn test -pl rsql-filter-demo
 
 # Run a single test class - always with -pl, or the modules without a match fail the build
 mvn test -pl rsql-filter-integration-tests -Dtest=RsqlQueryServiceIT
 
-# Run tests with coverage - jacoco is only wired into rsql-filter-demo. For the library modules the
-# plugin is in pluginManagement only, so jacoco:report there just says "missing execution data file"
-cd rsql-filter-demo && ./mvnw test jacoco:report
+# Run tests with coverage - jacoco is wired into rsql-filter-demo only, which is not a module of this
+# reactor, and for the library modules the plugin is in pluginManagement only, so `mvn jacoco:report`
+# here just says "missing execution data file". There is no coverage report on this branch
 ```
 
-### Frontend Commands (rsql-filter-demo)
+### Frontend and Demo Commands
 
-There is no `package.json` at the repository root - the only one is `rsql-filter-demo/package.json`, so every
-command below is run from that directory:
-
-```bash
-cd rsql-filter-demo
-
-# Install dependencies
-npm install
-
-# Run frontend in development
-npm start
-
-# Build frontend for production
-npm run webapp:prod
-
-# Run frontend tests
-npm test
-
-# Lint TypeScript/JavaScript
-npm run lint
-npm run lint:fix
-
-# Format code
-npm run prettier:format
-
-# Check formatting
-npm run prettier:check
-```
+The `rsql-filter-demo` directory is on disk but is **not** a module of this reactor, so its Maven and npm
+commands belong to the `release-3` branch. `rsql-filter-demo/README.md` and the CLAUDE.md on `release-3`
+carry them; nothing on this branch needs Node, npm or a running application.
 
 ### Other Useful Commands
 
@@ -95,22 +64,10 @@ npm run prettier:check
 # Generate ANTLR code from grammar files
 mvn -pl rsql-filter generate-sources
 
-# Run checkstyle - a configuration exists in rsql-filter-demo only, and there it reports 0 violations.
-# At the root the plugin DOES resolve and run (maven-checkstyle-plugin 3.6.0 with the default sun_checks):
-# rsql-filter-parent passes with 0, then the build FAILS with "You have 16872 Checkstyle violations" on
-# rsql-filter - 12966 of them in the generated parsers under rsql/antlr. It is not a usable gate here
-cd rsql-filter-demo && ./mvnw checkstyle:check
-
-# Apply Spotless formatting - also rsql-filter-demo only (use spotless:check to look without writing)
-cd rsql-filter-demo && ./mvnw spotless:apply
-
-# Run the demo application
-cd rsql-filter-demo && ./mvnw
-
-# Run with the dev Spring profile. -Dspring.profiles.active does NOT work: spring-boot:run forks a JVM,
-# so it stays a Maven property and the app starts with the unresolved "@spring.profiles.active@" - which
-# leaves application-dev.yml unread, and /api/authenticate then answers 500. See rsql-filter-demo/README.md.
-cd rsql-filter-demo && ./mvnw -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--spring.profiles.group.dev=dev
+# Checkstyle, Spotless and running the demo application: rsql-filter-demo only, i.e. release-3.
+# At the root here the checkstyle plugin DOES resolve and run (maven-checkstyle-plugin 3.6.0 with the
+# default sun_checks) and then fails with ~16 900 violations on rsql-filter, most of them in the
+# generated parsers under rsql/antlr - it is not a usable gate for this project
 ```
 
 ## Architecture Overview
@@ -192,10 +149,10 @@ The project maintains two lines in parallel, and the platform versions differ be
 - **release-3** - the 0.6.x line, currently 0.6.21: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
 - **master** - the 0.7.x line, currently 0.7.6: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
-This branch is cut from `release-3`, so the 0.6.x numbers are the ones that apply here, and a version note in
-the docs on this branch cites the 0.6.x number alone ("Since 0.6.20"); `master` writes the pair
-("0.7.5 / 0.6.20"). `rsql-filter-demo` is a module of the 0.6.x line only - on `master` it is commented out
-of the root POM, so the two-module reactor there builds without it.
+This branch is cut from `master`, so the 0.7.x numbers are the ones that apply here. A version note in the
+docs on this branch cites both lines ("Since 0.7.5 / 0.6.20"), because the same change usually ships on both;
+the docs on `release-3` cite the 0.6.x number alone. `rsql-filter-demo` is a module of the 0.6.x line only -
+here it is commented out of the root POM, so this reactor has two modules and builds without Node or npm.
 
 ## Module Structure
 
@@ -343,7 +300,7 @@ execution `purge-antlr-generated`) and regenerates them, because each of the fou
 names a single grammar and so never learns that RsqlWhere.g4 and RsqlHaving.g4 import RsqlCommonLexer.g4 -
 changing only the shared lexer would otherwise leave stale token definitions behind a green build. Two
 consequences: never hand-edit anything under `rsql/antlr`, and expect a full recompile of the module on every
-build. Classes under `rsql.antlr.*` are generated output and NOT a supported public API - 0.6.21 removed
+build. Classes under `rsql.antlr.*` are generated output and NOT a supported public API - 0.7.6 / 0.6.21 removed
 several context classes and renumbered the `RULE_*` constants.
 
 ### Parser Limits
@@ -351,7 +308,7 @@ several context classes and renumbered the `RULE_*` constants.
 instead of `StackOverflowError`: `DEFAULT_MAX_NESTING_DEPTH = 100` (the parser, one frame per level of
 grouping parentheses) and `DEFAULT_MAX_TREE_DEPTH = 500` (the visitors, walking the parse tree). Both are
 `static volatile` with `get/setMaxNestingDepth()` and `get/setMaxTreeDepth()` - JVM-wide, and both govern
-WHERE, HAVING and SELECT. Since 0.6.21.
+WHERE, HAVING and SELECT. Since 0.7.6 / 0.6.21.
 
 ### Package Structure
 An earlier restructuring, long done - the old names still turn up in old branches and issues:
@@ -474,7 +431,7 @@ for (SelectExpression expr : expressions) {
 #### Modifying SELECT Grammar
 When modifying `RsqlSelect.g4`, keep in mind:
 1. **Rule order matters**: In `selectElement`, `seExpression` MUST come before `seField` and `seFuncCall` to prevent ambiguity with the `*` operator
-2. **The start rule is `select: selectElements`, with no `+`**: the `+` was removed in 0.6.21 because a second
+2. **The start rule is `select: selectElements`, with no `+`**: the `+` was removed in 0.7.6 / 0.6.21 because a second
    group could then begin at any `*`, which made parsing exponential and let `code name` parse as though the
    comma were there. Do not reintroduce it. The same applies to the removed error alternatives in
    `RsqlWhere.g4` - both grammars carry a comment saying so.
@@ -483,12 +440,10 @@ When modifying `RsqlSelect.g4`, keep in mind:
 5. Update `SelectExpressionVisitor` if adding new expression types
 6. Run tests: `mvn test -pl rsql-filter` and `mvn test -pl rsql-filter-integration-tests`
 
-#### Testing with Demo Application
-```bash
-cd rsql-filter-demo
-./mvnw          # backend on http://localhost:8080 (defaultGoal is spring-boot:run)
-npm start       # Angular dev server on http://localhost:9000, in a second terminal
-```
+#### Testing with the Demo Application
+The demo runs on `release-3` only - it is not a module of this reactor. To exercise a library change against
+it, port the change to the 0.6.x line first; `rsql-filter-demo/README.md` on that branch has the run
+instructions.
 
 #### Publishing to Maven Central
 The project is configured for Maven Central deployment. See the parent POM for GPG signing configuration.

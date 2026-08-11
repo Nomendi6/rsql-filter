@@ -697,7 +697,7 @@ HAVING: "AVG(DIST price)=gt=100"
 ```
 
 ### 6. Depth Limits
-Since 0.6.21 a HAVING clause may nest at most **100** levels of parentheses and produce a parse tree at
+Since 0.7.6 / 0.6.21 a HAVING clause may nest at most **100** levels of parentheses and produce a parse tree at
 most **500** levels deep; over either limit the compiler raises `SyntaxErrorException`
 (`HAVING clause is nested too deeply at position N …`, `HAVING clause is structured too deeply …`) rather
 than crashing with `StackOverflowError`. An aggregate call's own parentheses count towards the nesting

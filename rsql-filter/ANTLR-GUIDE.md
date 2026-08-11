@@ -176,7 +176,7 @@ ANTLR grammar files (`.g4`) contain:
 
 2. **No `+` on the SELECT start rule** (`select`, RsqlSelect.g4:7-19). Up to 0.6.20 this read `selectElements+`, which let a second group of elements begin at any position. `code name` then parsed as though the comma were there, and - because `selectElements` may start with `*`, which is also the multiplication operator - the parser had to decide at every `*` whether the current expression continued or a new group began. That decision needs lookahead over the whole expression, so `a+b*c` repeated 200 times took about 14 seconds. A missing separator is now caught by `SelectTreeParser.verifyWholeInputWasUsed`.
 
-3. **No unreachable error rules** (RsqlWhere.g4:35-41). An `errorCondition` rule emitting "Missing closing parenthesis" sat in the grammar without any rule invoking it, so that message was never produced. Removed in 0.6.21; an unclosed parenthesis is reported by `CustomErrorStrategy` instead.
+3. **No unreachable error rules** (RsqlWhere.g4:35-41). An `errorCondition` rule emitting "Missing closing parenthesis" sat in the grammar without any rule invoking it, so that message was never produced. Removed in 0.7.6 / 0.6.21; an unclosed parenthesis is reported by `CustomErrorStrategy` instead.
 
 The general rule these three share: report a syntax error from Java after parsing, not from an extra grammar alternative. Every alternative added to catch bad input also has to be weighed against every piece of good input.
 

@@ -9,8 +9,10 @@ commented out of the reactor, so there is no 0.7.x build of the demo.
 
 ## What is wired to rsql-filter
 
-This module is the third module of the `rsql-filter-parent` reactor ([../pom.xml](../pom.xml)) and depends on
+This module inherits from the `rsql-filter-parent` POM ([../pom.xml](../pom.xml)) and depends on
 `com.nomendi6:rsql-filter` at the parent version, so it always builds against the library sitting next to it.
+On `release-3` it is the third module of the reactor; on this branch it is commented out of `<modules>`, so a
+root `mvn clean install` skips it and you have to build it explicitly, as below.
 
 Three entities carry RSQL filtering. What the filter parser sees is the JPA entity, so the lists below are taken from
 [src/main/java/com/nomendi6/rsql/demo/domain](src/main/java/com/nomendi6/rsql/demo/domain). The generator snapshots in
@@ -94,6 +96,10 @@ curl -G http://localhost:8080/api/product \
 ```
 
 ## Running the demo
+
+> **On this branch, don't.** The module inherits the 0.7.x parent (Spring Boot 4, Java 21) while its own code and
+> dependencies are JHipster 8 / Spring Boot 3 - which is why it is out of the reactor here. Check out `release-3`
+> to run it. Everything below describes the demo as it is built and run on that branch.
 
 The demo needs the library in the local repository, so build the reactor from the repository root first:
 

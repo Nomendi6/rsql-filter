@@ -6,12 +6,16 @@ This document provides guidelines and information for developers working on the 
 
 ### Project Structure
 
-The project is a Maven multi-module reactor. The root `pom.xml` declares three modules:
+The project is a Maven multi-module reactor. On this branch (the 0.7.x line) the root `pom.xml` declares
+**two** modules:
 
 1. **rsql-filter** - The core library (`com.nomendi6:rsql-filter`) that provides RSQL filtering for Spring Data JPA
 2. **rsql-filter-integration-tests** - A test-only module that exercises the library against an H2 database, with
    no JHipster dependencies
-3. **rsql-filter-demo** - A JHipster-generated Spring Boot + Angular application that demonstrates the library
+
+The **rsql-filter-demo** directory (a JHipster-generated Spring Boot + Angular application) is still present but
+commented out of the reactor here - it depends on JHipster 8 / Spring Boot 3 and is built on `release-3` only.
+So no build on this branch needs Node, npm or network access for a frontend.
 
 There is no Gradle build here, and no `rsql` or `test-appl` directory - both were renamed when the project moved
 to Maven. Use `mvn`, never `./gradlew`.

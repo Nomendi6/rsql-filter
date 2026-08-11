@@ -31,7 +31,7 @@ For detailed API documentation, see [API.md](API.md).
 ## Installation
 
 The library is maintained in two parallel lines with the same feature set. Pick the one that matches your
-platform: **0.6.21** for Spring Boot 3, **0.7.6** for Spring Boot 4. The snippets below use `0.6.21`.
+platform: **0.7.6** for Spring Boot 4, **0.6.21** for Spring Boot 3. The snippets below use `0.7.6`.
 
 ### Maven
 ```xml
@@ -365,7 +365,7 @@ Complete example application can be found [here](./rsql-filter-demo).
 
 ### Describing a Filter
 
-> **Unreleased.** `rsql.describe` is not in `0.6.21` - it sits under `[Unreleased]` in
+> **Unreleased.** `rsql.describe` is not in `0.7.6` - it sits under `[Unreleased]` in
 > [CHANGELOG.md](CHANGELOG.md). Build from source to use it; this section gets a version number when the next
 > release goes out.
 
@@ -762,7 +762,7 @@ around the query call instead and rethrow something of your own. And the message
 classes (`Unknown property: xyz from entity com.example.Product`), so on a public API log the message and
 return a generic one.
 
-> **Changed in 0.6.21.** A stray `)` used to report `Missing opening parenthesis`. It now reports
+> **Changed in 0.7.6 / 0.6.21.** A stray `)` used to report `Missing opening parenthesis`. It now reports
 > `Unexpected input after the filter expression at position N`. Code that matches on the message text needs
 > updating.
 

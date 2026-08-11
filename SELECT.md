@@ -2,7 +2,7 @@
 
 This document provides comprehensive documentation for SELECT query functionality in the RSQL Filter library.
 
-Applies to rsql-filter 0.6.21. Behaviour marked *since 0.6.21* differs on earlier releases.
+Applies to rsql-filter 0.7.6. Behaviour marked *since 0.7.6 / 0.6.21* differs on earlier releases.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -115,7 +115,7 @@ a fragment. See [README.md](README.md) for the full literal-delimiter rules.
 A few rules apply to every SELECT string, whichever method consumes it:
 
 ```java
-// Elements must be separated by commas - since 0.6.21 a missing comma is an error
+// Elements must be separated by commas - since 0.7.6 / 0.6.21 a missing comma is an error
 "code, name"          // OK
 "code name"           // ❌ SyntaxErrorException: Unexpected input after the select expression at position 5
 "code,name price,qty" // ❌ SyntaxErrorException: Unexpected input after the select expression at position 10
@@ -1799,7 +1799,7 @@ GET /api/sales-by-category?having=productCount=ge=5&sort=category,asc&page=1&siz
 8. **The function list is closed** - `SUM`, `AVG`, `MIN`, `MAX`, `COUNT`, `GRP`; there is no `DATE()` or any
    other scalar function
 9. **A bare `*`** may only be the first element, and anything written after it is discarded
-10. **Elements must be comma-separated** (since 0.6.21) - `"code name"` and a trailing comma are syntax errors
+10. **Elements must be comma-separated** (since 0.7.6 / 0.6.21) - `"code name"` and a trailing comma are syntax errors
 11. **Parser limits** - at most 100 levels of nested parentheses and a parse tree depth of 500; exceeding
     either raises `SyntaxErrorException`
 
