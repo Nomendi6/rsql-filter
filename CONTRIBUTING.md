@@ -46,7 +46,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 * JDK 17 on `release-3`, JDK 21 on `master` - the parent POM sets `java.version` per line
 * Maven 3.6 or newer
-* Network access for the demo module: `frontend-maven-plugin` downloads Node v22.14.0 and npm 11.2.0 into it, then runs a full `npm install` and Angular build
+* Network access for the demo module, on `release-3` only: `frontend-maven-plugin` downloads Node v22.14.0 and npm 11.2.0 into it, then runs a full `npm install` and Angular build. On `master` the module is out of the reactor, so no build there needs Node
 
 ### Setting up the Development Environment
 
@@ -116,7 +116,7 @@ mvn test
 # Run the core library tests only (263 tests)
 mvn test -pl rsql-filter
 
-# Run integration tests only (563 tests against in-memory H2)
+# Run integration tests only (564 tests against in-memory H2 on this line; 563 on release-3)
 mvn test -pl rsql-filter-integration-tests
 
 # Run tests with coverage. jacoco is declared only in <pluginManagement> of the parent

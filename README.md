@@ -797,7 +797,7 @@ The library consists of several key components:
 - **Visitors**: Convert parse trees to JPA Specifications or JPQL
 
 **Note:** the classes under `rsql.antlr.*` are generated ANTLR output, not a supported public API. They are
-regenerated on every build and change without notice — `0.6.21` removed context classes and renumbered the
+regenerated on every build and change without notice — `0.7.6 / 0.6.21` removed context classes and renumbered the
 `RULE_*` constants.
 
 For complete method documentation and parameters, see [API.md](API.md).
@@ -875,11 +875,13 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 3. Run integration tests: `mvn test -pl rsql-filter-integration-tests`
 
 ### Running the Demo Application
+The demo ships with the `0.6.x` line only. On `release-3`:
 ```bash
 cd rsql-filter-demo
-./mvnw spring-boot:run
+./mvnw -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--spring.profiles.group.dev=dev
 ```
-Access the application at http://localhost:8080
+Access the application at http://localhost:8080. See
+[rsql-filter-demo/README.md](rsql-filter-demo/README.md) for why the Spring profile has to be named that way.
 
 ### Submitting Changes
 1. Fork the repository

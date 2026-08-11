@@ -1454,7 +1454,7 @@ public Specification<T> compileToSpecification(
 The same, with control over the joins map. The two-argument form is this one with `true`.
 
 **Parameters:**
-- `clearJoinsMapOnToPredicate` - `true` wraps the Specification so that `rsqlContext.joinsMap` and `classMetadataMap` are cleared on every `toPredicate()` call. That is required for Spring Data JPA repository methods, which call `toPredicate()` twice - once for the query, once for the count - with a different `Root` each time, and Hibernate 6 SQM nodes cannot be reused across roots. Pass `false` for a hand-built aggregate `CriteriaQuery`, where the joins map has to be shared across SELECT, WHERE, GROUP BY, HAVING and ORDER BY so that one JOIN serves all of them
+- `clearJoinsMapOnToPredicate` - `true` wraps the Specification so that `rsqlContext.joinsMap` and `classMetadataMap` are cleared on every `toPredicate()` call. That is required for Spring Data JPA repository methods, which call `toPredicate()` twice - once for the query, once for the count - with a different `Root` each time, and Hibernate's SQM nodes cannot be reused across roots. Pass `false` for a hand-built aggregate `CriteriaQuery`, where the joins map has to be shared across SELECT, WHERE, GROUP BY, HAVING and ORDER BY so that one JOIN serves all of them
 
 **Returns:** JPA Specification, or `null` for a `null`/empty filter
 
@@ -1615,7 +1615,7 @@ Fixes ID field references for native SQL queries.
 
 > **Since 0.7.5 / 0.6.20 — LIKE patterns are self-contained.** `RsqlQuery.where` now carries an explicit
 > `ESCAPE '\'` clause and the pattern has its backslashes escaped, so the text is safe to execute as native
-> SQL: a backslash matches literally and a pattern may end with one. The 0.7.4 restriction (reject values
+> SQL: a backslash matches literally and a pattern may end with one. The 0.7.4 / 0.6.19 restriction (reject values
 > ending in `\` for pattern searches) no longer applies.
 >
 > ⚠ Verified on PostgreSQL. The emitted `escape '\'` is a valid string literal there, on DB2, Oracle, H2 and

@@ -128,7 +128,7 @@ A few rules apply to every SELECT string, whichever method consumes it:
 ""                    // OK - accepted, produces an empty selection list, no exception
 ```
 
-**Note:** Up to 0.6.20 `"code name"` parsed as if the comma were written, because the start rule allowed a
+**Note:** Up to 0.7.5 / 0.6.20 `"code name"` parsed as if the comma were written, because the start rule allowed a
 second group of elements to begin at any position. That also made clauses containing `*` parse in
 exponential time. Comma-separated clauses are unaffected by the change.
 

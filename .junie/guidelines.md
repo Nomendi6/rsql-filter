@@ -24,14 +24,15 @@ to Maven. Use `mvn`, never `./gradlew`.
 
 #### Prerequisites
 
-- Java 17 on this line (the `master` line needs Java 21)
+- Java 21 on this line (the `release-3` line needs Java 17)
 - Maven 3.6 or newer; there is no wrapper at the root, and `rsql-filter-demo/mvnw` covers the demo module only
-- Network access for the first full build: `rsql-filter-demo` downloads Node and npm through frontend-maven-plugin
+- No network access is needed for a frontend here: `rsql-filter-demo`, the module that downloads Node and npm
+  through frontend-maven-plugin, is out of the reactor on this line
 
 #### Building
 
 ```bash
-# Build every module (~2 min with tests skipped, longer with tests)
+# Build every module (~40 s with tests skipped, ~1 min with them)
 mvn clean install -DskipTests
 
 # Build and test everything
@@ -48,16 +49,16 @@ mvn -pl rsql-filter generate-sources
 
 The platform versions are declared in the `<properties>` block of the root `pom.xml`:
 
-- `java.version` 17
-- `spring-boot.version` 3.4.4
-- `hibernate.version` 6.5.3.Final
+- `java.version` 21
+- `spring-boot.version` 4.0.3
+- `hibernate.version` 7.2.4.Final
 - `mapstruct.version` 1.6.3
 - `antlr4.version` 4.13.2
 
-They are not declared only there: `rsql-filter-demo/pom.xml` re-declares `java.version` (17),
-`spring-boot.version` (3.4.4) and `mapstruct.version` (1.6.3) in its own `<properties>` block, and those
-shadow the inherited values. Change those three in both files, or the demo keeps building against the old
-ones.
+`rsql-filter-demo/pom.xml` re-declares `java.version` (17), `spring-boot.version` (3.4.4) and
+`mapstruct.version` (1.6.3) in its own `<properties>` block, and those shadow the inherited values. On this
+line that divergence is deliberate - the demo is out of the reactor precisely because it is still a
+JHipster 8 / Spring Boot 3 application - so do **not** align them here. On `release-3` they must match.
 
 The project is maintained as two parallel lines, so check which one you are on before quoting a version:
 
@@ -77,10 +78,11 @@ The demo application is configured in `rsql-filter-demo/pom.xml` and `src/main/r
 - **rsql-filter/src/test/java/rsql/** - library unit tests, grouped as `app`, `describe`, `having`, `select`,
   `where` (263 tests)
 - **rsql-filter-integration-tests/src/test/java/com/nomendi6/rsql/it/** - integration tests against H2
-  (563 tests). Surefire is configured to include `**/*IT.java`, so these run in the `test` phase - do not reach
+  (564 tests). Surefire is configured to include `**/*IT.java`, so these run in the `test` phase - do not reach
   for `verify`.
 - **rsql-filter-demo/src/test/java/com/nomendi6/rsql/demo/** - demo application tests, with sub-packages
-  config, domain, management, repository, rsql, security, service, web
+  config, domain, management, repository, rsql, security, service, web. These do **not** run on this line: the
+  module is out of the reactor here, so `mvn test` never reaches them
 
 ### Running Tests
 
