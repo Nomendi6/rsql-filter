@@ -4,7 +4,7 @@ First off, thank you for considering contributing to RSQL Filter! It's people li
 
 ## Code of Conduct
 
-This project and everyone participating in it is governed by our Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to the project maintainers.
+There is no separate code-of-conduct document in this repository. Be respectful in issues, pull requests and reviews, and report unacceptable behavior to the project maintainers.
 
 ## How Can I Contribute?
 
@@ -17,7 +17,7 @@ Before creating bug reports, please check existing issues as you might find out 
 * **Provide specific examples to demonstrate the steps**. Include links to files or GitHub projects, or copy/pasteable snippets, which you use in those examples.
 * **Describe the behavior you observed after following the steps** and point out what exactly is the problem with that behavior.
 * **Explain which behavior you expected to see instead and why.**
-* **Include the version of RSQL Filter you're using** and the versions of Spring Boot and Java.
+* **Include the version of RSQL Filter you're using** - and therefore which line it comes from, 0.6.x or 0.7.x - and the versions of Spring Boot and Java.
 
 ### Suggesting Enhancements
 
@@ -31,14 +31,22 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 ### Pull Requests
 
-1. Fork the repo and create your branch from `develop`.
-2. If you've added code that should be tested, add tests.
-3. If you've changed APIs, update the documentation.
-4. Ensure the test suite passes.
-5. Make sure your code follows the existing code style.
-6. Issue that pull request!
+1. Fork the repo and create your branch from the line you are fixing - `release-3` for the 0.6.x line, `master` for the 0.7.x line. Do not branch from `develop`; see [Branches and Releases](#branches-and-releases).
+2. If the change applies to both lines, prepare a branch on each. The lines are never merged into one another.
+3. If you've added code that should be tested, add tests.
+4. If you've changed APIs, update the documentation.
+5. Add your entry to CHANGELOG.md under the `## [Unreleased]` heading.
+6. Ensure the test suite passes.
+7. Make sure your code follows the existing code style.
+8. Issue that pull request!
 
 ## Development Process
+
+### Prerequisites
+
+* JDK 17 on `release-3`, JDK 21 on `master` - the parent POM sets `java.version` per line
+* Maven 3.6 or newer
+* Network access for the demo module: `frontend-maven-plugin` downloads Node v22.14.0 and npm 11.2.0 into it, then runs a full `npm install` and Angular build
 
 ### Setting up the Development Environment
 
@@ -46,11 +54,24 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
    ```bash
    git clone https://github.com/nomendi6/rsql-filter.git
    cd rsql-filter
+
+   # A fresh clone lands on master, the 0.7.x line - switch if you are working on 0.6.x
+   git checkout release-3
    ```
 
 2. **Build the project**
    ```bash
+   # Builds every module the line declares - on release-3 that includes the JHipster
+   # demo, which downloads Node/npm and builds the Angular frontend (about 5 minutes)
    mvn clean install
+   ```
+
+   For work on the library itself, the demo module is pure cost - build only what you need. On `master` the
+   demo module is commented out of the reactor, so the root build is library-only there anyway.
+
+   ```bash
+   # Core library only - about 40 seconds, no Node, no frontend
+   mvn clean install -pl rsql-filter
    ```
 
 3. **Run the tests**
@@ -64,9 +85,27 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 rsql-filter-mvn/
 ├── rsql-filter/                      # Core library
 ├── rsql-filter-integration-tests/    # Integration tests
-├── rsql-filter-demo/                 # Demo application
+├── rsql-filter-demo/                 # Demo application (release-3 only)
 └── pom.xml                          # Parent POM
 ```
+
+### Grammar Changes
+
+The parsers generated from the four grammars in `rsql-filter/src/main/antlr/` are committed to git - 33 files
+under `rsql-filter/src/main/java/rsql/antlr/`. Every build deletes those output directories at `initialize`
+and regenerates them from the `.g4` files, so a grammar change produces a diff in tracked source that has to
+be committed together with the change:
+
+```bash
+# Regenerate the parsers from the grammars
+mvn -pl rsql-filter clean generate-sources
+
+# Review what the grammar change produced
+git status rsql-filter/src/main/java/rsql/antlr/
+```
+
+See [rsql-filter/ANTLR-GUIDE.md](rsql-filter/ANTLR-GUIDE.md) for how the grammars are wired together and why
+the purge step exists.
 
 ### Running Tests
 
@@ -74,11 +113,16 @@ rsql-filter-mvn/
 # Run all tests
 mvn test
 
-# Run integration tests only
+# Run the core library tests only (263 tests)
+mvn test -pl rsql-filter
+
+# Run integration tests only (563 tests against in-memory H2)
 mvn test -pl rsql-filter-integration-tests
 
-# Run tests with coverage
-mvn clean test jacoco:report
+# Run tests with coverage. jacoco is declared only in <pluginManagement> of the parent
+# POM, so nothing binds prepare-agent in the library modules - invoke it yourself or the
+# report is written from no execution data. Result: rsql-filter/target/site/jacoco/index.html
+mvn -pl rsql-filter clean jacoco:prepare-agent test jacoco:report
 ```
 
 ### Code Style
@@ -87,7 +131,7 @@ We use the following code style guidelines:
 
 * Java code follows standard Java conventions
 * Indentation: 4 spaces (no tabs)
-* Maximum line length: 120 characters
+* Maximum line length: 140 characters - the width Prettier uses in `rsql-filter-demo` (`printWidth: 140` in its `.prettierrc`). Nothing enforces it in the library: neither Spotless nor Checkstyle is bound to `rsql-filter`, so keep to it by hand
 * Always use braces for if/for/while statements
 * Use meaningful variable and method names
 
@@ -118,18 +162,56 @@ Fixes #123
 
 ### Documentation
 
-* Update README.md if you change functionality
+* Update README.md if you change functionality; API.md, SELECT.md and HAVING.md cover the public API, the SELECT clause and the HAVING clause
 * Add JavaDoc comments for public methods
 * Include examples in documentation
-* Update CHANGELOG.md with your changes
+* Add your entry to CHANGELOG.md under the `## [Unreleased]` heading. Releasing turns that heading into a version heading, so nothing is written straight under a version number
 
-## Release Process
+## Branches and Releases
 
-1. All changes go to `develop` branch first
-2. When ready for release, create a release branch from `develop`
-3. Update version numbers and CHANGELOG.md
-4. Merge to `master` and tag the release
-5. Merge back to `develop`
+Two release lines are maintained in parallel, and neither is an ancestor of the other. They diverged at
+`1b0a02f`, the 0.6.16 release merge, and have been developed side by side since:
+
+* `master` carries the **0.7.x** line - currently 0.7.6, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4. The `rsql-filter-demo` module is commented out of the reactor there.
+* `release-3` carries the **0.6.x** line - currently 0.6.21, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3. This is the line that still ships the demo application.
+* `develop` is legacy. Its tip is a 0.7.5-era commit that `master` already contains, it holds none of the 0.6.x work, and nothing merges into it any more. Do not branch from it.
+
+Check for yourself which line a release belongs to:
+
+```bash
+# 0.6.x tags live only on release-3
+git branch --contains v0.6.21
+
+# 0.7.x tags live only on master
+git branch --contains v0.7.6
+
+# Neither line contains the other
+git merge-base --is-ancestor release-3 master; echo $?   # 1
+git merge-base --is-ancestor master release-3; echo $?   # 1
+```
+
+### Porting a Change to Both Lines
+
+A change that applies to both lines is not merged from one into the other - it is prepared twice, once per
+line, and each branch is merged into its own line. The branch names carry the line, and the history shows the
+pairs:
+
+* `feature/parser-paren-fix` into `release-3`, `feature/parser-paren-fix-master` into `master`
+* `fix/nested-function-recursion` into `release-3`, `fix/nested-function-recursion-master` into `master`
+* `feature/case-sensitive-like-release-3`, `feature/fix-rsql-string-release-3` and `feature/like-escape-release-3`, each merged into `release-3` after the same change had reached `master`
+
+When the change reaches `master` first, the `release-3` side is a backport and its commit message says so -
+`Backport 0.7.5 to 0.6.20`, `Backport 0.7.4 to 0.6.19`.
+
+### Cutting a Release
+
+1. On the branch that carries the change, bump `<version>` in the parent `pom.xml` and move the `## [Unreleased]` entries in CHANGELOG.md under a new `## [X.Y.Z] - YYYY-MM-DD` heading.
+2. Merge that branch into its line with a merge commit (`git merge --no-ff`).
+3. Tag the merge commit. `v0.6.21` sits on `00b6d9d`, the merge of `feature/parser-paren-fix` into `release-3`; `v0.7.6` sits on `ae43e0b`, the merge of `feature/parser-paren-fix-master` into `master`.
+4. The two lines keep independent version numbers. A 0.6.x release is never merged into `master`, and a 0.7.x release is never merged into `release-3`.
+
+Older releases used a separate `release/vX.Y.Z` branch - `git log --merges master` still shows
+`Merge branch 'release/v0.7.5'` - but the version bump now travels on the feature branch itself.
 
 ## Questions?
 

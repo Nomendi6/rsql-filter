@@ -26,7 +26,11 @@ mvn clean install -pl rsql-filter
 mvn clean install -pl rsql-filter-integration-tests
 mvn clean install -pl rsql-filter-demo
 
-# Build with specific profile
+# Build with specific profile. A plain `mvn clean install` already builds the Angular frontend, because
+# rsql-filter-demo's `webapp` profile is activeByDefault and carries install-node-and-npm plus
+# `npm run webapp:build`. Naming ANY profile switches the activeByDefault ones off, so -Pdev is the
+# faster build - it drops the frontend entirely - while -Pprod builds the production bundle
+# (`npm run webapp:prod`). Check with: mvn help:active-profiles -pl rsql-filter-demo
 mvn clean install -Pdev
 mvn clean install -Pprod
 ```
@@ -37,7 +41,8 @@ mvn clean install -Pprod
 # Run all tests
 mvn test
 
-# Run integration tests
+# Run integration tests. In rsql-filter-integration-tests surefire is configured to include **/*IT.java,
+# so `mvn test` has already run them; in rsql-filter-demo surefire excludes **/*IT* and failsafe runs them
 mvn verify
 
 # Run tests for specific module
@@ -45,16 +50,22 @@ mvn test -pl rsql-filter
 mvn test -pl rsql-filter-integration-tests
 mvn test -pl rsql-filter-demo
 
-# Run a single test class
-mvn test -Dtest=RsqlQueryServiceIT
+# Run a single test class - always with -pl, or the modules without a match fail the build
+mvn test -pl rsql-filter-integration-tests -Dtest=RsqlQueryServiceIT
 
-# Run tests with coverage
-mvn test jacoco:report
+# Run tests with coverage - jacoco is only wired into rsql-filter-demo. For the library modules the
+# plugin is in pluginManagement only, so jacoco:report there just says "missing execution data file"
+cd rsql-filter-demo && ./mvnw test jacoco:report
 ```
 
 ### Frontend Commands (rsql-filter-demo)
 
+There is no `package.json` at the repository root - the only one is `rsql-filter-demo/package.json`, so every
+command below is run from that directory:
+
 ```bash
+cd rsql-filter-demo
+
 # Install dependencies
 npm install
 
@@ -84,17 +95,22 @@ npm run prettier:check
 # Generate ANTLR code from grammar files
 mvn -pl rsql-filter generate-sources
 
-# Run checkstyle
-mvn checkstyle:check
+# Run checkstyle - a configuration exists in rsql-filter-demo only, and there it reports 0 violations.
+# At the root the plugin DOES resolve and run (maven-checkstyle-plugin 3.6.0 with the default sun_checks):
+# rsql-filter-parent passes with 0, then the build FAILS with "You have 16872 Checkstyle violations" on
+# rsql-filter - 12966 of them in the generated parsers under rsql/antlr. It is not a usable gate here
+cd rsql-filter-demo && ./mvnw checkstyle:check
 
-# Apply Spotless formatting
-mvn spotless:apply
+# Apply Spotless formatting - also rsql-filter-demo only (use spotless:check to look without writing)
+cd rsql-filter-demo && ./mvnw spotless:apply
 
 # Run the demo application
 cd rsql-filter-demo && ./mvnw
 
-# Run with specific profile
-cd rsql-filter-demo && ./mvnw -Dspring.profiles.active=dev
+# Run with the dev Spring profile. -Dspring.profiles.active does NOT work: spring-boot:run forks a JVM,
+# so it stays a Maven property and the app starts with the unresolved "@spring.profiles.active@" - which
+# leaves application-dev.yml unread, and /api/authenticate then answers 500. See rsql-filter-demo/README.md.
+cd rsql-filter-demo && ./mvnw -Dspring-boot.run.profiles=dev -Dspring-boot.run.arguments=--spring.profiles.group.dev=dev
 ```
 
 ## Architecture Overview
@@ -107,19 +123,30 @@ cd rsql-filter-demo && ./mvnw -Dspring.profiles.active=dev
 
 2. **RsqlQueryService** - Generic service for executing RSQL queries
    - Provides paginated and non-paginated query execution
-   - Supports LOV (List of Values) queries
+   - Supports LOV (List of Values) queries: `getLOV(filter, pageable, idField, codeField, nameField)`,
+     `getLOV(filter, pageable)`, `getLOVwithIdAndName(filter, pageable)` and
+     `getLOVWithSelect(selectString, filter, pageable)` - the row count comes from the Pageable, there is no
+     row-limit parameter. LovDTO maps three selected fields to (id, code, name) and two to (id, name).
    - Integrates with Spring Data JPA repositories
 
-3. **ANTLR Grammar Files** (rsql-filter/src/main/antlr/)
-   - RsqlCommonLexer.g4 - Defines tokens
+3. **RsqlFilterDescription** - Turns a WHERE filter into report text and JasperReports rows
+   - Purely textual: no EntityManager, no RsqlContext - it works on the parse tree alone
+   - Unreleased: it sits under `[Unreleased]` in CHANGELOG.md, so do not cite a version number for it
+
+4. **ANTLR Grammar Files** (rsql-filter/src/main/antlr/)
+   - RsqlCommonLexer.g4 - Defines tokens, imported by RsqlWhere.g4 and RsqlHaving.g4
    - RsqlWhere.g4 - Defines WHERE clause syntax
    - RsqlSelect.g4 - Defines SELECT clause syntax
+   - RsqlHaving.g4 - Defines HAVING clause syntax
 
-4. **Visitor Pattern Implementation**
+5. **Visitor Pattern Implementation**
    - WhereSpecificationVisitor - Converts parse tree to JPA Specifications
    - WhereStringVisitor - Converts to JPQL strings
    - WhereTextVisitor - Extracts text representations
-   - SelectExpressionVisitor - Converts SELECT clauses to SelectExpression objects (supports arithmetic expressions)
+   - WhereDescriptionVisitor - Converts to the neutral FilterNode tree used by rsql.describe
+   - HavingSpecificationVisitor - Converts HAVING parse tree to JPA Predicates
+   - SelectExpressionVisitor - Converts SELECT clauses to SelectExpression objects, arithmetic included
+   - SelectAggregateVisitor - The plain aggregate path; rejects arithmetic (see SELECT Clause Syntax)
 
 ### Integration Pattern
 
@@ -132,26 +159,43 @@ Example:
 ```java
 @Service
 public class ProductTypeService {
-    private RsqlQueryService<ProductType, ProductTypeDTO, ProductTypeRepository, ProductTypeMapper> queryService;
-    
+    private final RsqlQueryService<ProductType, ProductTypeDTO, ProductTypeRepository, ProductTypeMapper> queryService;
+
+    public ProductTypeService(ProductTypeRepository repository, ProductTypeMapper mapper, EntityManager entityManager) {
+        this.queryService = new RsqlQueryService<>(repository, mapper, entityManager, ProductType.class);
+    }
+
     public RsqlQueryService<ProductType, ProductTypeDTO, ProductTypeRepository, ProductTypeMapper> getQueryService() {
-        if (this.queryService == null) {
-            this.queryService = new RsqlQueryService<>(repository, mapper, entityManager, ProductType.class);
-        }
         return this.queryService;
     }
 }
 ```
 
+One instance per entity, built once, is correct: every public method of RsqlQueryService calls
+getQueryContext(), which builds a fresh RsqlContext per query, so the service is safe to hold as a singleton
+bean. The six-argument constructor takes custom JPQL for the select and count queries; that JPQL must alias
+its root `a0` (the default), or the alias must be declared with setSelectAlias()/setCountAlias().
+
 ## Key Technologies
 
-- **Java 17** - Required Java version
-- **Spring Boot 3.4.4** - Main framework
-- **Hibernate 6.5.3** - JPA implementation
 - **ANTLR 4.13.2** - Parser generator for RSQL syntax
 - **MapStruct 1.6.3** - DTO mapping
-- **JHipster 8.0.0** - Test application framework
-- **Angular** - Frontend framework for test application
+- **JHipster 8.10.0** - Demo application framework (`rsql-filter-demo/.yo-rc.json` and the demo POM's
+  `jhipster-framework.version`). The root POM's `jhipster-dependencies.version` is 8.0.0, but that is the
+  BOM artifact, not the generator version
+- **Angular 19** - Frontend framework for the demo application
+
+### Two Release Lines
+
+The project maintains two lines in parallel, and the platform versions differ between them:
+
+- **release-3** - the 0.6.x line, currently 0.6.21: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
+- **master** - the 0.7.x line, currently 0.7.6: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
+
+This branch is cut from `release-3`, so the 0.6.x numbers are the ones that apply here, and a version note in
+the docs on this branch cites the 0.6.x number alone ("Since 0.6.20"); `master` writes the pair
+("0.7.5 / 0.6.20"). `rsql-filter-demo` is a module of the 0.6.x line only - on `master` it is commented out
+of the root POM, so the two-module reactor there builds without it.
 
 ## Module Structure
 
@@ -160,6 +204,7 @@ rsql-filter-mvn/
 ├── rsql-filter/              # Core library module
 │   ├── src/main/antlr/           # ANTLR grammar files
 │   ├── src/main/java/rsql/       # Core library code
+│   │   └── antlr/                # Generated parsers - committed, regenerated on every build
 │   └── src/test/                 # Library tests
 ├── rsql-filter-integration-tests/ # Integration tests
 │   └── src/test/java/            # Standalone test infrastructure
@@ -177,25 +222,50 @@ The library supports filtering with operators like:
 - `==` (equals), `!=` (not equals)
 - `=gt=`, `=ge=`, `=lt=`, `=le=` (comparisons)
 - `=in=`, `=nin=` (in/not in lists)
-- `=like=`, `=nlike=` (pattern matching)
+- `=bt=`, `=nbt=` (between/not between, exactly two bounds: `price=bt=(10,20)`)
+- `=like=`, `=nlike=` (pattern matching, case-insensitive; shorthands `=*` and `=!*` / `!=*`)
+- `=clike=`, `=cnlike=` (the same patterns, case-sensitive; shorthands `=^*` and `=!^*` / `!=^*`)
 - Logical operators: `;` (AND), `,` (OR)
 - Alternative syntax: `and` instead of `;`, `or` instead of `,`
 - Parentheses for grouping
 
-Example: `name=='John';(age=gt=30,status=in=(ACTIVE,PENDING))`
-Alternative: `name=='John' and (age=gt=30 or status=in=(ACTIVE,PENDING))`
+Right-hand sides:
+- Strings in `'`, `"` or `` ` ``, and the delimiter is escaped by doubling it (`'it''s'`). Backslash is an
+  ordinary character.
+- The LIKE wildcard `*` goes INSIDE the quotes - `name=*'*Type*'`, never `name=*'Type'*`. There is no bare
+  `*` token in the WHERE grammar.
+- Numbers, `#2024-01-01#`, `#2024-01-01T23:59:59Z#`, `#ACTIVE#` (enum), `:name` (named parameter).
+  A datetime literal MUST carry a zone (`Z` or `+01:00`) - `#2024-01-01T23:59:59#` is a syntax error.
+  Fractional seconds are optional.
+- `null`, `true`, `false` - only with `==` and `!=`: `description==null`, `active==true`.
+- Another field: `price=gt=cost`, and a field is also legal as an IN element or a BETWEEN bound
+  (`code=in=(status,name)`, `price=bt=(minPrice,maxPrice)`). This is why an unquoted
+  `status=in=(ACTIVE,PENDING)` compiles to `status in (ACTIVE,PENDING)` - two field references, not two
+  values.
+- A parameter-bound pattern is rejected on the Specification path for the whole LIKE family, not just
+  `=clike=`: `name=*:p` raises SyntaxErrorException when the Specification is applied. The JPQL-text path
+  (RsqlWhereString) renders it.
+
+Example: `name=='John';(age=gt=30,status=in=(#ACTIVE#,#PENDING#))`
+Alternative: `name=='John' and (age=gt=30 or status=in=(#ACTIVE#,#PENDING#))`
 
 ### SELECT Clause Syntax
 
 The library supports SELECT expressions with:
 - **Simple fields**: `name`, `productType.name`
-- **Aggregate functions**: `SUM(price)`, `AVG(price)`, `COUNT(*)`, `MIN(price)`, `MAX(price)`, `COUNT(DIST field1, field2)`
-- **Arithmetic expressions**: Support for `+`, `-`, `*`, `/` operators
+- **Aggregate functions**: `SUM(price)`, `AVG(price)`, `COUNT(*)`, `MIN(price)`, `MAX(price)`, `GRP(field)`,
+  `COUNT(DIST field1, field2)`. The list is closed - there is no `DATE()` or any other scalar function.
+  Names are case-insensitive. `ALL` is accepted on any aggregate; `DIST` only on `COUNT` - `SUM(DIST x)`
+  parses, then throws `SyntaxErrorException: DISTINCT modifier is only supported for COUNT function`.
+- **Arithmetic expressions**: `+`, `-`, `*`, `/` **between** aggregates, fields and literals - not inside an
+  aggregate call, `SUM(a*b)` does not parse
 - **Numeric literals**: Integer and decimal numbers
 - **Parentheses**: For controlling operation precedence
 - **Aliases**: Optional aliases using `:` syntax
-- **SELECT ***: Select all fields from root entity
+- **SELECT ***: Select all fields from root entity; `*` is legal only as the FIRST element
 - **Entity.* syntax**: Select all fields from related entity (e.g., `productType.*`)
+- **Separators**: Elements are comma-separated. A missing comma (`code name`) and a trailing comma (`code,`)
+  are both errors.
 
 #### Arithmetic Expression Examples:
 ```
@@ -208,8 +278,11 @@ SUM(debit) - SUM(credit):balance
 
 #### Multiple Expressions:
 ```
-productType.name:typeName, SUM(price):total, COUNT(*):count, SUM(price) / COUNT(*):average
+productType.name:typeName, SUM(price):total, COUNT(*):productCount, SUM(price) / COUNT(*):average
 ```
+
+Do not name an alias `count`, `sum`, `avg`, `min`, `max`, `grp`, `all` or `dist`: SELECT accepts them, but
+they are HAVING keywords, so the alias can never be filtered on afterwards.
 
 #### Operator Precedence:
 - Parentheses `()` (highest)
@@ -218,10 +291,40 @@ productType.name:typeName, SUM(price):total, COUNT(*):count, SUM(price) / COUNT(
 
 Example: `10 + 5 * 2` evaluates as `10 + (5 * 2) = 20`
 
+#### Where Arithmetic Actually Works:
+Only on the expression path - `RsqlQueryService.getAggregateResultWithExpressions()` /
+`getAggregateResultAsPageWithExpressions()`, `RsqlCompiler.compileSelectToExpressions()`,
+`SelectExpressionVisitor`. The plain aggregate path (`getAggregateResult()` / `getAggregateResultAsPage()`,
+`SelectAggregateVisitor`) rejects it with
+`SyntaxErrorException: Arithmetic expressions with operators are not supported in this query type.`
+
+### HAVING Clause Syntax
+
+HAVING filters the grouped result with the WHERE operators, over SELECT aliases, aggregate calls and the
+GROUP BY fields derived from the SELECT string - every SELECT element without an aggregate becomes a GROUP BY
+field:
+
+```
+SUM(price)=gt=1000
+productCount=gt=2;SUM(price)=gt=1000
+```
+
+Traps worth knowing:
+- `count`, `avg`, `sum`, `min`, `max`, `grp`, `all`, `dist`, `and`, `or`, `null`, `true`, `false` are lexer
+  keywords and can never be a field name or a referenced alias - `count=gt=2` is a syntax error.
+- A bare field that is neither a SELECT alias nor one of the derived GROUP BY fields raises
+  `java.lang.IllegalArgumentException`, not SyntaxErrorException.
+- Two expressions can be compared with `==` and `!=` only. `SUM(a)=gt=SUM(b)` parses, then fails when the
+  predicate is built - `=gt= =ge= =lt= =le=` cast the right side to `Comparable`.
+- `COUNT(DIST a, b)` is valid in SELECT but throws in HAVING: one field only.
+- HAVING has no `=clike=` / `=cnlike=`, does not map `*` to `%` and does not lower-case - the pattern is
+  written with SQL wildcards directly.
+
 ## Important Implementation Notes
 
 ### Running Integration Tests
-Integration tests are in a separate module and test the library with a real H2 database:
+Integration tests are in a separate module and test the library with a real H2 database. Its surefire is
+configured to include `**/*IT.java`, so they run in the `test` phase - `mvn verify` is not needed:
 ```bash
 mvn test -pl rsql-filter-integration-tests
 ```
@@ -231,9 +334,27 @@ The ANTLR grammar files need to be compiled before building. This happens automa
 ```bash
 mvn -pl rsql-filter generate-sources
 ```
+`rsql-filter/ANTLR-GUIDE.md` covers the grammar workflow in more detail.
 
-### Package Structure Changes
-The project was recently restructured:
+### Generated ANTLR Sources
+The generated parsers live in `rsql-filter/src/main/java/rsql/antlr/{lexer,select,where,having}` and are
+COMMITTED to git. Every build deletes those four directories at the `initialize` phase (maven-clean-plugin,
+execution `purge-antlr-generated`) and regenerates them, because each of the four antlr4-plugin executions
+names a single grammar and so never learns that RsqlWhere.g4 and RsqlHaving.g4 import RsqlCommonLexer.g4 -
+changing only the shared lexer would otherwise leave stale token definitions behind a green build. Two
+consequences: never hand-edit anything under `rsql/antlr`, and expect a full recompile of the module on every
+build. Classes under `rsql.antlr.*` are generated output and NOT a supported public API - 0.6.21 removed
+several context classes and renumbered the `RULE_*` constants.
+
+### Parser Limits
+`RsqlWhereTreeParser` bounds both recursions, so deep input raises `rsql.exceptions.SyntaxErrorException`
+instead of `StackOverflowError`: `DEFAULT_MAX_NESTING_DEPTH = 100` (the parser, one frame per level of
+grouping parentheses) and `DEFAULT_MAX_TREE_DEPTH = 500` (the visitors, walking the parse tree). Both are
+`static volatile` with `get/setMaxNestingDepth()` and `get/setMaxTreeDepth()` - JVM-wide, and both govern
+WHERE, HAVING and SELECT. Since 0.6.21.
+
+### Package Structure
+An earlier restructuring, long done - the old names still turn up in old branches and issues:
 - `test-appl` → `rsql-filter-demo`
 - Package `testappl` → `com.nomendi6.rsql.demo`
 - Integration tests moved to standalone module without JHipster dependencies
@@ -243,20 +364,24 @@ The project was recently restructured:
 1. **Core Query Service**: `rsql-filter/src/main/java/rsql/RsqlQueryService.java`
    - Main entry point for executing RSQL queries
    - Supports both Specification-based and JPQL-based queries
+   - `findByFilter()`, the four `getAggregateResult*()` methods and the four `getLOV*()` methods
 
 2. **RSQL Compiler**: `rsql-filter/src/main/java/rsql/RsqlCompiler.java`
    - Compiles RSQL strings to JPA Specifications
    - Provides `compileSelectToExpressions()` for parsing SELECT clauses with arithmetic expressions
+   - Provides `compileToFilterNode()` for the neutral FilterNode tree used by rsql.describe
 
 3. **Grammar Files**: `rsql-filter/src/main/antlr/`
    - RsqlWhere.g4 - Defines the WHERE clause syntax
    - RsqlSelect.g4 - Defines the SELECT clause syntax with arithmetic expression support
-   - RsqlCommonLexer.g4 - Common lexer rules
+   - RsqlHaving.g4 - Defines the HAVING clause syntax
+   - RsqlCommonLexer.g4 - Common lexer rules, imported by RsqlWhere.g4 and RsqlHaving.g4
 
 4. **SelectExpression Hierarchy**: `rsql-filter/src/main/java/rsql/helper/`
    - SelectExpression (abstract base) - Base class for all SELECT expressions
    - FieldExpression - Simple field references
-   - FunctionExpression - Aggregate functions (SUM, AVG, COUNT, MIN, MAX)
+   - FunctionExpression - Aggregate functions (SUM, AVG, COUNT, MIN, MAX, and GRP, which aggregates nothing
+     and only marks a GROUP BY field - `AggregateField.AggregateFunction.NONE`)
    - BinaryOpExpression - Arithmetic operations (+, -, *, /)
    - LiteralExpression - Numeric literals
    - BinaryOperator (enum) - Arithmetic operators
@@ -266,21 +391,59 @@ The project was recently restructured:
    - Validates field paths against JPA metamodel
    - Handles operator precedence and parentheses
 
-6. **Integration Tests**: `rsql-filter-integration-tests/src/test/java/`
+6. **Filter Descriptions**: `rsql-filter/src/main/java/rsql/describe/`
+   - RsqlFilterDescription - entry point; `describe()` gives text and JasperReports rows, `parse()` the tree
+   - FilterNode / FilterGroup / FilterCondition - the neutral tree, built by
+     `rsql/where/WhereDescriptionVisitor.java`
+   - FilterLabelResolver (+ Map and ResourceBundle implementations) - readable names for fields and operators
+   - Unreleased: `[Unreleased]` in CHANGELOG.md, so do not attach a version number to it yet
+
+7. **Integration Tests**: `rsql-filter-integration-tests/src/test/java/`
    - Comprehensive tests showing all supported features
    - Good examples of how to use the library
    - SelectExpressionIT - Tests for arithmetic expressions with real JPA entities
+
+8. **User-facing docs** at the repo root: README.md, API.md, SELECT.md, HAVING.md, CHANGELOG.md
+   - A behaviour change is not finished until these are in step with it
 
 ### Common Development Tasks
 
 #### Adding a New WHERE Operator
 1. Update the grammar file (RsqlWhere.g4)
-2. Regenerate ANTLR code: `mvn -pl rsql-filter generate-sources`
-3. Update WhereSpecificationVisitor to handle the new operator
-4. Add integration tests
+2. Regenerate ANTLR code: `mvn -pl rsql-filter generate-sources`, and commit the regenerated sources under
+   `rsql/antlr/`
+3. Update ALL four WHERE visitors, not just the first one: WhereSpecificationVisitor (Specifications),
+   WhereStringVisitor (JPQL text), WhereTextVisitor and WhereDescriptionVisitor (rsql.describe). An operator
+   handled in only one of them breaks the others: WhereTextVisitor and WhereDescriptionVisitor throw
+   `SyntaxErrorException: Unknown operator`, while WhereStringVisitor renders a null operator into the JPQL
+   text - silently wrong output rather than an error.
+4. Decide whether HAVING gets it too - RsqlHaving.g4 and HavingSpecificationVisitor are separate
+5. Add integration tests
 
-#### Adding Arithmetic Expressions to SELECT
-The library now supports arithmetic expressions in SELECT clauses. To use:
+#### Using Arithmetic Expressions in SELECT
+Arithmetic works only on the expression path. From a service, that is one of the two `*WithExpressions`
+methods:
+
+```java
+// All four aggregate methods take exactly (selectString, filter, havingFilter, pageable) - there is no
+// three-argument overload; havingFilter and pageable may be null. A Sort is not a Pageable: wrap it as
+// PageRequest.of(0, size, Sort.by(...)).
+List<Tuple> rows = productService.getQueryService().getAggregateResultWithExpressions(
+    "productType.name:typeName, SUM(price) * 1.2:totalWithTax",
+    "status==#ACTIVE#",
+    null,
+    null
+);
+```
+
+Which of the four to call:
+- `getAggregateResult()` / `getAggregateResultWithExpressions()` return ALL groups. Page number and size are
+  ignored; only the `Sort` of the Pageable is used, and it is resolved against the entity root
+  (`QueryUtils.toOrders`), so it cannot sort by a SELECT alias.
+- `getAggregateResultAsPage()` / `getAggregateResultAsPageWithExpressions()` apply a real offset/limit, count
+  `totalElements` after HAVING, and resolve ORDER BY as SELECT alias → SELECT field path → entity path.
+
+The layers underneath, when a query has to be assembled by hand:
 
 ```java
 // Using SimpleQueryExecutor directly
@@ -288,9 +451,9 @@ List<Tuple> results = SimpleQueryExecutor.getAggregateQueryResultWithSelectExpre
     Product.class,
     Tuple.class,
     "productType.name:typeName, SUM(price) * 1.2:totalWithTax",
-    "status==ACTIVE",  // WHERE filter (optional)
-    null,              // HAVING filter (optional)
-    null,              // Pageable (optional)
+    "status==#ACTIVE#",  // WHERE filter (optional)
+    null,                // HAVING filter (optional)
+    null,                // Pageable (optional)
     rsqlContext,
     compiler
 );
@@ -311,17 +474,20 @@ for (SelectExpression expr : expressions) {
 #### Modifying SELECT Grammar
 When modifying `RsqlSelect.g4`, keep in mind:
 1. **Rule order matters**: In `selectElement`, `seExpression` MUST come before `seField` and `seFuncCall` to prevent ambiguity with the `*` operator
-2. Expression precedence is handled by grammar structure (multiplication/division before addition/subtraction)
-3. After changing grammar, regenerate: `mvn -pl rsql-filter generate-sources`
-4. Update `SelectExpressionVisitor` if adding new expression types
-5. Run tests: `mvn test -pl rsql-filter` and `mvn test -pl rsql-filter-integration-tests`
+2. **The start rule is `select: selectElements`, with no `+`**: the `+` was removed in 0.6.21 because a second
+   group could then begin at any `*`, which made parsing exponential and let `code name` parse as though the
+   comma were there. Do not reintroduce it. The same applies to the removed error alternatives in
+   `RsqlWhere.g4` - both grammars carry a comment saying so.
+3. Expression precedence is handled by grammar structure (multiplication/division before addition/subtraction)
+4. After changing grammar, regenerate: `mvn -pl rsql-filter generate-sources`
+5. Update `SelectExpressionVisitor` if adding new expression types
+6. Run tests: `mvn test -pl rsql-filter` and `mvn test -pl rsql-filter-integration-tests`
 
 #### Testing with Demo Application
 ```bash
 cd rsql-filter-demo
-./mvnw
-# Frontend runs on http://localhost:9000
-# Backend runs on http://localhost:8080
+./mvnw          # backend on http://localhost:8080 (defaultGoal is spring-boot:run)
+npm start       # Angular dev server on http://localhost:9000, in a second terminal
 ```
 
 #### Publishing to Maven Central

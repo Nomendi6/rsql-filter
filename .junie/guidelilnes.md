@@ -1,109 +1,106 @@
 # RSQL Filter Project Guidelines
 
+> **Filename warning:** JetBrains Junie loads `.junie/guidelines.md`, but this file is named
+> `.junie/guidelilnes.md` (transposed letters), so Junie never reads it. Until a maintainer renames it, treat
+> this as ordinary project documentation and do not expect the tool to pick it up.
+
 This document provides guidelines and information for developers working on the RSQL Filter project.
 
 ## Build/Configuration Instructions
 
 ### Project Structure
 
-The project consists of two main components:
+The project is a Maven multi-module reactor. The root `pom.xml` declares three modules:
 
-1. **rsql** - The core library that provides RSQL filtering functionality for Spring Data JPA
-2. **test-appl** - A test application that demonstrates the usage of the RSQL library
+1. **rsql-filter** - The core library (`com.nomendi6:rsql-filter`) that provides RSQL filtering for Spring Data JPA
+2. **rsql-filter-integration-tests** - A test-only module that exercises the library against an H2 database, with
+   no JHipster dependencies
+3. **rsql-filter-demo** - A JHipster-generated Spring Boot + Angular application that demonstrates the library
+
+There is no Gradle build here, and no `rsql` or `test-appl` directory - both were renamed when the project moved
+to Maven. Use `mvn`, never `./gradlew`.
 
 ### Building the Project
 
 #### Prerequisites
 
-- Java 17 or higher
-- Gradle 8.x
+- Java 17 on this line (the `master` line needs Java 21)
+- Maven 3.6 or newer; there is no wrapper at the root, and `rsql-filter-demo/mvnw` covers the demo module only
+- Network access for the first full build: `rsql-filter-demo` downloads Node and npm through frontend-maven-plugin
 
-#### Building the Core Library
-
-```bash
-# From the project root
-cd rsql
-./gradlew build
-```
-
-The library is configured with the following key dependencies:
-- ANTLR4 Runtime 4.13.2
-- Spring Boot Data JPA
-- Hibernate
-- MapStruct
-
-#### Building the Test Application
-
-The test application is a JHipster-generated Spring Boot application with Angular frontend.
+#### Building
 
 ```bash
-# From the project root
-cd test-appl
-./gradlew build
-```
+# Build every module (~2 min with tests skipped, longer with tests)
+mvn clean install -DskipTests
 
-**Note**: The test application uses Gradle version catalogs for dependency management. If you encounter build errors related to `alias(libs.plugins.spring.boot)`, you may need to:
-1. Check that the `libs` version catalog is properly defined in `settings.gradle`
-2. Update the Gradle version to one that supports version catalogs (7.0+)
-3. Or replace the alias with a direct plugin ID and version
+# Build and test everything
+mvn clean install
+
+# Build only the library - the fast path for library work
+mvn install -pl rsql-filter
+
+# Regenerate the ANTLR parsers after a grammar change
+mvn -pl rsql-filter generate-sources
+```
 
 ### Configuration
 
-#### Core Library Configuration
+The platform versions are declared in the `<properties>` block of the root `pom.xml`:
 
-The core library configuration is in `rsql/build.gradle` and `rsql/gradle.properties`:
+- `java.version` 17
+- `spring-boot.version` 3.4.4
+- `hibernate.version` 6.5.3.Final
+- `mapstruct.version` 1.6.3
+- `antlr4.version` 4.13.2
 
-- Java compatibility: 17+
-- Current version: 0.6.0
-- Spring Boot version: 3.4.4
-- Hibernate version: 6.6.11.Final
-- MapStruct version: 1.6.3
+They are not declared only there: `rsql-filter-demo/pom.xml` re-declares `java.version` (17),
+`spring-boot.version` (3.4.4) and `mapstruct.version` (1.6.3) in its own `<properties>` block, and those
+shadow the inherited values. Change those three in both files, or the demo keeps building against the old
+ones.
 
-#### Test Application Configuration
+The project is maintained as two parallel lines, so check which one you are on before quoting a version:
 
-The test application configuration is in `test-appl/build.gradle` and related Gradle files:
+- **release-3** - the 0.6.x line, currently 0.6.21, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3.
+  `rsql-filter-demo` ships only on this line.
+- **master** - the 0.7.x line, currently 0.7.6, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4.
 
-- Java compatibility: 17+
+The demo application is configured in `rsql-filter-demo/pom.xml` and `src/main/resources/config/`:
+
 - Spring profiles: dev (default), prod, tls, e2e
-- Database: PostgreSQL
+- Database: H2 in memory under `dev`, PostgreSQL under `prod` (`src/main/docker/services.yml`)
 
 ## Testing Information
 
 ### Test Structure
 
-Tests are organized in the following structure:
-
-- **rsql/src/test** - Tests for the core library
-- **test-appl/src/test/java/testappl** - Tests for the test application
-    - **config** - Configuration tests
-    - **domain** - Domain model tests
-    - **rsql** - RSQL-specific tests
-    - **security** - Security tests
-    - **service** - Service layer tests
-    - **web** - Web layer tests
+- **rsql-filter/src/test/java/rsql/** - library unit tests, grouped as `app`, `describe`, `having`, `select`,
+  `where` (263 tests)
+- **rsql-filter-integration-tests/src/test/java/com/nomendi6/rsql/it/** - integration tests against H2
+  (563 tests). Surefire is configured to include `**/*IT.java`, so these run in the `test` phase - do not reach
+  for `verify`.
+- **rsql-filter-demo/src/test/java/com/nomendi6/rsql/demo/** - demo application tests, with sub-packages
+  config, domain, management, repository, rsql, security, service, web
 
 ### Running Tests
 
-#### Running Core Library Tests
-
 ```bash
-# From the project root
-cd rsql
-./gradlew test
-```
+# Library unit tests (~12 s)
+mvn test -pl rsql-filter
 
-#### Running Test Application Tests
+# Integration tests against H2 (~45 s)
+mvn test -pl rsql-filter-integration-tests
 
-```bash
-# From the project root
-cd test-appl
-./gradlew test                # Unit tests
-./gradlew integrationTest     # Integration tests
+# A single test class
+mvn test -pl rsql-filter -Dtest=RsqlWhereStringTest
 ```
 
 ### Writing RSQL Tests
 
-The RSQL library provides a `RsqlQueryService` that can be used to execute RSQL queries. Here's an example of how to use it in tests:
+The library provides `RsqlQueryService` for executing RSQL queries: a 4-argument constructor for Specification
+mode, and a 6-argument one that adds a JPQL SELECT and a JPQL count query. `a0` is the default root alias the
+library stamps on every generated WHERE and ORDER BY, so custom JPQL must alias its root `a0` or call
+`setSelectAlias` / `setCountAlias`.
 
 ```java
 @Autowired
@@ -117,8 +114,8 @@ private ProductTypeMapper productTypeMapper;
 
 private RsqlQueryService<ProductType, ProductTypeDTO, ProductTypeRepository, ProductTypeMapper> queryService;
 
-private String jpqlSelectAll = "SELECT p FROM ProductType p";
-private String jpqlSelectAllCount = "SELECT count(distinct p) FROM ProductType p";
+private String jpqlSelectAll = "SELECT a0 FROM ProductType a0";
+private String jpqlSelectAllCount = "SELECT count(distinct a0) FROM ProductType a0";
 
 @BeforeEach
 void init() {
@@ -134,38 +131,90 @@ void init() {
 
 @Test
 void testBasicFiltering() {
-    // Test filtering by name
-    String filter = "name=*'Type'*";
+    // Test filtering by name - the wildcard goes inside the quotes
+    String filter = "name=*'*Type*'";
     List<ProductTypeDTO> result = queryService.findByFilter(filter);
-    
+
     // Verify results
     assertThat(result).isNotNull();
 }
 ```
 
+`RsqlQueryService` is safe to hold as a singleton bean: every public method builds a fresh `RsqlContext` for the
+query, so nothing query-scoped is shared between threads.
+
 ### RSQL Filter Syntax
 
-The RSQL filter syntax is similar to FIQL (Feed Item Query Language):
+Only the spellings below parse. `=`, `<>`, `>`, `>=`, `<`, `<=`, `=^` and `=$` are **not** operators in this
+language - all eight raise `SyntaxErrorException`, though not all at the same stage: `<>`, `>`, `>=`, `<`,
+`<=` and `=^` never tokenise (`line 1:4 token recognition error at: '<'`), while `name='Type'` and
+`name=$'T'` tokenise and then fail in the parser (`line 1:5 no viable alternative at input 'name='Type''`).
 
 - **Comparison Operators**:
-    - `==` or `=` : Equal to
-    - `!=` or `<>` : Not equal to
-    - `=gt=` or `>` : Greater than
-    - `=ge=` or `>=` : Greater than or equal to
-    - `=lt=` or `<` : Less than
-    - `=le=` or `<=` : Less than or equal to
-    - `=*` : Contains
-    - `=^` : Starts with
-    - `=$` : Ends with
+    - `==` : equal to
+    - `!=` or `=!` : not equal to
+    - `=gt=`, `=ge=`, `=lt=`, `=le=` : greater than, greater or equal, less than, less or equal
+    - `=in=`, `=nin=` : in / not in a list
+    - `=bt=`, `=nbt=` : between / not between
+    - `=like=` or `=*`, `=nlike=` or `=!*` or `!=*` : case-insensitive pattern match
+    - `=clike=` or `=^*`, `=cnlike=` or `=!^*` or `!=^*` : case-sensitive pattern match
+
+- **Patterns**: the wildcard is `*` and it belongs **inside** the quoted value - `'*Type*'` contains,
+  `'Type*'` starts with, `'*Type'` ends with. A `*` outside the quotes is a lexer error.
 
 - **Logical Operators**:
-    - `and` : Logical AND
-    - `or` : Logical OR
+    - `and` or `;` : logical AND
+    - `or` or `,` : logical OR
+    - parentheses group: `(name=='A' or name=='B') and price=gt=10`
 
-- **Examples**:
-    - `name=='Type'` : Name equals 'Type'
-    - `name=*'Type'*` : Name contains 'Type'
-    - `parent.id=gt=1 and product.id=gt=1` : Parent ID > 1 AND Product ID > 1
+- **Right-hand sides**: quoted strings (delimiter `'`, `"` or `` ` ``, escaped by doubling it - backslash is an
+  ordinary character), numbers, `null`, `true`, `false`, `#2024-01-01#` dates, `#2024-01-01T23:59:59Z#`
+  datetimes (the zone is mandatory - `#2024-01-01T23:59:59#` is a syntax error), `#ACTIVE#` enums, `:name`
+  parameters that the caller binds, and another field: `price=gt=cost`, `code=in=(status,name)`.
+
+- **Examples** (each verified against the parser):
+    - `name=='Type'` : name equals 'Type'
+    - `name=*'*Type*'` : name contains 'Type', ignoring case
+    - `parent.id=gt=1 and product.id=gt=1` : parent ID > 1 AND product ID > 1
+    - `status=in=(#ACTIVE#,#PENDING#)` : enum in a list
+    - `validFrom=ge=#2024-01-01#;createdAt=lt=#2024-01-01T23:59:59Z#` : date and datetime bounds
+
+README.md carries the maintained reference for the whole operator and literal set; link to it, do not copy it.
+
+### SELECT and HAVING
+
+Beyond WHERE the library has two more languages, documented in SELECT.md and HAVING.md:
+
+- **SELECT** (`RsqlSelect.g4`) - field paths, `*` and `entity.*`, aliases written with `:`, and a closed
+  function list: SUM, AVG, MIN, MAX, COUNT, GRP. Names are case-insensitive; there is no `DATE()` or any other
+  scalar function. Elements are comma-separated, `*` is legal only as the first element, and a trailing comma
+  is an error.
+- **Arithmetic** (`+ - * /`) between selected values works only through
+  `RsqlQueryService.getAggregateResultWithExpressions(select, filter, having, pageable)` and
+  `getAggregateResultAsPageWithExpressions(...)`. Plain `getAggregateResult` / `getAggregateResultAsPage`
+  reject it with `SyntaxErrorException("Arithmetic expressions with operators are not supported in this query
+  type...")`. Arithmetic inside an aggregate call - `SUM(a*b)` - does not parse on any path.
+- **HAVING** (`RsqlHaving.g4`) - filters the grouped result: `SUM(price)=gt=1000`, or a SELECT alias,
+  `productCount=gt=5`. The GROUP BY list is derived from the SELECT string - every element without an aggregate
+  becomes a GROUP BY expression - and a bare field in HAVING must be a SELECT alias or one of those fields,
+  otherwise it raises `IllegalArgumentException`. `count`, `avg`, `sum`, `min`, `max`, `grp`, `all`, `dist`,
+  `and`, `or`, `null`, `true`, `false` are lexer keywords, so never alias a column `:count` or `:avg` - use
+  `:productCount` / `:avgPrice`.
+
+All four aggregate methods take the same four arguments and `havingFilter` may be `null`. A `Sort` is not a
+`Pageable`; wrap it as `PageRequest.of(0, 20, Sort.by("name"))`.
+
+### Filter Descriptions
+
+`rsql.describe.RsqlFilterDescription` turns a WHERE filter into readable text and into report rows. It works on
+the parse tree alone - no `EntityManager`, no entity class - which also makes it the quickest way to check that
+a filter parses. The feature is unreleased: it sits under `[Unreleased]` in CHANGELOG.md, so do not attach a
+version number to it yet.
+
+```java
+FilterDescription d = new RsqlFilterDescription().describe("name=*'A*';price=gt=100");
+d.getText();  // name starts with (ignoring case) "A" and price is greater than 100
+```
 
 ## Additional Development Information
 
@@ -180,27 +229,40 @@ The project follows standard Java code style conventions. Key points:
 
 ### Working with ANTLR
 
-The RSQL library uses ANTLR for parsing RSQL expressions. The grammar files are located in:
+Four grammar files live in `rsql-filter/src/main/antlr/`:
 
-- `rsql/src/main/antlr/RsqlCommonLexer.g4`
-- `rsql/src/main/antlr/RsqlSelect.g4`
-- `rsql/src/main/antlr/RsqlWhere.g4`
+- `RsqlCommonLexer.g4` - the tokens shared by the three parsers
+- `RsqlWhere.g4` - the WHERE clause
+- `RsqlSelect.g4` - the SELECT clause
+- `RsqlHaving.g4` - the HAVING clause
 
-If you modify the grammar files, you'll need to regenerate the ANTLR parser classes.
+Regenerate with `mvn -pl rsql-filter generate-sources`. The generated parsers are committed to git under
+`rsql-filter/src/main/java/rsql/antlr/{lexer,select,where,having}` and are rewritten on every build, so a
+grammar change produces a diff in tracked sources that must be committed with it. Treat `rsql.antlr.*` as build
+output: it is not a supported public API, and its class names and `RULE_*` constants change between releases.
+The grammars carry comments explaining why some rules look the way they do - removed error alternatives, the
+shape of the SELECT start rule. Do not "simplify" those back; they caused exponential parser prediction. See
+rsql-filter/ANTLR-GUIDE.md for the full picture.
+
+### Error Handling
+
+Parse and validation failures raise `rsql.exceptions.SyntaxErrorException`. Two guards protect the parsers,
+shared by WHERE, HAVING and SELECT: `RsqlWhereTreeParser.DEFAULT_MAX_NESTING_DEPTH` = 100 and
+`DEFAULT_MAX_TREE_DEPTH` = 500. Both are JVM-wide and adjustable through the static `setMaxNestingDepth` /
+`setMaxTreeDepth`. Over the limit you get a `SyntaxErrorException`, not a `StackOverflowError`.
 
 ### Publishing the Library
 
-The library is configured for publishing to Maven Central via Sonatype OSSRH. To publish:
+The library publishes to Maven Central through `org.sonatype.central:central-publishing-maven-plugin`, wired
+into the `release` profile:
 
 ```bash
-# From the project root
-cd rsql
-./gradlew publish
+# Sign and publish from the project root
+mvn -Prelease deploy
 ```
 
-You'll need to set the following properties:
-- `ossrhUsername`: Your Sonatype OSSRH username
-- `ossrhPassword`: Your Sonatype OSSRH password
+You need a `<server>` entry with id `central` holding your Central portal token in `~/.m2/settings.xml`, and a
+GPG key that maven-gpg-plugin can use.
 
 ### Debugging Tips
 
@@ -211,9 +273,16 @@ You'll need to set the following properties:
        rsql: DEBUG
    ```
 
-2. Use the `[DEBUG_LOG]` prefix in test output for better visibility:
-   ```java
-   System.out.println("[DEBUG_LOG] Your debug message");
-   ```
+2. To check a filter without a database, run it through `rsql.where.RsqlWhereString` (renders JPQL-ish WHERE
+   text) or `rsql.describe.RsqlFilterDescription` - neither needs an `EntityManager`.
 
 3. For complex RSQL expressions, break them down into smaller parts for easier debugging.
+
+### Where to Look Next
+
+- README.md - overview and the full WHERE reference
+- API.md - the public API surface of the library
+- SELECT.md and HAVING.md - the SELECT and HAVING languages
+- rsql-filter/ANTLR-GUIDE.md - grammars, generation and parser hardening
+- CONTRIBUTING.md - branches, releases and the contribution workflow
+- CHANGELOG.md - what changed, including the `[Unreleased]` section
