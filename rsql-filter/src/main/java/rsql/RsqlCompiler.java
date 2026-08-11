@@ -1,5 +1,6 @@
 package rsql;
 
+import rsql.describe.FilterNode;
 import rsql.exceptions.SyntaxErrorException;
 import rsql.helper.AggregateField;
 import rsql.helper.AggregateField.AggregateFunction;
@@ -314,6 +315,24 @@ public class RsqlCompiler<T> {
             .filter(f -> f.getFunction() == AggregateFunction.NONE)
             .map(AggregateField::getFieldPath)
             .collect(Collectors.toList());
+    }
+
+    /**
+     * Builds a description tree for a WHERE filter.
+     * <p>
+     * Named after what it returns, like every other method here. Takes no {@code RsqlContext}: the walk is
+     * purely syntactic, and a context is only usable after {@code defineEntityManager()}, which would force an
+     * {@code EntityManager} and a JPA context on a caller who only wants text.
+     *
+     * @param inputString The RSQL filter; blank or {@code null} gives {@code null}
+     * @return The tree, or {@code null} for an empty filter
+     * @throws SyntaxErrorException if the filter does not parse
+     */
+    public FilterNode compileToFilterNode(String inputString) {
+        if (inputString == null || inputString.isBlank()) {
+            return null;
+        }
+        return new WhereDescriptionVisitor().visit(treeParser.parseStream(CharStreams.fromString(inputString)));
     }
 
     /**

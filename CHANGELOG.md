@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Filter descriptions for reports.** `RsqlFilterDescription` turns a WHERE filter into text a reader
+  understands, and into table rows for a report header. It is purely textual - no `EntityManager` and no
+  `RsqlContext` - because it works on the parse tree alone.
+
+  ```java
+  RsqlFilterDescription describer = new RsqlFilterDescription();
+  describer.describe("name=*'A*';price=gt=100").getText();
+  // name starts with (ignoring case) "A" and price is greater than 100
+  ```
+
+  The four LIKE operators are described by what the pattern means rather than by their spelling, so `'A*'`
+  reads as "starts with", `'*A'` as "ends with" and `'*A*'` as "contains". A pattern that says something else -
+  `'50%'`, `'A*B'` - is not misreported as any of those; it prints as written.
+
+  Values are quoted and escaped, so the line cannot be read back as a different filter than the one described:
+  a value containing `and`, a comma inside an `IN` list, an empty string and a newline are all unambiguous.
+
+- **`FilterDescription.getRows()`** returns `FilterRow` JavaBeans, ready for JasperReports'
+  `JRBeanCollectionDataSource`. Each row carries `field`, `operator`, `value`, the `connector` in front of it,
+  and `depth` / `openGroups` / `closeGroups` for filters that contain an `OR`. `isPureAndChain()` says whether a
+  plain table renders the filter exactly, which is the common case for a filter built from a UI form.
+
+- **`FilterLabelResolver`** names the parts. Every method has a default, so an application overrides only what
+  it changes; `FilterLabelResolver.TECHNICAL` is the all-defaults instance. Two implementations are supplied:
+  `MapFilterLabelResolver` for field labels from a map, and `ResourceBundleFilterLabelResolver` for fields,
+  operators and junctions from a `ResourceBundle` - a translated report needs all three, since "Cijena is
+  greater than 10" is not a sentence in any language. A missing key falls back rather than throwing.
+
+  `getRows()` and `getText()` pass every part through the resolver, including right-hand-side shapes this
+  version does not know, so an application that masks sensitive values can rely on them. `getRoot()` returns
+  the raw tree and deliberately does not.
+
+- **`RsqlCompiler.compileToFilterNode(String)`** and `RsqlFilterDescription.parse(String)` expose the filter as
+  a neutral tree - `FilterGroup` and `FilterCondition` over `Operand`, `FilterOperator` and `RightSide` - for an
+  application that wants to inspect or rewrite a filter rather than describe it. The tree is normalised:
+  nested groups sharing a junction are flattened, and a group of one child is replaced by that child.
+
+  `FilterCondition` validates itself, so a hand-built tree cannot describe itself falsely: an operator and a
+  right-hand side that contradict each other are rejected, and a LIKE condition's pattern shape and needle must
+  be the ones actually derived from its value.
+
+  Nothing on the query path changed. The description shares the tree parser, so it inherits the same nesting
+  and depth limits, and every filter the query path accepts can be described.
+
 ## [0.6.21] - 2026-08-10
 
 ### Fixed
