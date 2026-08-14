@@ -21,6 +21,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -76,6 +77,19 @@ public class RsqlQueryService<
 
     private boolean useJpqlSelect = false;
 
+    /**
+     * Foreign key id resolution, held here rather than on the shared context.
+     *
+     * <p>Every query gets a context derived from a single long-lived one, so writing these settings into that
+     * context would mean mutating state another thread is copying. They are stamped onto each fresh context
+     * instead. The map is replaced wholesale rather than updated in place, so a reader always sees one whole
+     * configuration; both fields are volatile so a change made after the service is published is visible to
+     * the threads that will use it.</p>
+     */
+    private volatile boolean useForeignKeyIdShortcut = true;
+
+    private volatile Map<String, Boolean> foreignKeyIdShortcutOverrides = Map.of();
+
     public RsqlQueryService(REPOS appObjectRepository, MAPPER appObjectMapper, EntityManager entityManager, Class<ENTITY> entityClass) {
         this.appObjectRepository = appObjectRepository;
         this.appObjectMapper = appObjectMapper;
@@ -126,6 +140,10 @@ public class RsqlQueryService<
      */
     private RsqlContext<ENTITY> getQueryContext() {
         RsqlContext<ENTITY> newContext = rsqlContext.createNewInstance();
+
+        // Read each volatile once, so one query cannot see half of a reconfiguration.
+        newContext.useForeignKeyIdShortcut = this.useForeignKeyIdShortcut;
+        newContext.foreignKeyIdShortcutOverrides = new HashMap<>(this.foreignKeyIdShortcutOverrides);
 
         // Apply the current selectAlias from this service instance
         // This ensures that alias changes via setSelectAlias() are respected
@@ -202,7 +220,7 @@ public class RsqlQueryService<
      * @param useForeignKeyIdShortcut false to resolve such selectors through a join, as before 0.7.7
      */
     public void setUseForeignKeyIdShortcut(boolean useForeignKeyIdShortcut) {
-        this.rsqlContext.useForeignKeyIdShortcut = useForeignKeyIdShortcut;
+        this.useForeignKeyIdShortcut = useForeignKeyIdShortcut;
     }
 
     /**
@@ -211,7 +229,7 @@ public class RsqlQueryService<
      * @return true when the shortcut is in use, which is the default
      */
     public boolean getUseForeignKeyIdShortcut() {
-        return this.rsqlContext.useForeignKeyIdShortcut;
+        return this.useForeignKeyIdShortcut;
     }
 
     /**
@@ -230,8 +248,7 @@ public class RsqlQueryService<
      * @return this service, for chaining
      */
     public RsqlQueryService<ENTITY, ENTITY_DTO, REPOS, MAPPER> withForeignKeyIdShortcutFor(String... associationPaths) {
-        this.rsqlContext.withForeignKeyIdShortcutFor(associationPaths);
-        return this;
+        return overrideForeignKeyIdShortcut(Boolean.TRUE, associationPaths);
     }
 
     /**
@@ -242,7 +259,19 @@ public class RsqlQueryService<
      * @return this service, for chaining
      */
     public RsqlQueryService<ENTITY, ENTITY_DTO, REPOS, MAPPER> withoutForeignKeyIdShortcutFor(String... associationPaths) {
-        this.rsqlContext.withoutForeignKeyIdShortcutFor(associationPaths);
+        return overrideForeignKeyIdShortcut(Boolean.FALSE, associationPaths);
+    }
+
+    /** Replace the override map with one that also answers {@code answer} for these paths. */
+    private RsqlQueryService<ENTITY, ENTITY_DTO, REPOS, MAPPER> overrideForeignKeyIdShortcut(
+        Boolean answer,
+        String... associationPaths
+    ) {
+        Map<String, Boolean> updated = new HashMap<>(this.foreignKeyIdShortcutOverrides);
+        for (String path : associationPaths) {
+            updated.put(path, answer);
+        }
+        this.foreignKeyIdShortcutOverrides = Map.copyOf(updated);
         return this;
     }
 

@@ -47,7 +47,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another clause already needs the association, its join stays and the filter is applied to the base table's
   foreign key column beside it. A WHERE condition never enters the GROUP BY, so that stays valid.
 
-  Only the WHERE clause is affected. SELECT, GROUP BY and HAVING resolve paths as before.
+  The shortcut stands aside wherever the two forms are not interchangeable. It asks Hibernate whether it will
+  resolve the identifier from the foreign key at all, which rules out collections, the `mappedBy` side of a
+  `@OneToOne`, `@NotFound`, `@SoftDelete` and a foreign key referencing a non-primary-key column; and on its
+  own it declines a composite identifier, and any target whose join would carry a restriction the foreign key
+  column cannot: a permanent one (`@SQLRestriction`, the `@Where` it replaced, soft delete), an enabled
+  `@Filter` the target declares with `applyToLoadByKey = true`, and being one subtype of an inheritance
+  hierarchy. In each case the foreign key column can hold the identifier of a row the join would have
+  excluded, so reading it there would widen the filter rather than speed it up. (The filter case is a
+  precaution on this line: Hibernate 6.5 does not apply `@Filter` to a to-one join at all.)
+
+  HAVING resolves paths as before.
 
 ### Added
 - **`RsqlContext.useForeignKeyIdShortcut`** turns the above off, and
