@@ -26,6 +26,8 @@ This document provides detailed information about all the methods available in t
   - [Parameter Binding Methods](#parameter-binding-methods)
   - [Helper Methods](#helper-methods)
 - [RsqlWhereString](#rsqlwherestring)
+- [RsqlContext](#rsqlcontext)
+  - [Foreign key id resolution](#foreign-key-id-resolution)
 - [Parser Limits](#parser-limits)
 - [RsqlFilterDescription](#rsqlfilterdescription)
   - [Describing Methods](#describing-methods)
@@ -1221,6 +1223,19 @@ Resolves a dotted property path to a JPA `Path`, creating and caching the JOINs 
 the join-reuse mechanism the rest of the library is built on; pass the same map to every clause of a query so
 that a path used in both WHERE and SELECT produces one JOIN.
 
+> **Since 0.7.7 / 0.6.22 the WHERE path has one exception.** A selector ending in the identifier of a to-one
+> association — `customer.id` — is resolved against the querying table's own foreign key column and creates no
+> JOIN at all, so it also puts nothing in `joinsMap`. Nothing else changes: a clause that needs the
+> association for any other reason still creates and caches the JOIN, and a selector whose association is
+> already in `joinsMap` still reuses it rather than taking the shortcut. The count is therefore never higher
+> and never lower than what the other clauses require.
+>
+> Only WHERE does this. SELECT, GROUP BY, HAVING and ORDER BY resolve paths exactly as before, so a query
+> whose SELECT names `customer.name` still has one JOIN, with the WHERE predicate reading the foreign key
+> column beside it. See
+> [Filtering on the id of a to-one association](README.md#filtering-on-the-id-of-a-to-one-association) for the
+> conditions and [`RsqlContext`](#foreign-key-id-resolution) for turning it off.
+
 ## AggregateQueryBuilder
 
 The `AggregateQueryBuilder` class encapsulates all components needed for building aggregate queries with SELECT, GROUP BY, and HAVING clauses.
@@ -1644,6 +1659,63 @@ cannot be read
 ```java
 new RsqlWhereString().parseString("name=*'*Type*';price=bt=(:lo,:hi)");
 // lower(name) like '%type%' escape '\' and price between :lo and :hi
+```
+
+## RsqlContext
+
+`rsql.where.RsqlContext<ENTITY>` carries the JPA pieces one query needs — the root, the `CriteriaBuilder`, the
+`CriteriaQuery`, and the joins and metadata maps shared between clauses. `RsqlQueryService` builds a fresh one
+per query through `createNewInstance()`, so a service is safe to hold as a singleton.
+
+### Foreign key id resolution
+
+```java
+public boolean useForeignKeyIdShortcut = true;
+public Map<String, Boolean> foreignKeyIdShortcutOverrides = new HashMap<>();
+
+public RsqlContext<ENTITY> withForeignKeyIdShortcutFor(String... associationPaths);
+public RsqlContext<ENTITY> withoutForeignKeyIdShortcutFor(String... associationPaths);
+public boolean isForeignKeyIdShortcutEnabledFor(String associationPath);
+public void copyForeignKeyIdShortcutSettingsFrom(RsqlContext<?> source);
+```
+
+**Since 0.7.7 / 0.6.22.** Decides whether a WHERE selector ending in the identifier of a to-one association is
+resolved against the querying table's own foreign key column instead of through a `LEFT JOIN`. See
+[Filtering on the id of a to-one association](README.md#filtering-on-the-id-of-a-to-one-association) for what
+the shortcut covers and when it stands aside.
+
+`useForeignKeyIdShortcut` is the default for every association; `foreignKeyIdShortcutOverrides` decides for the
+ones named in it. Between the two, all four arrangements are expressible with no rule about which wins:
+
+| Wanted | `useForeignKeyIdShortcut` | Overrides |
+|---|---|---|
+| Every association reads its foreign key (the default) | `true` | empty |
+| Every association joins, as before 0.7.7 / 0.6.22 | `false` | empty |
+| Only `ownerOrg` and `ownerCompany` read the foreign key | `false` | both `true` |
+| Everything but `legacyOwner` reads the foreign key | `true` | `legacyOwner` `false` |
+
+A key is the association path exactly as the filter writes it, **without** the identifier segment: `"ownerOrg"`
+covers `ownerOrg.id`, and `"parent.parent.productType"` covers `parent.parent.productType.id`. One association
+reached by two paths is two keys.
+
+```java
+RsqlContext<Document> context = new RsqlContext<>(Document.class).defineEntityManager(entityManager);
+context.useForeignKeyIdShortcut = false;
+context.withForeignKeyIdShortcutFor("ownerOrg", "ownerCompany");
+
+Specification<Document> specification = compiler.compileToSpecification(filter, context);
+```
+
+Both settings survive `createNewInstance()` (the map is copied, not shared) and are carried into the separate
+context a paged query builds for its count, so the count resolves the filter the same way the page does.
+
+`RsqlQueryService` exposes the same four operations — `setUseForeignKeyIdShortcut`,
+`getUseForeignKeyIdShortcut`, `withForeignKeyIdShortcutFor` and `withoutForeignKeyIdShortcutFor` — so a service
+can be configured once instead of before every call:
+
+```java
+productService.getQueryService().setUseForeignKeyIdShortcut(false);
+productService.getQueryService().withForeignKeyIdShortcutFor("ownerOrg", "ownerCompany");
 ```
 
 ## Parser Limits

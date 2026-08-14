@@ -7,7 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-08-14
+
+### Changed
+- **A selector ending in the identifier of a to-one association no longer creates a LEFT JOIN.**
+  `customer.id==5` names a value the queried table already stores, in its `customer_id` foreign key column,
+  so it is read from there:
+
+  ```sql
+  -- customer.id==5
+  select o1_0.id, … from orders o1_0 where o1_0.customer_id=?
+  -- before
+  select o1_0.id, … from orders o1_0 left join customer c1_0 on c1_0.id=o1_0.customer_id where c1_0.id=?
+  ```
+
+  This matters for a filter appended to every query - an authorization scope, a tenant column - where the
+  join was pure overhead on the hottest path. `=in=` benefits equally, and `a.b.c.id` still joins `a` and `b`
+  and skips only the last.
+
+  **The join count never grows and never drops below what the other clauses need.** When another clause, or
+  the SELECT, already joined the association, the identifier is read off that join instead. One visible
+  consequence: clause order decides which of the two forms the SQL shows.
+  `customer.name=='X' and customer.id==5` reads the id from the join; reversed, it reads the foreign key.
+  Same rows, same joins, different SQL text - relevant only if you assert on generated SQL as a string.
+
+  The shortcut stands aside wherever the two forms are not interchangeable. It asks Hibernate whether it will
+  resolve the identifier from the foreign key at all, which rules out collections, the `mappedBy` side of a
+  `@OneToOne`, `@NotFound`, `@SoftDelete` and a foreign key referencing a non-primary-key column; and it
+  declines composite identifiers and targets under `@SQLRestriction` / `@Where` on its own, because a
+  restriction is a condition on the join. What remains is a foreign key pointing at a row that does not
+  exist - which needs a schema without referential integrity. Turn the shortcut off there.
+
+  Only the WHERE clause is affected. SELECT, GROUP BY and HAVING resolve paths as before.
+
 ### Added
+- **`RsqlContext.useForeignKeyIdShortcut`** turns the above off, and
+  **`foreignKeyIdShortcutOverrides`** decides per association where the default is not right for all of them.
+  The boolean is the default and the map holds the exceptions, so all four arrangements are expressible
+  without any rule about which wins:
+
+  ```java
+  // only these two read the foreign key; every other to-one id joins
+  context.useForeignKeyIdShortcut = false;
+  context.withForeignKeyIdShortcutFor("ownerOrg", "ownerCompany");
+
+  // everything except this one
+  context.withoutForeignKeyIdShortcutFor("legacyOwner");
+  ```
+
+  A key is the association path as the filter writes it, without the identifier segment. `RsqlQueryService`
+  carries the same four methods, so a service can be configured once instead of before every call, and both
+  settings survive `createNewInstance()` and reach the count query of a paged result.
+
 - **Filter descriptions for reports.** `RsqlFilterDescription` turns a WHERE filter into text a reader
   understands, and into table rows for a report header. It is purely textual - no `EntityManager` and no
   `RsqlContext` - because it works on the parse tree alone.

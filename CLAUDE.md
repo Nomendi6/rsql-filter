@@ -88,7 +88,7 @@ mvn -pl rsql-filter generate-sources
 
 3. **RsqlFilterDescription** - Turns a WHERE filter into report text and JasperReports rows
    - Purely textual: no EntityManager, no RsqlContext - it works on the parse tree alone
-   - Unreleased: it sits under `[Unreleased]` in CHANGELOG.md, so do not cite a version number for it
+   - Shipped in 0.7.7 / 0.6.22
 
 4. **ANTLR Grammar Files** (rsql-filter/src/main/antlr/)
    - RsqlCommonLexer.g4 - Defines tokens, imported by RsqlWhere.g4 and RsqlHaving.g4
@@ -97,7 +97,10 @@ mvn -pl rsql-filter generate-sources
    - RsqlHaving.g4 - Defines HAVING clause syntax
 
 5. **Visitor Pattern Implementation**
-   - WhereSpecificationVisitor - Converts parse tree to JPA Specifications
+   - WhereSpecificationVisitor - Converts parse tree to JPA Specifications. A selector ending in the
+     identifier of a to-one association is read off the foreign key column instead of joining, unless
+     Hibernate says it cannot resolve it there - see `RsqlContext.useForeignKeyIdShortcut` and
+     `foreignKeyIdShortcutOverrides`. WHERE only; SELECT, GROUP BY and HAVING are unaffected.
    - WhereStringVisitor - Converts to JPQL strings
    - WhereTextVisitor - Extracts text representations
    - WhereDescriptionVisitor - Converts to the neutral FilterNode tree used by rsql.describe
@@ -146,8 +149,8 @@ its root `a0` (the default), or the alias must be declared with setSelectAlias()
 
 The project maintains two lines in parallel, and the platform versions differ between them:
 
-- **release-3** - the 0.6.x line, currently 0.6.21: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
-- **master** - the 0.7.x line, currently 0.7.6: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
+- **release-3** - the 0.6.x line, currently 0.6.22: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
+- **master** - the 0.7.x line, currently 0.7.7: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
 This branch is cut from `master`, so the 0.7.x numbers are the ones that apply here. A version note in the
 docs on this branch cites both lines ("Since 0.7.5 / 0.6.20"), because the same change usually ships on both;
@@ -353,7 +356,7 @@ An earlier restructuring, long done - the old names still turn up in old branche
    - FilterNode / FilterGroup / FilterCondition - the neutral tree, built by
      `rsql/where/WhereDescriptionVisitor.java`
    - FilterLabelResolver (+ Map and ResourceBundle implementations) - readable names for fields and operators
-   - Unreleased: `[Unreleased]` in CHANGELOG.md, so do not attach a version number to it yet
+   - Shipped in 0.7.7 / 0.6.22
 
 7. **Integration Tests**: `rsql-filter-integration-tests/src/test/java/`
    - Comprehensive tests showing all supported features

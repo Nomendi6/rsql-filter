@@ -62,9 +62,9 @@ JHipster 8 / Spring Boot 3 application - so do **not** align them here. On `rele
 
 The project is maintained as two parallel lines, so check which one you are on before quoting a version:
 
-- **release-3** - the 0.6.x line, currently 0.6.21, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3.
+- **release-3** - the 0.6.x line, currently 0.6.22, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3.
   `rsql-filter-demo` ships only on this line.
-- **master** - the 0.7.x line, currently 0.7.6, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4.
+- **master** - the 0.7.x line, currently 0.7.7, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4.
 
 The demo application is configured in `rsql-filter-demo/pom.xml` and `src/main/resources/config/`:
 
@@ -210,8 +210,7 @@ All four aggregate methods take the same four arguments and `havingFilter` may b
 
 `rsql.describe.RsqlFilterDescription` turns a WHERE filter into readable text and into report rows. It works on
 the parse tree alone - no `EntityManager`, no entity class - which also makes it the quickest way to check that
-a filter parses. The feature is unreleased: it sits under `[Unreleased]` in CHANGELOG.md, so do not attach a
-version number to it yet.
+a filter parses. Shipped in 0.6.22.
 
 ```java
 FilterDescription d = new RsqlFilterDescription().describe("name=*'A*';price=gt=100");
