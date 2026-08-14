@@ -489,10 +489,9 @@ The shortcut applies only when all of the following hold, and falls back to the 
 | Condition | Otherwise |
 | --- | --- |
 | Hibernate reports that it can resolve the identifier from the foreign key | A `@OneToMany`, a `@ManyToMany` and the `mappedBy` side of a `@OneToOne` keep their join because their foreign key is on the other table; `@NotFound` and `@SoftDelete` on the target keep it because the target has to be looked up; and so does a `@JoinColumn` referencing a column other than the target's primary key, where the value stored locally is not the identifier |
-| The target is not one subtype of an inheritance hierarchy | Joining a subtype restricts rows to it — a discriminator predicate, or a further join for `JOINED`. The foreign key column is constrained only to the hierarchy's table, so it can hold the identifier of a row of another subtype |
 | The target's identifier is a single basic attribute | `@EmbeddedId` and `@IdClass` keep their join — a composite identifier is not one column |
 | The identifier is the **last** segment | `a.b.c.id` still joins `a` and `b`, and only `c` is read from the foreign key |
-| The target carries no `@SQLRestriction` / `@Where` | A restriction is a condition on the join, so removing the join would change which rows match |
+| Joining the target would add no restriction of its own | Three kinds do: a permanent one (`@SQLRestriction`, the `@Where` it replaced, soft delete); an enabled `@Filter` the target declares with `applyToLoadByKey = true`, the idiomatic way to express tenant or row-level scoping; and being one subtype of a hierarchy. Each is a condition on the join, and the foreign key column cannot carry it |
 
 The identifier does not have to be called `id` — whatever the target's `@Id` attribute is named is what the
 last segment is matched against.

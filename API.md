@@ -1710,6 +1710,11 @@ Specification<Document> specification = compiler.compileToSpecification(filter, 
 Both settings survive `createNewInstance()` (the map is copied, not shared) and are carried into the separate
 context a paged query builds for its count, so the count resolves the filter the same way the page does.
 
+`RsqlQueryService` keeps its own copies rather than writing into the long-lived context it derives every query
+from, and stamps them onto each fresh context. Reconfiguring a published service is therefore safe: the map is
+replaced whole rather than updated in place, so a concurrent query sees one configuration or the other and
+never half of one.
+
 `RsqlQueryService` exposes the same four operations — `setUseForeignKeyIdShortcut`,
 `getUseForeignKeyIdShortcut`, `withForeignKeyIdShortcutFor` and `withoutForeignKeyIdShortcutFor` — so a service
 can be configured once instead of before every call:

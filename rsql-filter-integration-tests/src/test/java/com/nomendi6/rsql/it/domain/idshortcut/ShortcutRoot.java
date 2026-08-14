@@ -81,6 +81,11 @@ public class ShortcutRoot implements Serializable {
     @JoinColumn(name = "cat_target_id")
     private ShortcutCat catTarget;
 
+    /** Target scoped by an enabled {@code @Filter}, whose condition rides on the join. */
+    @ManyToOne
+    @JoinColumn(name = "filtered_target_id")
+    private ShortcutFilteredTarget filteredTarget;
+
     public ShortcutRoot() {}
 
     public ShortcutRoot(Long id, String name) {
@@ -182,5 +187,13 @@ public class ShortcutRoot implements Serializable {
 
     public void setCatTarget(ShortcutCat catTarget) {
         this.catTarget = catTarget;
+    }
+
+    public ShortcutFilteredTarget getFilteredTarget() {
+        return filteredTarget;
+    }
+
+    public void setFilteredTarget(ShortcutFilteredTarget filteredTarget) {
+        this.filteredTarget = filteredTarget;
     }
 }

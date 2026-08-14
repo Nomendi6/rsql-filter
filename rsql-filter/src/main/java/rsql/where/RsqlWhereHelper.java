@@ -181,84 +181,71 @@ public class RsqlWhereHelper {
     }
 
     /**
-     * Names of the annotations that add a permanent row restriction to an entity, so that a query is
-     * expected to see fewer rows of it than the table holds.
-     *
-     * <p>Matched by name rather than by class so that one source compiles against either Hibernate line:
-     * {@code @SQLRestriction} arrived in 6.3 and {@code @Where}, which it replaced, is gone in 7.</p>
-     */
-    private static final Set<String> ROW_RESTRICTION_ANNOTATIONS = Set.of(
-            "org.hibernate.annotations.SQLRestriction",
-            "org.hibernate.annotations.Where"
-    );
-
-    /**
-     * Whether an entity carries a restriction that the database would only apply through a join.
-     *
-     * <p>A restriction such as {@code @SQLRestriction("archived = false")} becomes a condition on the join
-     * to that entity. Read the identifier off a foreign key column instead and there is no join left to
-     * carry it, so a row whose target is archived would start matching {@code target.id==5} where before
-     * it did not. That is a change of result, not of plan, so the shortcut steps aside here.</p>
-     *
-     * <p>Cached per class: this is asked once per resolved path, and the answer never changes for a
-     * loaded class. {@link ClassValue} keeps the cache from outliving the class it describes.</p>
-     */
-    private static final ClassValue<Boolean> ROW_RESTRICTED = new ClassValue<>() {
-        @Override
-        protected Boolean computeValue(Class<?> type) {
-            for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
-                for (Annotation annotation : current.getDeclaredAnnotations()) {
-                    if (ROW_RESTRICTION_ANNOTATIONS.contains(annotation.annotationType().getName())) {
-                        return Boolean.TRUE;
-                    }
-                }
-            }
-            return Boolean.FALSE;
-        }
-    };
-
-    /**
-     * Whether an entity is subject to a permanent row restriction declared by annotation.
-     *
-     * @param entityType The association target to check, and its superclasses.
-     * @return true when the type or one of its superclasses is annotated with a row restriction.
-     */
-    public static boolean hasRowRestriction(Class<?> entityType) {
-        return ROW_RESTRICTED.get(entityType);
-    }
-
-    /**
      * Whether joining this entity would restrict rows in a way its foreign key column cannot.
      *
-     * <p>A join to an entity is not always just a lookup by identifier. Where the entity is one subtype of an
-     * inheritance hierarchy, the join carries the restriction that selects that subtype - a discriminator
-     * predicate for {@code SINGLE_TABLE}, a further join for {@code JOINED}:</p>
-     * <pre>{@code
-     * left join (select * from animal t where t.kind='CAT') c on c.id = owner.cat_id
-     * }</pre>
+     * <p>A join to an entity is not always just a lookup by identifier. Three kinds of restriction ride on
+     * it, and none of them can ride on a foreign key column:</p>
+     * <ul>
+     *   <li>a permanent one - {@code @SQLRestriction}, the {@code @Where} it replaced, soft delete - which
+     *       Hibernate reports as a where-restriction on the entity;</li>
+     *   <li>an enabled {@code @Filter} that the entity declares with {@code applyToLoadByKey = true}, the
+     *       idiomatic way to express tenant or row-level scoping. Hibernate renders every enabled filter onto
+     *       the join once the entity declares one such filter;</li>
+     *   <li>being one subtype of an inheritance hierarchy, where the join carries the predicate that selects
+     *       the subtype - a discriminator for {@code SINGLE_TABLE}, a further join for {@code JOINED}. The
+     *       foreign key column is constrained only to the hierarchy's shared table, so it can hold the
+     *       identifier of a row of a different subtype.</li>
+     * </ul>
      *
-     * <p>The foreign key column carries no such restriction. It is constrained to the hierarchy's table, so
-     * it can hold the identifier of a row of a different subtype - put there by a migration, by another
-     * application, or by an earlier version of the mapping. Reading the identifier off that column would then
-     * match a row the join excludes, which is a change of result rather than of plan.</p>
+     * <p>In each case reading the identifier off the foreign key would match rows the join excludes, which is
+     * a change of result rather than of plan. The entity is asked rather than its annotations read, so that
+     * inherited and XML-declared mappings count too, and so that this says what Hibernate actually resolved.
+     * Anything unexpected answers true: keeping a join costs a join, dropping a restriction costs
+     * correctness.</p>
      *
-     * <p>An entity that is the root of its hierarchy, or in no hierarchy at all, restricts nothing: every row
-     * of the table belongs to it.</p>
-     *
-     * @param entityManager Entity manager whose provider knows the hierarchy.
+     * @param entityManager Entity manager whose provider knows the mapping.
      * @param entityType    The association target.
-     * @return true when the target is a subtype, or when that cannot be determined
+     * @return true when the join carries a restriction the foreign key column does not
      */
-    public static boolean isInheritanceSubtype(EntityManager entityManager, Class<?> entityType) {
+    public static boolean joinCarriesRestrictions(EntityManager entityManager, Class<?> entityType) {
         try {
             EntityPersister persister = entityManager
                     .getEntityManagerFactory()
                     .unwrap(SessionFactoryImplementor.class)
                     .getMappingMetamodel()
                     .getEntityDescriptor(entityType);
-            return !persister.getEntityName().equals(persister.getRootEntityName());
+
+            return persister.hasWhereRestrictions()
+                    || hasLoadByKeyFilter(persister)
+                    || !persister.getEntityName().equals(persister.getRootEntityName());
         } catch (RuntimeException notAvailable) {
             return true;
+        }
+    }
+
+    /**
+     * Whether the entity declares a {@code @Filter} with {@code applyToLoadByKey = true}.
+     *
+     * <p>Called reflectively because the method arrived after the 6.x line: there, filters are not applied to
+     * a to-one join at all, so its absence means there is no such restriction to lose.</p>
+     */
+    private static boolean hasLoadByKeyFilter(EntityPersister persister) {
+        java.lang.reflect.Method method = LOAD_BY_KEY_FILTER_CHECK;
+        if (method == null) return false;
+        try {
+            return Boolean.TRUE.equals(method.invoke(persister));
+        } catch (ReflectiveOperationException | RuntimeException notAvailable) {
+            return true;
+        }
+    }
+
+    private static final java.lang.reflect.Method LOAD_BY_KEY_FILTER_CHECK = findLoadByKeyFilterCheck();
+
+    private static java.lang.reflect.Method findLoadByKeyFilterCheck() {
+        try {
+            return EntityPersister.class.getMethod("hasFilterForLoadByKey");
+        } catch (NoSuchMethodException notOnThisLine) {
+            return null;
         }
     }
 
@@ -303,10 +290,8 @@ public class RsqlWhereHelper {
         if (idName == null || !graph[index + 1].equals(idName)) return null;
 
         // A restricted target keeps its join: the restriction is a condition on that join, and dropping it
-        // would change which rows match, not just how they are reached. Both sources of such a restriction
-        // count - one declared by annotation, one implied by being a subtype of a hierarchy.
-        if (hasRowRestriction(targetType)) return null;
-        if (isInheritanceSubtype(rsqlContext.entityManager, targetType)) return null;
+        // would change which rows match, not just how they are reached.
+        if (joinCarriesRestrictions(rsqlContext.entityManager, targetType)) return null;
 
         if (!canReadIdFromForeignKey(rsqlContext.entityManager, classMetadata.getJavaType(), property, idName)) {
             return null;

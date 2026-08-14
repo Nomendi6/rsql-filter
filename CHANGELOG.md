@@ -44,10 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The shortcut stands aside wherever the two forms are not interchangeable. It asks Hibernate whether it will
   resolve the identifier from the foreign key at all, which rules out collections, the `mappedBy` side of a
   `@OneToOne`, `@NotFound`, `@SoftDelete` and a foreign key referencing a non-primary-key column; and on its
-  own it declines composite identifiers, targets under `@SQLRestriction` / `@Where`, and a target that is one
-  subtype of an inheritance hierarchy. The last two are the same reason: joining such a target restricts rows
-  to it - a discriminator predicate, a further join - and the foreign key column carries no such restriction,
-  so it can hold the identifier of a row the join would have excluded.
+  own it declines a composite identifier, and any target whose join would carry a restriction the foreign key
+  column cannot: a permanent one (`@SQLRestriction`, the `@Where` it replaced, soft delete), an enabled
+  `@Filter` the target declares with `applyToLoadByKey = true` - the idiomatic way to express tenant or
+  row-level scoping - and being one subtype of an inheritance hierarchy, where the join carries the predicate
+  that selects the subtype. In each case the foreign key column can hold the identifier of a row the join
+  would have excluded, so reading it there would widen the filter rather than speed it up.
 
   What remains is a foreign key pointing at a row that does not exist, which needs a schema without
   referential integrity. Turn the shortcut off there.
