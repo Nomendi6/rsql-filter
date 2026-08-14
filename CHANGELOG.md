@@ -7,7 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.22] - 2026-08-14
+
+### Changed
+- **A selector ending in the identifier of a to-one association is resolved against the foreign key column
+  rather than through a join.** `customer.id==5` names a value the queried table already stores, in its
+  `customer_id` column, so it is read from there instead of joining `customer` to fetch it.
+
+  ```sql
+  -- customer.id==5
+  select o1_0.id, … from orders o1_0 where o1_0.customer_id=?
+  ```
+
+  **On this line that is what already happened, so no generated SQL changes.** Hibernate 6.5 drops a LEFT
+  JOIN whose only use is the target's identifier, so `0.6.21` produced the statement above too. What this
+  release adds is that the library asks for it rather than relying on the provider to undo an explicit join,
+  and the configuration to steer it. On the 0.7.x line, where Hibernate 7 honours an explicit `join()`
+  literally and does emit the extra join, the same change removes it.
+
+  The library declines wherever reading the foreign key would not mean the same thing. It asks Hibernate
+  whether it will resolve the identifier from the foreign key at all, which rules out collections, the
+  `mappedBy` side of a `@OneToOne`, `@NotFound`, `@SoftDelete` and a foreign key referencing a
+  non-primary-key column; and it declines composite identifiers and targets under `@SQLRestriction` /
+  `@Where` on its own, because a restriction is a condition on the join. Taking the shortcut in those cases
+  would save no join and would reach the identifier through an implicit - and therefore **inner** - join,
+  quietly narrowing a filter built on a LEFT JOIN.
+
+  **The join count never grows and never drops below what the other clauses need.** When the SELECT or
+  another clause already needs the association, its join stays and the filter is applied to the base table's
+  foreign key column beside it. A WHERE condition never enters the GROUP BY, so that stays valid.
+
+  Only the WHERE clause is affected. SELECT, GROUP BY and HAVING resolve paths as before.
+
 ### Added
+- **`RsqlContext.useForeignKeyIdShortcut`** turns the above off, and
+  **`foreignKeyIdShortcutOverrides`** decides per association where the default is not right for all of them.
+  The boolean is the default and the map holds the exceptions, so all four arrangements are expressible
+  without any rule about which wins:
+
+  ```java
+  // only these two read the foreign key; every other to-one id joins
+  context.useForeignKeyIdShortcut = false;
+  context.withForeignKeyIdShortcutFor("ownerOrg", "ownerCompany");
+
+  // everything except this one
+  context.withoutForeignKeyIdShortcutFor("legacyOwner");
+  ```
+
+  A key is the association path as the filter writes it, without the identifier segment. `RsqlQueryService`
+  carries the same four methods, so a service can be configured once instead of before every call, and both
+  settings survive `createNewInstance()` and reach the count query of a paged result.
+
 - **Filter descriptions for reports.** `RsqlFilterDescription` turns a WHERE filter into text a reader
   understands, and into table rows for a report header. It is purely textual - no `EntityManager` and no
   `RsqlContext` - because it works on the parse tree alone.
