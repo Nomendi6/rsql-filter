@@ -673,7 +673,9 @@ public class SimpleQueryExecutor {
         String pathKey = "";
         if (graph.length > 1) {
             pathKey = joinArrayItems(graph, graph.length - 1, ".");
-            if (joinsMap.containsKey(pathKey)) {
+            // An identifier is resolved by the walk below, not off a cached join, so that the answer does
+            // not depend on which clause happened to join the association first.
+            if (joinsMap.containsKey(pathKey) && !endsInToOneIdentifier(graph, classMetadataMap.get(pathKey))) {
                 Path<?> pathRoot = joinsMap.get(pathKey);
                 ManagedType<?> pathClassMetadata = classMetadataMap.get(pathKey);
                 String property = graph[graph.length - 1];
@@ -688,7 +690,8 @@ public class SimpleQueryExecutor {
 
         // try to build a property path
         pathKey = "";
-        for (String property : graph) {
+        for (int i = 0; i < graph.length; i++) {
+            String property = graph[i];
             if (!hasPropertyName(property, classMetadata)) {
                 throw new IllegalArgumentException(
                     "Unknown property: " + property + " from entity " + classMetadata.getJavaType().getName()
@@ -696,6 +699,11 @@ public class SimpleQueryExecutor {
             }
 
             if (isAssociationType(property, classMetadata)) {
+                Path<?> foreignKeyId = foreignKeyIdShortcut(graph, i, root, classMetadata, metamodel, rsqlContext);
+                if (foreignKeyId != null) {
+                    return foreignKeyId;
+                }
+
                 if (pathKey.length() > 0) {
                     pathKey = pathKey.concat(".").concat(property);
                 } else {

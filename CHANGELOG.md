@@ -25,13 +25,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the configuration to steer it. On the 0.7.x line, where Hibernate 7 honours an explicit `join()`
   literally and does emit the extra join, the same change removes it.
 
+  In a **SELECT** clause it is a real change, because selecting the joined table's key column counts as using
+  the join, so Hibernate kept it: `SELECT name, productType.id` filtered by `productType.id` goes from one
+  join to none. WHERE, SELECT and GROUP BY share one decision about this, so they cannot disagree about
+  whether a selector needs a join, and where the identifier is read from does not depend on clause order.
+
   The library declines wherever reading the foreign key would not mean the same thing. It asks Hibernate
   whether it will resolve the identifier from the foreign key at all, which rules out collections, the
   `mappedBy` side of a `@OneToOne`, `@NotFound`, `@SoftDelete` and a foreign key referencing a
   non-primary-key column; and it declines composite identifiers and targets under `@SQLRestriction` /
-  `@Where` on its own, because a restriction is a condition on the join. Taking the shortcut in those cases
-  would save no join and would reach the identifier through an implicit - and therefore **inner** - join,
-  quietly narrowing a filter built on a LEFT JOIN.
+  `@Where`, and a target that is one subtype of an inheritance hierarchy, all because such a restriction is a
+  condition on the join. Taking the shortcut in those cases would save no join and would reach the identifier
+  through an implicit - and therefore **inner** - join, quietly narrowing a filter built on a LEFT JOIN.
+
+  Note that Hibernate 6.5 drops a join whose only use is the identifier by itself, and drops a subtype
+  restriction with it. A selector on an association typed to one subtype of a hierarchy therefore matches on
+  the foreign key alone on this line, in `0.6.21` as much as here, whatever the setting is. The 0.7.x line
+  keeps the join and the restriction.
 
   **The join count never grows and never drops below what the other clauses need.** When the SELECT or
   another clause already needs the association, its join stays and the filter is applied to the base table's

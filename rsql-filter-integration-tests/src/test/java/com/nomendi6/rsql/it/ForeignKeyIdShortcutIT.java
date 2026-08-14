@@ -355,8 +355,8 @@ public class ForeignKeyIdShortcutIT {
             // itself, so the join is there and the filter reads the foreign key column beside it.
             new SelectCase("productType.name:tn, COUNT(*):total", 1),
             new SelectCase("productType.code:tc, productType.name:tn, COUNT(*):total", 1),
-            // SELECT names the identifier itself: the SELECT path joins and groups by the joined column.
-            new SelectCase("productType.id:tid, COUNT(*):total", 1),
+            // SELECT names the identifier itself: that is a foreign key column too, so it needs no join.
+            new SelectCase("productType.id:tid, COUNT(*):total", 0),
             new SelectCase("productType.name:tn, productType.id:tid, COUNT(*):total", 1)
         );
 
@@ -384,10 +384,14 @@ public class ForeignKeyIdShortcutIT {
             String joinedSql = SqlStatementCapture.firstStatement();
 
             assertThat(rowsOf(withShortcut)).as("rows, %s", because).isEqualTo(rowsOf(withoutShortcut)).isNotEmpty();
-            assertThat(SqlStatementCapture.countJoins(shortcutSql))
-                .as("joins, %s", because)
-                .isEqualTo(SqlStatementCapture.countJoins(joinedSql))
-                .isEqualTo(testCase.expectedJoins());
+            assertThat(SqlStatementCapture.countJoins(shortcutSql)).as("joins, %s", because).isEqualTo(testCase.expectedJoins());
+
+            // Unlike the WHERE side, the SELECT side is a real change on this line: Hibernate 6.5 drops a
+            // join nothing uses, but selecting the joined table's key column counts as using it, so
+            // productType.id in a SELECT kept the join until now. The setting never adds one.
+            assertThat(SqlStatementCapture.countJoins(joinedSql))
+                .as("joins without the shortcut, %s", because)
+                .isGreaterThanOrEqualTo(testCase.expectedJoins());
 
             // The filter reads the base table's foreign key column. A WHERE condition never has to appear in
             // the GROUP BY, so grouping by a joined column while filtering on the foreign key stays valid.

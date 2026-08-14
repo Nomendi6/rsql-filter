@@ -143,7 +143,9 @@ cd rsql-filter-demo && ./mvnw -Dspring-boot.run.profiles=dev -Dspring-boot.run.a
    - WhereSpecificationVisitor - Converts parse tree to JPA Specifications. A selector ending in the
      identifier of a to-one association is read off the foreign key column instead of joining, unless
      Hibernate says it cannot resolve it there - see `RsqlContext.useForeignKeyIdShortcut` and
-     `foreignKeyIdShortcutOverrides`. WHERE only; SELECT, GROUP BY and HAVING are unaffected.
+     `foreignKeyIdShortcutOverrides`. The decision lives in one place,
+     `RsqlWhereHelper.foreignKeyIdShortcut`, and WHERE, SELECT and GROUP BY all route through it, so they
+     cannot disagree about whether a selector needs a join. HAVING is unaffected.
    - WhereStringVisitor - Converts to JPQL strings
    - WhereTextVisitor - Extracts text representations
    - WhereDescriptionVisitor - Converts to the neutral FilterNode tree used by rsql.describe

@@ -73,6 +73,14 @@ public class ShortcutRoot implements Serializable {
     @JoinColumn(name = "soft_delete_target_id")
     private ShortcutSoftDeleteTarget softDeleteTarget;
 
+    /**
+     * Target typed to one subtype of a single-table hierarchy. The foreign key column holds an identifier
+     * from the shared table, which need not belong to that subtype - the join is what would check.
+     */
+    @ManyToOne
+    @JoinColumn(name = "cat_target_id")
+    private ShortcutCat catTarget;
+
     public ShortcutRoot() {}
 
     public ShortcutRoot(Long id, String name) {
@@ -166,5 +174,13 @@ public class ShortcutRoot implements Serializable {
 
     public void setSoftDeleteTarget(ShortcutSoftDeleteTarget softDeleteTarget) {
         this.softDeleteTarget = softDeleteTarget;
+    }
+
+    public ShortcutCat getCatTarget() {
+        return catTarget;
+    }
+
+    public void setCatTarget(ShortcutCat catTarget) {
+        this.catTarget = catTarget;
     }
 }

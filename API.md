@@ -1230,9 +1230,10 @@ that a path used in both WHERE and SELECT produces one JOIN.
 > already in `joinsMap` still reuses it rather than taking the shortcut. The count is therefore never higher
 > and never lower than what the other clauses require.
 >
-> Only WHERE does this. SELECT, GROUP BY, HAVING and ORDER BY resolve paths exactly as before, so a query
-> whose SELECT names `customer.name` still has one JOIN, with the WHERE predicate reading the foreign key
-> column beside it. See
+> WHERE, SELECT and GROUP BY share one decision about this, so they cannot disagree about whether a given
+> selector needs a JOIN — a SELECT that read the foreign key while its GROUP BY read the joined column would
+> name two different things for one field. HAVING resolves paths as before. A query whose SELECT names
+> `customer.name` still has one JOIN, with `customer.id` reading the foreign key column beside it. See
 > [Filtering on the id of a to-one association](README.md#filtering-on-the-id-of-a-to-one-association) for the
 > conditions and [`RsqlContext`](#foreign-key-id-resolution) for turning it off.
 

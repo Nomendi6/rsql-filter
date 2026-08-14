@@ -505,11 +505,17 @@ foreign key stays valid.
 `LEFT JOIN` it reads as `NULL`; read directly it is the stored value. That needs a schema without referential
 integrity. Turn the shortcut off there — see [Configuration](#foreign-key-id-resolution).
 
-> **What actually changes on the 0.6.x line: nothing in the SQL.** Hibernate 6.5 already drops a LEFT JOIN
-> whose only use is the target's identifier, so `0.6.21` produced the statement above too. This release makes
-> the library ask for that resolution instead of relying on the provider to undo an explicit join, adds the
-> configuration below, and pins the mappings that must keep their join. The 0.7.x line, where Hibernate 7
-> honours an explicit `join()` literally, is where the join count actually drops.
+> **What changes on the 0.6.x line.** In a WHERE clause, nothing in the SQL: Hibernate 6.5 already drops a
+> LEFT JOIN whose only use is the target's identifier, so `0.6.21` produced the statement above too. In a
+> **SELECT** clause it is a real change — selecting the joined table's key column counts as using the join,
+> so Hibernate kept it, and `SELECT name, productType.id` filtered by `productType.id` went from one join to
+> none. This release also makes the library ask for the resolution rather than rely on the provider to undo
+> an explicit join, and pins the mappings that must keep it.
+>
+> One difference from the 0.7.x line is worth knowing: because Hibernate 6.5 drops the join by itself, it
+> drops a **subtype restriction** with it. A selector on an association typed to one subtype of a hierarchy
+> matches on the foreign key alone here, in `0.6.21` as much as in `0.6.22`, whatever the setting is. The
+> 0.7.x line keeps the join and the restriction. `ForeignKeyIdShortcutInheritanceIT` records this.
 
 ### List of Values (LOV) Queries
 For autocomplete/dropdown functionality. The row count comes from the `Pageable`, not from a separate limit

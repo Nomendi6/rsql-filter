@@ -7,6 +7,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.IdentifiableType;
 import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.Metamodel;
 import jakarta.persistence.metamodel.PluralAttribute;
 import jakarta.persistence.metamodel.SingularAttribute;
 import rsql.antlr.where.RsqlWhereParser;
@@ -217,13 +218,133 @@ public class RsqlWhereHelper {
     };
 
     /**
-     * Whether an entity is subject to a permanent row restriction.
+     * Whether an entity is subject to a permanent row restriction declared by annotation.
      *
      * @param entityType The association target to check, and its superclasses.
      * @return true when the type or one of its superclasses is annotated with a row restriction.
      */
     public static boolean hasRowRestriction(Class<?> entityType) {
         return ROW_RESTRICTED.get(entityType);
+    }
+
+    /**
+     * Whether joining this entity would restrict rows in a way its foreign key column cannot.
+     *
+     * <p>A join to an entity is not always just a lookup by identifier. Where the entity is one subtype of an
+     * inheritance hierarchy, the join carries the restriction that selects that subtype - a discriminator
+     * predicate for {@code SINGLE_TABLE}, a further join for {@code JOINED}:</p>
+     * <pre>{@code
+     * left join (select * from animal t where t.kind='CAT') c on c.id = owner.cat_id
+     * }</pre>
+     *
+     * <p>The foreign key column carries no such restriction. It is constrained to the hierarchy's table, so
+     * it can hold the identifier of a row of a different subtype - put there by a migration, by another
+     * application, or by an earlier version of the mapping. Reading the identifier off that column would then
+     * match a row the join excludes, which is a change of result rather than of plan.</p>
+     *
+     * <p>An entity that is the root of its hierarchy, or in no hierarchy at all, restricts nothing: every row
+     * of the table belongs to it.</p>
+     *
+     * @param entityManager Entity manager whose provider knows the hierarchy.
+     * @param entityType    The association target.
+     * @return true when the target is a subtype, or when that cannot be determined
+     */
+    public static boolean isInheritanceSubtype(EntityManager entityManager, Class<?> entityType) {
+        try {
+            EntityPersister persister = entityManager
+                    .getEntityManagerFactory()
+                    .unwrap(SessionFactoryImplementor.class)
+                    .getMappingMetamodel()
+                    .getEntityDescriptor(entityType);
+            return !persister.getEntityName().equals(persister.getRootEntityName());
+        } catch (RuntimeException notAvailable) {
+            return true;
+        }
+    }
+
+    /**
+     * Reach the identifier of a to-one association through its foreign key column, if that is possible here.
+     *
+     * <p>A dotted selector ending in the identifier of a to-one association - {@code customer.id} - names a
+     * value the querying table already stores. Navigating to it with {@code get()} lets the provider read it
+     * from that column; {@code join()} is a request for a real join, and the provider has to honour it for a
+     * column the query already has.</p>
+     *
+     * <p>Call this from inside the branch that would otherwise create the join, once per segment, and build
+     * the join only when it answers null. Every path resolver in the library shares this one decision, so
+     * WHERE, SELECT and GROUP BY cannot disagree about whether a given selector needs a join - which is what
+     * makes it safe to apply on the aggregate paths, where a SELECT and a GROUP BY that resolved the same
+     * field differently would be a broken query rather than a slow one.</p>
+     *
+     * @param graph         The selector split on dots.
+     * @param index         Index of the segment being resolved; the shortcut only applies to the
+     *                      second-to-last one, so that a longer path still builds the joins it needs.
+     * @param root          Path resolved so far, which the returned path is built on.
+     * @param classMetadata Metamodel of the type declaring {@code graph[index]}.
+     * @param metamodel     The metamodel, for resolving the association target.
+     * @param rsqlContext   Context holding the per-query settings.
+     * @return the path to the identifier, or null when the join has to be built after all
+     */
+    public static Path<?> foreignKeyIdShortcut(
+            String[] graph,
+            int index,
+            Path<?> root,
+            ManagedType<?> classMetadata,
+            Metamodel metamodel,
+            RsqlContext<?> rsqlContext
+    ) {
+        if (index != graph.length - 2) return null;
+
+        String property = graph[index];
+        if (!rsqlContext.isForeignKeyIdShortcutEnabledFor(joinSegments(graph, index + 1))) return null;
+
+        Class<?> targetType = findPropertyType(property, classMetadata);
+        String idName = findSingleBasicIdName(metamodel.managedType(targetType));
+        if (idName == null || !graph[index + 1].equals(idName)) return null;
+
+        // A restricted target keeps its join: the restriction is a condition on that join, and dropping it
+        // would change which rows match, not just how they are reached. Both sources of such a restriction
+        // count - one declared by annotation, one implied by being a subtype of a hierarchy.
+        if (hasRowRestriction(targetType)) return null;
+        if (isInheritanceSubtype(rsqlContext.entityManager, targetType)) return null;
+
+        if (!canReadIdFromForeignKey(rsqlContext.entityManager, classMetadata.getJavaType(), property, idName)) {
+            return null;
+        }
+
+        return root.get(property).get(idName);
+    }
+
+    /**
+     * Whether a selector ends in the identifier of the association its prefix names.
+     *
+     * <p>Every resolver starts by looking the selector's prefix up in the join cache and, on a hit, returns
+     * the last segment straight off that join. For an identifier that has to be skipped, or the answer would
+     * depend on whether some earlier clause happened to join the association first: the SELECT would read the
+     * foreign key column and the GROUP BY, resolved after the join existed, would read the joined one. Same
+     * value, but a query that says two different things about one field.</p>
+     *
+     * <p>Answering true here sends the selector through the full walk instead, where
+     * {@link #foreignKeyIdShortcut} decides once and the same way regardless of what is already joined. When
+     * the shortcut then declines, the walk finds the very same cached join, so nothing is built twice.</p>
+     *
+     * @param graph                The selector split on dots.
+     * @param cachedTargetMetadata Metamodel of the type the cached prefix resolves to, or null if unknown.
+     * @return true when the last segment is that type's single basic identifier
+     */
+    public static boolean endsInToOneIdentifier(String[] graph, ManagedType<?> cachedTargetMetadata) {
+        if (cachedTargetMetadata == null || graph.length < 2) return false;
+        String idName = findSingleBasicIdName(cachedTargetMetadata);
+        return idName != null && graph[graph.length - 1].equals(idName);
+    }
+
+    /** The first {@code length} segments of a selector, joined back into a dotted path. */
+    private static String joinSegments(String[] graph, int length) {
+        StringBuilder path = new StringBuilder(graph[0]);
+        for (int i = 1; i < length; i++) {
+            path.append('.').append(graph[i]);
+        }
+        return path.toString();
     }
 
     /**
