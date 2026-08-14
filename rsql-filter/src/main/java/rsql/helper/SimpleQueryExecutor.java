@@ -424,6 +424,7 @@ public class SimpleQueryExecutor {
             // The main query's joins are tied to a different Root and cannot be reused here
             RsqlContext<ENTITY> countContext = new RsqlContext<>(rsqlContext.entityClass);
             countContext.entityManager = rsqlContext.entityManager;
+            countContext.copyForeignKeyIdShortcutSettingsFrom(rsqlContext);
             countContext.criteriaBuilder = builder;
             countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
             countContext.root = countRoot;
@@ -1145,6 +1146,7 @@ public class SimpleQueryExecutor {
                 // The main query's joins are tied to a different Root and cannot be reused here
                 RsqlContext<ENTITY> countContext = new RsqlContext<>(rsqlContext.entityClass);
                 countContext.entityManager = rsqlContext.entityManager;
+                countContext.copyForeignKeyIdShortcutSettingsFrom(rsqlContext);
                 countContext.criteriaBuilder = builder;
                 countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
                 countContext.root = countRoot;
@@ -1175,6 +1177,7 @@ public class SimpleQueryExecutor {
                 // Create a new RsqlContext for count query to avoid reusing cached joins from main query
                 RsqlContext<ENTITY> countContext = new RsqlContext<>(rsqlContext.entityClass);
                 countContext.entityManager = rsqlContext.entityManager;
+                countContext.copyForeignKeyIdShortcutSettingsFrom(rsqlContext);
                 countContext.criteriaBuilder = builder;
                 countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
                 countContext.root = countRoot;
@@ -1202,6 +1205,7 @@ public class SimpleQueryExecutor {
                 // Create fresh context to avoid JOIN conflicts
                 RsqlContext<ENTITY> countContext = new RsqlContext<>(entityClass);
                 countContext.entityManager = rsqlContext.entityManager;
+                countContext.copyForeignKeyIdShortcutSettingsFrom(rsqlContext);
                 countContext.criteriaBuilder = builder;
                 countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) fullQuery;
                 countContext.root = fullRoot;
@@ -1614,6 +1618,7 @@ public class SimpleQueryExecutor {
                 // The main query's joins are tied to a different Root and cannot be reused here
                 RsqlContext<ENTITY> countContext = new RsqlContext<>(rsqlContext.entityClass);
                 countContext.entityManager = rsqlContext.entityManager;
+                countContext.copyForeignKeyIdShortcutSettingsFrom(rsqlContext);
                 countContext.criteriaBuilder = builder;
                 countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
                 countContext.root = countRoot;
@@ -1639,6 +1644,7 @@ public class SimpleQueryExecutor {
             // Create fresh context to avoid JOIN conflicts with main query
             RsqlContext<ENTITY> countContext = new RsqlContext<>(entityClass);
             countContext.entityManager = rsqlContext.entityManager;
+            countContext.copyForeignKeyIdShortcutSettingsFrom(rsqlContext);
             countContext.criteriaBuilder = builder;
             countContext.criteriaQuery = (CriteriaQuery<ENTITY>) (CriteriaQuery<?>) countQuery;
             countContext.root = countRoot;

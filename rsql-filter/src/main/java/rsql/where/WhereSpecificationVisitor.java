@@ -99,7 +99,8 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
 
         // Build property path, creating and caching joins as needed
         pathKey = "";
-        for (String property : graph) {
+        for (int i = 0; i < graph.length; i++) {
+            String property = graph[i];
             if (!hasPropertyName(property, classMetadata)) {
                 throw new SyntaxErrorException(
                         "Unknown property: " + property + " from entity " + classMetadata.getJavaType().getName()
@@ -107,6 +108,24 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
             }
 
             if (isAssociationType(property, classMetadata)) {
+                // Foreign key shortcut: the selector ends in the identifier of a to-one association, so
+                // the value being compared already sits on this table's own foreign key column. Reaching
+                // it with get() lets the provider read it there. join() is a request for a real join and
+                // the provider has to honour it - for a column the query already has.
+                if (i == graph.length - 2
+                        && rsqlContext.isForeignKeyIdShortcutEnabledFor(joinArrayItems(graph, i + 1, "."))) {
+                    Class<?> targetType = findPropertyType(property, classMetadata);
+                    String idName = findSingleBasicIdName(metamodel.managedType(targetType));
+                    // A restricted target keeps its join: the restriction is a condition on that join, and
+                    // dropping it would change which rows match, not just how they are reached.
+                    if (graph[i + 1].equals(idName)
+                            && !hasRowRestriction(targetType)
+                            && canReadIdFromForeignKey(rsqlContext.entityManager, classMetadata.getJavaType(), property, idName)) {
+                        log.trace("  Foreign key shortcut for {}.{}, no join created", property, idName);
+                        return root.get(property).get(idName);
+                    }
+                }
+
                 // Build path key for caching
                 if (pathKey.length() > 0) {
                     pathKey = pathKey.concat(".").concat(property);

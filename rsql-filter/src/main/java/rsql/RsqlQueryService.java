@@ -191,6 +191,62 @@ public class RsqlQueryService<
     }
 
     /**
+     * Sets whether a selector ending in the identifier of a to-one association is resolved against this
+     * entity's own foreign key column instead of through a join.
+     *
+     * <p>On by default. Applies to every query this service runs from here on, since each query context is
+     * derived from the one this sets. Turn it off for an entity whose foreign keys may point at rows that do
+     * not exist, which is the one case where the two forms can select different rows -
+     * {@link RsqlContext#useForeignKeyIdShortcut} describes it in full.</p>
+     *
+     * @param useForeignKeyIdShortcut false to resolve such selectors through a join, as before 0.7.7
+     */
+    public void setUseForeignKeyIdShortcut(boolean useForeignKeyIdShortcut) {
+        this.rsqlContext.useForeignKeyIdShortcut = useForeignKeyIdShortcut;
+    }
+
+    /**
+     * Whether to-one identifier selectors are resolved against the foreign key column.
+     *
+     * @return true when the shortcut is in use, which is the default
+     */
+    public boolean getUseForeignKeyIdShortcut() {
+        return this.rsqlContext.useForeignKeyIdShortcut;
+    }
+
+    /**
+     * Read the identifier of these associations off the foreign key column, whatever
+     * {@link #setUseForeignKeyIdShortcut} says.
+     *
+     * <p>Configure the service once and every query it runs afterwards follows. To let only two
+     * associations skip the join and leave the rest joining:</p>
+     *
+     * <pre>{@code
+     * service.setUseForeignKeyIdShortcut(false);
+     * service.withForeignKeyIdShortcutFor("ownerOrg", "ownerCompany");
+     * }</pre>
+     *
+     * @param associationPaths Paths as the filter writes them, without the identifier segment.
+     * @return this service, for chaining
+     */
+    public RsqlQueryService<ENTITY, ENTITY_DTO, REPOS, MAPPER> withForeignKeyIdShortcutFor(String... associationPaths) {
+        this.rsqlContext.withForeignKeyIdShortcutFor(associationPaths);
+        return this;
+    }
+
+    /**
+     * Resolve the identifier of these associations through a join, whatever
+     * {@link #setUseForeignKeyIdShortcut} says.
+     *
+     * @param associationPaths Paths as the filter writes them, without the identifier segment.
+     * @return this service, for chaining
+     */
+    public RsqlQueryService<ENTITY, ENTITY_DTO, REPOS, MAPPER> withoutForeignKeyIdShortcutFor(String... associationPaths) {
+        this.rsqlContext.withoutForeignKeyIdShortcutFor(associationPaths);
+        return this;
+    }
+
+    /**
      * Sets the alias to be used for selecting entities in JPQL queries.
      * This alias will be applied to each new query context created via getQueryContext().
      *
