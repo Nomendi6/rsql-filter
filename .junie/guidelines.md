@@ -204,7 +204,7 @@ All four aggregate methods take the same four arguments and `havingFilter` may b
 
 `rsql.describe.RsqlFilterDescription` turns a WHERE filter into readable text and into report rows. It works on
 the parse tree alone - no `EntityManager`, no entity class - which also makes it the quickest way to check that
-a filter parses. Shipped in 0.6.22.
+a filter parses. Shipped in 0.6.21.
 
 ```java
 FilterDescription d = new RsqlFilterDescription().describe("name=*'A*';price=gt=100");
