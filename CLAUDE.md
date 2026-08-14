@@ -88,7 +88,7 @@ mvn -pl rsql-filter generate-sources
 
 3. **RsqlFilterDescription** - Turns a WHERE filter into report text and JasperReports rows
    - Purely textual: no EntityManager, no RsqlContext - it works on the parse tree alone
-   - Shipped in 0.7.7 / 0.6.22
+   - Shipped in 0.7.6 / 0.6.21
 
 4. **ANTLR Grammar Files** (rsql-filter/src/main/antlr/)
    - RsqlCommonLexer.g4 - Defines tokens, imported by RsqlWhere.g4 and RsqlHaving.g4
@@ -358,7 +358,7 @@ An earlier restructuring, long done - the old names still turn up in old branche
    - FilterNode / FilterGroup / FilterCondition - the neutral tree, built by
      `rsql/where/WhereDescriptionVisitor.java`
    - FilterLabelResolver (+ Map and ResourceBundle implementations) - readable names for fields and operators
-   - Shipped in 0.7.7 / 0.6.22
+   - Shipped in 0.7.6 / 0.6.21
 
 7. **Integration Tests**: `rsql-filter-integration-tests/src/test/java/`
    - Comprehensive tests showing all supported features

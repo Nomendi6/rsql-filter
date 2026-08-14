@@ -75,6 +75,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carries the same four methods, so a service can be configured once instead of before every call, and both
   settings survive `createNewInstance()` and reach the count query of a paged result.
 
+## [0.7.6] - 2026-08-10
+
+### Added
 - **Filter descriptions for reports.** `RsqlFilterDescription` turns a WHERE filter into text a reader
   understands, and into table rows for a report header. It is purely textual - no `EntityManager` and no
   `RsqlContext` - because it works on the parse tree alone.
@@ -119,7 +122,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing on the query path changed. The description shares the tree parser, so it inherits the same nesting
   and depth limits, and every filter the query path accepts can be described.
 
-## [0.7.6] - 2026-08-10
 
 ### Fixed
 - **Filters ending in a grouping `)` followed by a newline are no longer rejected.** `(name=='a')\n` failed

@@ -366,7 +366,7 @@ Complete example application can be found [here](./rsql-filter-demo).
 
 ### Describing a Filter
 
-> **Since 0.7.7 / 0.6.22.**
+> **Since 0.7.6 / 0.6.21.**
 
 A report that shows filtered data usually has to state which filter produced it. `RsqlFilterDescription` turns
 the filter string into readable text and into table rows, without an `EntityManager` - it works on the parse
