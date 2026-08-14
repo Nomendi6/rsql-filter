@@ -302,21 +302,46 @@ public class ForeignKeyIdShortcutIT {
 
     @Test
     @Transactional
-    @DisplayName("clause order decides which column the identifier is read from, but not the rows")
-    void clauseOrderChangesTheSqlButNotTheResult() {
+    @DisplayName("clause order changes neither the rows, the join count, nor the SQL")
+    void clauseOrderDoesNotChangeAnything() {
         Run idFirst = run("simpleTarget.id==1 and simpleTarget.name=='one'", true);
         Run nameFirst = run("simpleTarget.name=='one' and simpleTarget.id==1", true);
 
-        // Same join count either way: the shortcut never adds a join, and when one already exists for the
-        // association the cached join is used instead of the shortcut.
         assertThat(idFirst.joins()).isEqualTo(nameFirst.joins()).isEqualTo(1);
         assertThat(idFirst.ids()).isEqualTo(nameFirst.ids()).containsExactly(100L);
 
-        // The SQL genuinely differs: the id is read off the foreign key when it is resolved first, and off
-        // the join when the join is already there.
-        assertThat(idFirst.sql()).contains("sr1_0.simple_target_id=?");
-        assertThat(nameFirst.sql()).doesNotContain("sr1_0.simple_target_id=?");
-        assertThat(idFirst.sql()).isNotEqualTo(nameFirst.sql());
+        // An identifier is resolved the same way whether or not some earlier clause already joined the
+        // association: always off the foreign key column. Were it resolved off an existing join when one
+        // happened to be there, the SELECT and the GROUP BY of one aggregate query could disagree about the
+        // same field - so this is a correctness property, not only a stable-SQL convenience.
+        assertThat(idFirst.sql()).contains("sr1_0.simple_target_id=?").doesNotContain("st1_0.id=?");
+        assertThat(nameFirst.sql()).contains("sr1_0.simple_target_id=?").doesNotContain("st1_0.id=?");
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("SELECT and GROUP BY agree on the identifier even when another element needs the join")
+    void selectAndGroupByAgreeOnTheIdentifier() {
+        RsqlQueryService<Product, ProductDTO, ProductRepository, ProductMapper> service = new RsqlQueryService<>(
+            productRepository,
+            productMapper,
+            entityManager,
+            Product.class
+        );
+        ProductType type = productTypeRepository.findAll().stream().findFirst().orElseThrow();
+
+        SqlStatementCapture.reset();
+        service.getAggregateResultWithExpressions(
+            "productType.id:tid, productType.name:tn, COUNT(*):total",
+            "productType.id==" + type.getId(),
+            null,
+            null
+        );
+        String sql = SqlStatementCapture.firstStatement();
+
+        // productType.name needs the join, productType.id does not. Both appear in the GROUP BY, and the
+        // GROUP BY has to name the same expressions the SELECT does.
+        assertThat(sql).contains("p1_0.product_type_id c0").contains("group by c0,c1").doesNotContain("group by pt1_0.id");
     }
 
     @Test
@@ -549,9 +574,10 @@ public class ForeignKeyIdShortcutIT {
             // itself, so the join stays and the filter is applied to the foreign key column instead.
             new SelectCase("productType.name:tn, COUNT(*):total", 1),
             new SelectCase("productType.code:tc, productType.name:tn, COUNT(*):total", 1),
-            // SELECT names the identifier itself. The SELECT path has no shortcut of its own, so it joins
-            // and groups by the joined column - the filter is the only thing that changes.
-            new SelectCase("productType.id:tid, COUNT(*):total", 1),
+            // SELECT names the identifier itself: that is a foreign key column too, so it needs no join.
+            new SelectCase("productType.id:tid, COUNT(*):total", 0),
+            // ...and when a sibling element does need the join, the identifier still reads the foreign key,
+            // so the SELECT and the GROUP BY name the same expression for it.
             new SelectCase("productType.name:tn, productType.id:tid, COUNT(*):total", 1)
         );
 

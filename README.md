@@ -489,6 +489,7 @@ The shortcut applies only when all of the following hold, and falls back to the 
 | Condition | Otherwise |
 | --- | --- |
 | Hibernate reports that it can resolve the identifier from the foreign key | A `@OneToMany`, a `@ManyToMany` and the `mappedBy` side of a `@OneToOne` keep their join because their foreign key is on the other table; `@NotFound` and `@SoftDelete` on the target keep it because the target has to be looked up; and so does a `@JoinColumn` referencing a column other than the target's primary key, where the value stored locally is not the identifier |
+| The target is not one subtype of an inheritance hierarchy | Joining a subtype restricts rows to it — a discriminator predicate, or a further join for `JOINED`. The foreign key column is constrained only to the hierarchy's table, so it can hold the identifier of a row of another subtype |
 | The target's identifier is a single basic attribute | `@EmbeddedId` and `@IdClass` keep their join — a composite identifier is not one column |
 | The identifier is the **last** segment | `a.b.c.id` still joins `a` and `b`, and only `c` is read from the foreign key |
 | The target carries no `@SQLRestriction` / `@Where` | A restriction is a condition on the join, so removing the join would change which rows match |
@@ -500,17 +501,23 @@ Those conditions are not cosmetic. Where Hibernate cannot resolve the identifier
 honours the request, but as an *implicit* join — and an implicit join is an **inner** join. Taking the shortcut
 there would save nothing and quietly narrow a filter that used to be built on a LEFT JOIN.
 
-**The join count never grows, and never shrinks below what the other clauses need.** When another clause has
-already joined the same association, the id is read off that existing join rather than off the foreign key.
-One consequence is worth knowing: clause order decides which of the two the SQL shows.
+**The join count never grows, and never shrinks below what the other clauses need.** When another clause needs
+the same association for any other reason, its join is still created; the identifier simply does not need it.
 
-```
-customer.name=='X' and customer.id==5   ->  1 join, id read from the join
-customer.id==5 and customer.name=='X'   ->  1 join, id read from customer_id
+**Where the identifier is read from does not depend on clause order**, nor on what else the query joins. It is
+always the foreign key column. That is what lets SELECT and GROUP BY use it: an aggregate query whose SELECT
+read the foreign key while its GROUP BY read the joined column would be naming two different things for one
+field.
+
+```sql
+-- name, productType.id  filtered by productType.id==5
+select p1_0.name c0, p1_0.product_type_id c1
+from product p1_0
+where p1_0.product_type_id=?
+group by c0,c1
 ```
 
-Both return the same rows and use the same number of joins; only the SQL text differs. If you have tests that
-compare generated SQL as a string, they will see this.
+If you have tests that compare generated SQL as a string, they will see the change.
 
 **The one case where rows can differ** is a foreign key pointing at a row that does not exist. Through a
 `LEFT JOIN` it reads as `NULL`; read directly it is the stored value. That needs a schema without referential

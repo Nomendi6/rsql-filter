@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.7] - 2026-08-14
 
 ### Changed
-- **A selector ending in the identifier of a to-one association no longer creates a LEFT JOIN.**
+- **A selector ending in the identifier of a to-one association no longer creates a LEFT JOIN**, in WHERE,
+  SELECT and GROUP BY alike.
   `customer.id==5` names a value the queried table already stores, in its `customer_id` foreign key column,
   so it is read from there:
 
@@ -26,19 +27,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and skips only the last.
 
   **The join count never grows and never drops below what the other clauses need.** When another clause, or
-  the SELECT, already joined the association, the identifier is read off that join instead. One visible
-  consequence: clause order decides which of the two forms the SQL shows.
-  `customer.name=='X' and customer.id==5` reads the id from the join; reversed, it reads the foreign key.
-  Same rows, same joins, different SQL text - relevant only if you assert on generated SQL as a string.
+  the SELECT, needs the association for any other reason, its join is still created; the identifier just does
+  not need it.
+
+  **Where the identifier is read from does not depend on clause order**, nor on what else the query joins -
+  it is always the foreign key column. That is what makes it safe in aggregate queries: WHERE, SELECT and
+  GROUP BY share one decision, so a SELECT that read the foreign key while its GROUP BY read the joined
+  column - two different things named for one field - cannot arise.
+
+  ```sql
+  -- SELECT name, productType.id  filtered by productType.id==5
+  select p1_0.name c0, p1_0.product_type_id c1 from product p1_0
+  where p1_0.product_type_id=? group by c0,c1
+  ```
 
   The shortcut stands aside wherever the two forms are not interchangeable. It asks Hibernate whether it will
   resolve the identifier from the foreign key at all, which rules out collections, the `mappedBy` side of a
-  `@OneToOne`, `@NotFound`, `@SoftDelete` and a foreign key referencing a non-primary-key column; and it
-  declines composite identifiers and targets under `@SQLRestriction` / `@Where` on its own, because a
-  restriction is a condition on the join. What remains is a foreign key pointing at a row that does not
-  exist - which needs a schema without referential integrity. Turn the shortcut off there.
+  `@OneToOne`, `@NotFound`, `@SoftDelete` and a foreign key referencing a non-primary-key column; and on its
+  own it declines composite identifiers, targets under `@SQLRestriction` / `@Where`, and a target that is one
+  subtype of an inheritance hierarchy. The last two are the same reason: joining such a target restricts rows
+  to it - a discriminator predicate, a further join - and the foreign key column carries no such restriction,
+  so it can hold the identifier of a row the join would have excluded.
 
-  Only the WHERE clause is affected. SELECT, GROUP BY and HAVING resolve paths as before.
+  What remains is a foreign key pointing at a row that does not exist, which needs a schema without
+  referential integrity. Turn the shortcut off there.
+
+  HAVING resolves paths as before.
 
 ### Added
 - **`RsqlContext.useForeignKeyIdShortcut`** turns the above off, and

@@ -81,7 +81,9 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         String pathKey = "";
         if (graph.length > 1) {
             pathKey = joinArrayItems(graph, graph.length - 1, ".");
-            if (rsqlContext.joinsMap.containsKey(pathKey)) {
+            // An identifier is resolved by the walk below, not off a cached join, so that the answer does
+            // not depend on which clause happened to join the association first.
+            if (rsqlContext.joinsMap.containsKey(pathKey) && !endsInToOneIdentifier(graph, rsqlContext.classMetadataMap.get(pathKey))) {
                 Path<?> pathRoot = rsqlContext.joinsMap.get(pathKey);
 
                 log.trace("  Found cached join for pathKey={}", pathKey);
@@ -108,22 +110,10 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
             }
 
             if (isAssociationType(property, classMetadata)) {
-                // Foreign key shortcut: the selector ends in the identifier of a to-one association, so
-                // the value being compared already sits on this table's own foreign key column. Reaching
-                // it with get() lets the provider read it there. join() is a request for a real join and
-                // the provider has to honour it - for a column the query already has.
-                if (i == graph.length - 2
-                        && rsqlContext.isForeignKeyIdShortcutEnabledFor(joinArrayItems(graph, i + 1, "."))) {
-                    Class<?> targetType = findPropertyType(property, classMetadata);
-                    String idName = findSingleBasicIdName(metamodel.managedType(targetType));
-                    // A restricted target keeps its join: the restriction is a condition on that join, and
-                    // dropping it would change which rows match, not just how they are reached.
-                    if (graph[i + 1].equals(idName)
-                            && !hasRowRestriction(targetType)
-                            && canReadIdFromForeignKey(rsqlContext.entityManager, classMetadata.getJavaType(), property, idName)) {
-                        log.trace("  Foreign key shortcut for {}.{}, no join created", property, idName);
-                        return root.get(property).get(idName);
-                    }
+                Path<?> foreignKeyId = foreignKeyIdShortcut(graph, i, root, classMetadata, metamodel, rsqlContext);
+                if (foreignKeyId != null) {
+                    log.trace("  Foreign key shortcut for {}, no join created", property);
+                    return foreignKeyId;
                 }
 
                 // Build path key for caching
