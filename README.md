@@ -488,13 +488,17 @@ The shortcut applies only when all of the following hold, and falls back to the 
 
 | Condition | Otherwise |
 | --- | --- |
-| The association is a `@ManyToOne`, or the **owning** side of a `@OneToOne` | A `@OneToMany`, a `@ManyToMany` and the `mappedBy` side of a `@OneToOne` keep their join: their foreign key is on the other table |
+| Hibernate reports that it can resolve the identifier from the foreign key | A `@OneToMany`, a `@ManyToMany` and the `mappedBy` side of a `@OneToOne` keep their join because their foreign key is on the other table; `@NotFound` and `@SoftDelete` on the target keep it because the target has to be looked up; and so does a `@JoinColumn` referencing a column other than the target's primary key, where the value stored locally is not the identifier |
 | The target's identifier is a single basic attribute | `@EmbeddedId` and `@IdClass` keep their join — a composite identifier is not one column |
 | The identifier is the **last** segment | `a.b.c.id` still joins `a` and `b`, and only `c` is read from the foreign key |
 | The target carries no `@SQLRestriction` / `@Where` | A restriction is a condition on the join, so removing the join would change which rows match |
 
 The identifier does not have to be called `id` — whatever the target's `@Id` attribute is named is what the
 last segment is matched against.
+
+Those conditions are not cosmetic. Where Hibernate cannot resolve the identifier from the foreign key it still
+honours the request, but as an *implicit* join — and an implicit join is an **inner** join. Taking the shortcut
+there would save nothing and quietly narrow a filter that used to be built on a LEFT JOIN.
 
 **The join count never grows, and never shrinks below what the other clauses need.** When another clause has
 already joined the same association, the id is read off that existing join rather than off the foreign key.
