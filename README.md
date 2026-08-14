@@ -31,20 +31,20 @@ For detailed API documentation, see [API.md](API.md).
 ## Installation
 
 The library is maintained in two parallel lines with the same feature set. Pick the one that matches your
-platform: **0.7.6** for Spring Boot 4, **0.6.21** for Spring Boot 3. The snippets below use `0.7.6`.
+platform: **0.7.7** for Spring Boot 4, **0.6.22** for Spring Boot 3. The snippets below use `0.7.7`.
 
 ### Maven
 ```xml
 <dependency>
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
-    <version>0.7.6</version>
+    <version>0.7.7</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter:0.7.6'
+implementation 'com.nomendi6:rsql-filter:0.7.7'
 ```
 
 ### Requirements
@@ -59,6 +59,7 @@ excluded from `0.7.x` releases until it is migrated.
 - **Simple Query Language**: Intuitive syntax for filtering data
 - **Type Safety**: Automatic type conversion and validation
 - **JPA Integration**: Seamless integration with Spring Data JPA
+- **No Join for `relation.id`**: A filter on the identifier of a to-one association reads the foreign key column the query already has
 - **Rich Set of Operators**: Comprehensive set of comparison operators
 - **Case-Sensitive LIKE**: `=clike=` / `=cnlike=` next to the case-insensitive `=like=` / `=nlike=`, so an index stays usable
 - **Complex Queries**: Support for nested queries with AND/OR logic
@@ -73,8 +74,8 @@ excluded from `0.7.x` releases until it is migrated.
 - **LOV Queries**: List of Values queries for dropdowns/autocomplete
 - **JPQL Generation**: Compile a filter to JPQL text instead of a `Specification` (`RsqlWhereString`, `RsqlCompiler.compileToRsqlQuery`)
 - **ANTLR Based**: Robust parser built with ANTLR4
-- **Filter Descriptions** *(unreleased)*: Turn a filter into readable text or table rows for a report header
-- **Filter Tree** *(unreleased)*: A neutral `FilterGroup` / `FilterCondition` tree for inspecting or rewriting a filter (`RsqlCompiler.compileToFilterNode`)
+- **Filter Descriptions**: Turn a filter into readable text or table rows for a report header
+- **Filter Tree**: A neutral `FilterGroup` / `FilterCondition` tree for inspecting or rewriting a filter (`RsqlCompiler.compileToFilterNode`)
 - **Error Handling**: Detailed error messages for invalid queries, with hard limits on nesting and tree depth
 
 ## Usage
@@ -365,9 +366,7 @@ Complete example application can be found [here](./rsql-filter-demo).
 
 ### Describing a Filter
 
-> **Unreleased.** `rsql.describe` is not in `0.7.6` - it sits under `[Unreleased]` in
-> [CHANGELOG.md](CHANGELOG.md). Build from source to use it; this section gets a version number when the next
-> release goes out.
+> **Since 0.7.7 / 0.6.22.**
 
 A report that shows filtered data usually has to state which filter produced it. `RsqlFilterDescription` turns
 the filter string into readable text and into table rows, without an `EntityManager` - it works on the parse
@@ -464,6 +463,54 @@ receive only the part before it:
 ```
 GET /api/orders?filter=customer.email=='john@example.com';orderDate=ge=%232024-01-01%23
 ```
+
+Every segment before the last one becomes a `LEFT JOIN`, and the joins are cached per query, so a path used by
+two clauses — and by SELECT and HAVING as well — produces one join.
+
+#### Filtering on the id of a to-one association
+
+> **Since 0.7.7 / 0.6.22.** Earlier versions joined here too.
+
+`customer.id==5` names a value the queried table already stores, in its `customer_id` foreign key column. It is
+read from there instead of through a join:
+
+```sql
+-- customer.id==5
+select o1_0.id, … from orders o1_0 where o1_0.customer_id=?
+-- before 0.7.7 / 0.6.22
+select o1_0.id, … from orders o1_0 left join customer c1_0 on c1_0.id=o1_0.customer_id where c1_0.id=?
+```
+
+This matters most for a filter that is appended to every query — an authorization scope, a tenant column —
+where the join was pure overhead on the hottest path.
+
+The shortcut applies only when all of the following hold, and falls back to the join otherwise:
+
+| Condition | Otherwise |
+| --- | --- |
+| The association is a `@ManyToOne`, or the **owning** side of a `@OneToOne` | A `@OneToMany`, a `@ManyToMany` and the `mappedBy` side of a `@OneToOne` keep their join: their foreign key is on the other table |
+| The target's identifier is a single basic attribute | `@EmbeddedId` and `@IdClass` keep their join — a composite identifier is not one column |
+| The identifier is the **last** segment | `a.b.c.id` still joins `a` and `b`, and only `c` is read from the foreign key |
+| The target carries no `@SQLRestriction` / `@Where` | A restriction is a condition on the join, so removing the join would change which rows match |
+
+The identifier does not have to be called `id` — whatever the target's `@Id` attribute is named is what the
+last segment is matched against.
+
+**The join count never grows, and never shrinks below what the other clauses need.** When another clause has
+already joined the same association, the id is read off that existing join rather than off the foreign key.
+One consequence is worth knowing: clause order decides which of the two the SQL shows.
+
+```
+customer.name=='X' and customer.id==5   ->  1 join, id read from the join
+customer.id==5 and customer.name=='X'   ->  1 join, id read from customer_id
+```
+
+Both return the same rows and use the same number of joins; only the SQL text differs. If you have tests that
+compare generated SQL as a string, they will see this.
+
+**The one case where rows can differ** is a foreign key pointing at a row that does not exist. Through a
+`LEFT JOIN` it reads as `NULL`; read directly it is the stored value. That needs a schema without referential
+integrity. Turn the shortcut off there — see [Configuration](#foreign-key-id-resolution).
 
 ### List of Values (LOV) Queries
 For autocomplete/dropdown functionality. The row count comes from the `Pageable`, not from a separate limit
@@ -827,6 +874,29 @@ public class RsqlConfiguration {
         return new RsqlQueryService<>(repository, mapper, entityManager, Product.class);
     }
 }
+```
+
+### Foreign key id resolution
+
+`RsqlContext.useForeignKeyIdShortcut` decides whether a selector ending in the identifier of a to-one
+association is read from the foreign key column or through a join. It defaults to `true`; see
+[Filtering on the id of a to-one association](#filtering-on-the-id-of-a-to-one-association) for what it covers.
+
+Set it to `false` for an entity whose foreign keys may point at rows that do not exist, which is the one case
+where the two forms can select different rows. `createNewInstance()` carries the setting over, so a context
+built once keeps it for every query derived from it.
+
+```java
+RsqlContext<Order> context = new RsqlContext<>(Order.class).defineEntityManager(entityManager);
+context.useForeignKeyIdShortcut = false;
+Specification<Order> specification = compiler.compileToSpecification(filter, context);
+```
+
+`RsqlQueryService` builds a fresh context per query, so it exposes the setting directly — set it once on the
+service and every query it runs afterwards follows:
+
+```java
+productService.getQueryService().setUseForeignKeyIdShortcut(false);
 ```
 
 ### The root alias

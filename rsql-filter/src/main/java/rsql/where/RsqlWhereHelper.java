@@ -2,12 +2,20 @@ package rsql.where;
 
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.IdentifiableType;
 import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.PluralAttribute;
+import jakarta.persistence.metamodel.SingularAttribute;
 import rsql.antlr.where.RsqlWhereParser;
 
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.metamodel.mapping.internal.ToOneAttributeMapping;
+import org.hibernate.persister.entity.EntityPersister;
+
+import java.lang.annotation.Annotation;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -123,6 +131,123 @@ public class RsqlWhereHelper {
      */
     public static <T> boolean isEmbeddedType(String property, ManagedType<T> classMetadata) {
         return classMetadata.getAttribute(property).getPersistentAttributeType() == Attribute.PersistentAttributeType.EMBEDDED;
+    }
+
+    /**
+     * Whether the identifier of a to-one association can be read from the querying table's own foreign key
+     * column, without joining the target.
+     *
+     * <p>Only the provider can answer this. The association shape you can see from the JPA metamodel is not
+     * enough, because several mappings that look like an ordinary {@code ManyToOne} still force a join:</p>
+     * <ul>
+     *   <li>the inverse side of a {@code OneToOne} ({@code mappedBy}) - its foreign key is on the other
+     *       table;</li>
+     *   <li>{@code @NotFound}, where the foreign key may name a row that does not exist, so the target has
+     *       to be looked up to find out;</li>
+     *   <li>{@code @SoftDelete} on the target, whose condition lives on the join;</li>
+     *   <li>a foreign key referencing a column other than the target's primary key, where the value stored
+     *       locally is not the identifier at all.</li>
+     * </ul>
+     *
+     * <p>Guessing wrong is not merely a missed optimisation. When Hibernate cannot elide the join it still
+     * honours {@code get()}, but as an <em>implicit</em> join - and an implicit join is an INNER join. The
+     * pre-existing LEFT JOIN would silently become one, dropping every row whose foreign key is null. So the
+     * question is put to Hibernate itself: {@code isFkOptimizationAllowed()} is the very predicate it uses
+     * to decide, and {@code isTargetKeyPropertyName} confirms that this particular attribute is one it can
+     * satisfy from the foreign key.</p>
+     *
+     * <p>Anything unexpected - a type that is not an entity, a provider that is not Hibernate, an attribute
+     * the mapping metamodel does not report - answers false and the caller builds the join it always did.</p>
+     *
+     * @param entityManager Entity manager whose provider decides.
+     * @param ownerType     Type declaring the association.
+     * @param property      The association attribute.
+     * @param idName        Identifier attribute of the target, as named in the selector.
+     * @return true only when the provider will resolve the identifier from the foreign key column.
+     */
+    public static boolean canReadIdFromForeignKey(EntityManager entityManager, Class<?> ownerType, String property, String idName) {
+        try {
+            SessionFactoryImplementor sessionFactory = entityManager
+                    .getEntityManagerFactory()
+                    .unwrap(SessionFactoryImplementor.class);
+            EntityPersister persister = sessionFactory.getMappingMetamodel().getEntityDescriptor(ownerType);
+            return persister.findAttributeMapping(property) instanceof ToOneAttributeMapping toOne
+                    && toOne.isFkOptimizationAllowed()
+                    && toOne.getTargetKeyPropertyNames().contains(idName);
+        } catch (RuntimeException notAvailable) {
+            return false;
+        }
+    }
+
+    /**
+     * Names of the annotations that add a permanent row restriction to an entity, so that a query is
+     * expected to see fewer rows of it than the table holds.
+     *
+     * <p>Matched by name rather than by class so that one source compiles against either Hibernate line:
+     * {@code @SQLRestriction} arrived in 6.3 and {@code @Where}, which it replaced, is gone in 7.</p>
+     */
+    private static final Set<String> ROW_RESTRICTION_ANNOTATIONS = Set.of(
+            "org.hibernate.annotations.SQLRestriction",
+            "org.hibernate.annotations.Where"
+    );
+
+    /**
+     * Whether an entity carries a restriction that the database would only apply through a join.
+     *
+     * <p>A restriction such as {@code @SQLRestriction("archived = false")} becomes a condition on the join
+     * to that entity. Read the identifier off a foreign key column instead and there is no join left to
+     * carry it, so a row whose target is archived would start matching {@code target.id==5} where before
+     * it did not. That is a change of result, not of plan, so the shortcut steps aside here.</p>
+     *
+     * <p>Cached per class: this is asked once per resolved path, and the answer never changes for a
+     * loaded class. {@link ClassValue} keeps the cache from outliving the class it describes.</p>
+     */
+    private static final ClassValue<Boolean> ROW_RESTRICTED = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+                for (Annotation annotation : current.getDeclaredAnnotations()) {
+                    if (ROW_RESTRICTION_ANNOTATIONS.contains(annotation.annotationType().getName())) {
+                        return Boolean.TRUE;
+                    }
+                }
+            }
+            return Boolean.FALSE;
+        }
+    };
+
+    /**
+     * Whether an entity is subject to a permanent row restriction.
+     *
+     * @param entityType The association target to check, and its superclasses.
+     * @return true when the type or one of its superclasses is annotated with a row restriction.
+     */
+    public static boolean hasRowRestriction(Class<?> entityType) {
+        return ROW_RESTRICTED.get(entityType);
+    }
+
+    /**
+     * Name of the identifier attribute of a type, but only when that identifier is a single basic
+     * attribute.
+     *
+     * <p>Composite identifiers return null. An {@code @IdClass} has no single id attribute at all, and an
+     * {@code @EmbeddedId} maps to several columns; in both cases the identifier is not a single column
+     * the caller could read off a foreign key.</p>
+     *
+     * @param classMetadata Metamodel of the type whose identifier is wanted.
+     * @return The identifier attribute name, or null when there is no single basic identifier.
+     */
+    public static String findSingleBasicIdName(ManagedType<?> classMetadata) {
+        if (!(classMetadata instanceof IdentifiableType<?> identifiableType)) return null;
+        if (!identifiableType.hasSingleIdAttribute()) return null;
+        for (SingularAttribute<?, ?> attribute : classMetadata.getSingularAttributes()) {
+            if (attribute.isId()) {
+                return attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.BASIC
+                        ? attribute.getName()
+                        : null;
+            }
+        }
+        return null;
     }
 
     static Object getInListLiteral(RsqlWhereParser.InListElementContext ctx) {
