@@ -24,6 +24,7 @@ import org.springframework.data.jpa.repository.query.QueryUtils;
 import org.springframework.util.Assert;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.ManagedType;
@@ -31,6 +32,7 @@ import jakarta.persistence.metamodel.Metamodel;
 import rsql.where.RsqlQuery;
 
 import java.util.*;
+import java.util.function.Function;
 
 import static rsql.where.RsqlWhereHelper.*;
 
@@ -548,6 +550,143 @@ public class SimpleQueryExecutor {
                 }
         );
 
+    }
+
+    /** How many identifiers one hydration statement binds at most; a longer page is hydrated in pieces. */
+    public static final int DEFAULT_HYDRATION_CHUNK_SIZE = 1000;
+
+    /**
+     * One page of a JPQL select, fetched in two statements: the identifiers of the page first, then the
+     * caller's select for those identifiers only.
+     *
+     * <p>{@link #getJpqlQueryResultAsPage} asks the database to join and sort the whole filtered result and
+     * skip to the page. When the select is wide - a {@code select new} over many joins - that cost is paid
+     * on every page and grows with the page number, although only a handful of rows come back. Here the first
+     * statement selects nothing but the identifier and the sort columns, so the database sorts narrow rows and
+     * joins only what the filter and the sort need; the second statement runs the caller's select with
+     * {@code where alias.id in (...)}, without sort or limit, and the rows are put back in the order the
+     * first statement returned. See {@link rsql.PagingStrategy#IDS_THEN_HYDRATE}.</p>
+     *
+     * <p>The count is the same statement as in the single-query form, run once. The two statements run in
+     * whatever transaction the caller holds; {@code RsqlQueryService} runs them in one read-only transaction.</p>
+     *
+     * <p>Falls back to {@link #getJpqlQueryResultAsPage} - the exact behaviour of before - for an unpaged
+     * request, for an entity whose identifier is composite, and for a select whose {@code from} clause cannot
+     * be found; each fallback is logged at debug.</p>
+     *
+     * @param rowIdExtractor     How to read the identifier off a hydrated row, so that rows can be put back
+     *                           in page order. Null means {@code PersistenceUnitUtil.getIdentifier}, which
+     *                           works for an entity - a {@code select new Entity(...)} row included - but not
+     *                           for a DTO; pass one for a DTO result.
+     * @param hydrationChunkSize The most identifiers bound to one hydration statement
+     *                           ({@link #DEFAULT_HYDRATION_CHUNK_SIZE}); a page longer than this is
+     *                           hydrated in several statements.
+     * @return The page, with the total from the count statement.
+     * @throws IllegalArgumentException when a hydrated row's identifier cannot be read - a DTO result without
+     *                                  a {@code rowIdExtractor}.
+     */
+    public static <ENTITY, RESULT> Page<RESULT> getJpqlQueryResultAsPageIdsThenHydrate(
+            Class<ENTITY> entityClass,
+            Class<RESULT> resultClass,
+            String jpqlQueryString, String selectAlias,
+            String countQueryString, String countAlias,
+            String filter,
+            Pageable pageable,
+            RsqlContext<ENTITY> rsqlContext,
+            RsqlCompiler<ENTITY> compiler,
+            Function<RESULT, ?> rowIdExtractor,
+            int hydrationChunkSize
+    ) {
+        if (isUnpaged(pageable)) {
+            log.debug("ids-then-hydrate: request is unpaged, running the single statement");
+            return getJpqlQueryResultAsPage(entityClass, resultClass, jpqlQueryString, selectAlias,
+                    countQueryString, countAlias, filter, pageable, rsqlContext, compiler);
+        }
+        EntityManager entityManager = rsqlContext.entityManager;
+        String idName = findSingleBasicIdName(entityManager.getMetamodel().managedType(entityClass));
+        if (idName == null) {
+            log.debug("ids-then-hydrate: {} has no single basic identifier, running the single statement", entityClass.getName());
+            return getJpqlQueryResultAsPage(entityClass, resultClass, jpqlQueryString, selectAlias,
+                    countQueryString, countAlias, filter, pageable, rsqlContext, compiler);
+        }
+        String fromClause = IdsThenHydratePaging.fromClause(jpqlQueryString);
+        if (fromClause == null) {
+            log.debug("ids-then-hydrate: no top-level from clause in the select, running the single statement");
+            return getJpqlQueryResultAsPage(entityClass, resultClass, jpqlQueryString, selectAlias,
+                    countQueryString, countAlias, filter, pageable, rsqlContext, compiler);
+        }
+
+        RsqlQuery rsqlQuery = createWhereClause(filter, rsqlContext, compiler);
+        String where = rsqlQuery == null ? null : rsqlQuery.where;
+
+        // The count, exactly as the single statement runs it.
+        if (where != null) {
+            countQueryString = countQueryString.concat(" where ").concat(where);
+        }
+        String idPageJpql = IdsThenHydratePaging.idPageQuery(fromClause, selectAlias, idName, pageable.getSort(), where);
+        TypedQuery<Long> countQuery;
+        Query idPageQuery;
+        try {
+            countQuery = entityManager.createQuery(countQueryString, Long.class);
+            idPageQuery = entityManager.createQuery(idPageJpql);
+        } catch (Exception e) {
+            log.error("Error compiling JPQL expression:\n------ ID PAGE QUERY ------\n{}\n------ COUNT QUERY ------\n{}\n------",
+                    idPageJpql, countQueryString, e);
+            throw new RuntimeException(e);
+        }
+        if (rsqlQuery != null) {
+            RsqlCompiler.bindImplicitParametersForTypedQuery(rsqlQuery, countQuery);
+            RsqlCompiler.bindImplicitParametersForQuery(rsqlQuery, idPageQuery);
+        }
+        Long totalRecords = countQuery.getSingleResult();
+
+        // Phase one: the identifiers of the page, in page order. distinct can still repeat an identifier
+        // when the sort itself runs through a collection, so the order-preserving set takes care of that.
+        idPageQuery.setFirstResult((int) pageable.getOffset());
+        idPageQuery.setMaxResults(pageable.getPageSize());
+        Set<Object> orderedIds = new LinkedHashSet<>();
+        for (Object row : idPageQuery.getResultList()) {
+            orderedIds.add(IdsThenHydratePaging.idOfRow(row));
+        }
+        List<Object> ids = new ArrayList<>(orderedIds);
+        if (ids.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, totalRecords);
+        }
+
+        // Phase two: the caller's select, for these identifiers only.
+        String hydrationJpql = IdsThenHydratePaging.hydrationQuery(jpqlQueryString, selectAlias, idName);
+        List<RESULT> rows = new ArrayList<>(ids.size());
+        try {
+            for (List<Object> chunk : IdsThenHydratePaging.chunks(ids, Math.max(1, hydrationChunkSize))) {
+                rows.addAll(entityManager.createQuery(hydrationJpql, resultClass)
+                        .setParameter(IdsThenHydratePaging.IDS_PARAMETER, chunk)
+                        .getResultList());
+            }
+        } catch (Exception e) {
+            log.error("Error compiling JPQL expression:\n------ HYDRATION QUERY ------\n{}\n------", hydrationJpql, e);
+            throw new RuntimeException(e);
+        }
+
+        Function<RESULT, ?> idOf = rowIdExtractor != null
+                ? rowIdExtractor
+                : row -> identifierOf(entityManager, row);
+        return PageableExecutionUtils.getPage(
+                IdsThenHydratePaging.inIdOrder(ids, rows, idOf),
+                pageable,
+                () -> totalRecords
+        );
+    }
+
+    /** The persistence unit's answer for an entity row; a DTO gets a message that says what to pass instead. */
+    private static Object identifierOf(EntityManager entityManager, Object row) {
+        try {
+            return entityManager.getEntityManagerFactory().getPersistenceUnitUtil().getIdentifier(row);
+        } catch (IllegalArgumentException notAnEntity) {
+            throw new IllegalArgumentException(
+                    "ids-then-hydrate cannot read the identifier of a " + row.getClass().getName()
+                    + " row; it is not an entity. Pass a rowIdExtractor (RsqlQueryService.withRowIdExtractor) that reads it.",
+                    notAnEntity);
+        }
     }
 
     public static <ENTITY> Long getJpqlQueryCount(

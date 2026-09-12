@@ -31,20 +31,20 @@ For detailed API documentation, see [API.md](API.md).
 ## Installation
 
 The library is maintained in two parallel lines with the same feature set. Pick the one that matches your
-platform: **0.6.22** for Spring Boot 3, **0.7.7** for Spring Boot 4. The snippets below use `0.6.22`.
+platform: **0.6.23** for Spring Boot 3, **0.7.8** for Spring Boot 4. The snippets below use `0.6.23`.
 
 ### Maven
 ```xml
 <dependency>
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
-    <version>0.6.22</version>
+    <version>0.6.23</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter:0.6.22'
+implementation 'com.nomendi6:rsql-filter:0.6.23'
 ```
 
 ### Requirements
@@ -749,6 +749,58 @@ use a different one, say so explicitly:
 queryService.setSelectAlias("p");
 queryService.setCountAlias("p");
 ```
+
+#### Two-phase paging
+
+> **Since 0.6.23.**
+
+A paged JPQL query — `findByFilter(filter, pageable)` and `findEntitiesByFilter(filter, pageable)` in JPQL
+mode, and `getJpqlQueryResultAsPage` — is one statement: the full select, with the filter, the sort and the
+offset/limit all applied to it. The database has to join and sort the **whole** filtered result before it can
+skip to the page. For a `select new` over many joins that cost is paid on every page and grows with the page
+number, although only a handful of rows come back.
+
+`PagingStrategy.IDS_THEN_HYDRATE` fetches a page in two statements instead:
+
+```sql
+-- 1. the identifiers of the page: narrow rows, and only the joins the filter and the sort need
+select distinct a0.id, a0.orderDate from Order a0 left join a0.customer …
+where … order by a0.orderDate desc, a0.id asc
+offset ? rows fetch first ? rows only
+
+-- 2. the caller's own select, for those identifiers only: no sort, no limit
+select new Order(…) from Order a0 left join a0.customer … where a0.id in (?, ?, …)
+```
+
+The rows are put back in the order of the first statement. The count is the statement it always was, run once.
+
+```java
+new RsqlQueryService<>(repository, mapper, entityManager, Order.class, SELECT_JPQL, COUNT_JPQL)
+    .withPagingStrategy(PagingStrategy.IDS_THEN_HYDRATE);
+```
+
+The default is `SINGLE_QUERY`, the behaviour of every earlier version. What to know before switching:
+
+- **Same rows, same total.** For a sort whose keys are unique the pages are identical to the single
+  statement's. `size` is the number of entities on the page even when the select joins a collection — the
+  single statement counts joined rows there and comes back short.
+- **Ties are now stable.** The first statement ends its sort with the identifier, so equal sort keys have a
+  defined order. The single statement has none: ordered by a column with duplicates, H2 was observed to put
+  one row on two consecutive pages and another on none, because each execution orders the tied rows afresh.
+- **Your `from` clause is reused, joins included.** Hibernate reuses an explicit `left join a0.x` for the
+  `a0.x.y` path the filter and the sort are written with; built on a bare `from Order a0`, that path would be
+  an inner join and `a0.x.y==null` would stop matching the rows that have no `x`. A `join fetch` is demoted to
+  `join` for the first statement, which selects no owner to fetch into.
+- **A select that returns something other than the entity** — a DTO — needs `withRowIdExtractor(row -> …)`,
+  because the rows are matched back to the identifiers through it. A `select new Entity(…)` row is an entity
+  to the persistence unit and needs nothing.
+- **It steps aside** for an unpaged request, an entity with a composite identifier, and a select whose `from`
+  cannot be found, running the single statement instead — logged at debug.
+- **Unchanged:** the select must not carry a `where` of its own. Both strategies append ` where <filter>` to
+  it, as before.
+
+The two statements run in the service's read-only transaction. Nothing changes for the Specification path or
+for the unpaged methods.
 
 ## Error Handling
 
