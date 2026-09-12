@@ -144,6 +144,32 @@ public String getCountAlias()
 | `setSelectAlias(String)` / `getSelectAlias()` | The alias every generated WHERE and ORDER BY refers to. Defaults to `a0`. Setting it does not touch the shared context - it is applied to each new query context, which is what keeps the service thread-safe |
 | `setCountAlias(String)` / `getCountAlias()` | The same for the count query. Defaults to `a0` |
 
+#### Paging strategy
+```java
+public RsqlQueryService<…> withPagingStrategy(PagingStrategy pagingStrategy)
+public void setPagingStrategy(PagingStrategy pagingStrategy)
+public PagingStrategy getPagingStrategy()
+public RsqlQueryService<…> withRowIdExtractor(Function<ENTITY, ?> rowIdExtractor)
+```
+
+**Since 0.6.23.** How a page of a JPQL query is fetched. Applies to `findByFilter(String, Pageable)`,
+`findEntitiesByFilter(String, Pageable)` and `getJpqlQueryResultAsPage` when the service runs in JPQL mode;
+the Specification path and the unpaged methods are unaffected.
+
+| `PagingStrategy` | Statements | When |
+|---|---|---|
+| `SINGLE_QUERY` (default) | count; the full select with filter, sort and offset/limit | Every earlier version. The database joins and sorts the whole filtered result before it skips to the page |
+| `IDS_THEN_HYDRATE` | count; the page's identifiers with the sort columns, limited; the caller's select for those identifiers, unlimited and unsorted | A wide `select new` over many joins, or deep pages: the cost stops depending on the width of the select and the page number |
+
+`withRowIdExtractor` is how `IDS_THEN_HYDRATE` reads the identifier off a hydrated row so the rows can be put
+back in page order. Not needed when the select returns the entity — `select new Entity(…)` included; needed
+for a DTO, which otherwise fails with an `IllegalArgumentException` that says so.
+
+`IDS_THEN_HYDRATE` runs the single statement instead, logged at debug, for an unpaged request, an entity with a
+composite identifier, and a select whose `from` clause cannot be found. See
+[Two-phase paging](README.md#two-phase-paging) for the shape of the statements and what to check before
+switching.
+
 #### findAliasFromJpqlSelectString
 ```java
 public String findAliasFromJpqlSelectString(String jpqlSelect)
@@ -830,6 +856,8 @@ public Page<ENTITY_DTO> getJpqlQueryResultAsPage(
 )
 ```
 Executes paginated JPQL queries. Unlike `getJpqlQueryResult`, this one applies the offset and the page size.
+Follows [`getPagingStrategy()`](#paging-strategy): under `IDS_THEN_HYDRATE` the page is fetched as its identifiers
+first and this select second.
 
 **Parameters:**
 - `jpqlSelectQuery` - JPQL SELECT query, root aliased `a0`
@@ -1186,6 +1214,38 @@ public static <ENTITY, RESULT> Page<RESULT> getJpqlQueryResultAsPage(
 The same with a separate count query; this one applies the offset and page size. `selectAlias` behaves exactly as
 `alias` above - `order by` only - and `countAlias` is accepted but never used: the count query gets the same
 `where` text, so both roots have to be aliased the same as the context root.
+
+#### getJpqlQueryResultAsPageIdsThenHydrate
+```java
+public static <ENTITY, RESULT> Page<RESULT> getJpqlQueryResultAsPageIdsThenHydrate(
+    Class<ENTITY> entityClass,
+    Class<RESULT> resultClass,
+    String jpqlQueryString,
+    String selectAlias,
+    String countQueryString,
+    String countAlias,
+    String filter,
+    Pageable pageable,
+    RsqlContext<ENTITY> rsqlContext,
+    RsqlCompiler<ENTITY> compiler,
+    Function<RESULT, ?> rowIdExtractor,
+    int hydrationChunkSize
+)
+```
+**Since 0.6.23.** The same page as `getJpqlQueryResultAsPage`, fetched in two statements: the identifiers of the
+page first — `select distinct <alias>.<id>, <sort columns> <the select's own from clause> where … order by …,
+<alias>.<id>` with the offset and the limit — then `jpqlQueryString where <alias>.<id> in (:rsqlPageIds)`,
+unsorted and unlimited, with the rows put back in the order of the first statement. The count is unchanged and
+runs once. This is what `RsqlQueryService` calls under `PagingStrategy.IDS_THEN_HYDRATE`.
+
+- `rowIdExtractor` — reads the identifier off a hydrated row; `null` means `PersistenceUnitUtil.getIdentifier`,
+  which is right for an entity row and throws, with a message that says what to pass, for a DTO.
+- `hydrationChunkSize` — the most identifiers bound to one hydration statement; `DEFAULT_HYDRATION_CHUNK_SIZE`
+  is 1000. A longer page is hydrated in several statements.
+
+Falls back to `getJpqlQueryResultAsPage` for an unpaged `Pageable`, an entity without a single basic identifier,
+and a select without a top-level `from`. The select's `from` clause is reused whole, `join fetch` demoted to
+`join`, so that the filter keeps the join semantics it has in the single statement.
 
 #### getJpqlQueryCount
 ```java

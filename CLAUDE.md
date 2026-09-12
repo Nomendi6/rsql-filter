@@ -128,6 +128,10 @@ cd rsql-filter-demo && ./mvnw -Dspring-boot.run.profiles=dev -Dspring-boot.run.a
      `getLOVWithSelect(selectString, filter, pageable)` - the row count comes from the Pageable, there is no
      row-limit parameter. LovDTO maps three selected fields to (id, code, name) and two to (id, name).
    - Integrates with Spring Data JPA repositories
+   - `withPagingStrategy(PagingStrategy.IDS_THEN_HYDRATE)` fetches a JPQL page as its identifiers first and
+     the caller's select second, so a wide `select new` is built only for the rows that come back. JPQL mode
+     and the paged methods only; default `SINGLE_QUERY`. `SimpleQueryExecutor.getJpqlQueryResultAsPageIdsThenHydrate`
+     is the static form, `rsql.helper.IdsThenHydratePaging` builds the statements. Since 0.6.23.
 
 3. **RsqlFilterDescription** - Turns a WHERE filter into report text and JasperReports rows
    - Purely textual: no EntityManager, no RsqlContext - it works on the parse tree alone
@@ -194,8 +198,8 @@ its root `a0` (the default), or the alias must be declared with setSelectAlias()
 
 The project maintains two lines in parallel, and the platform versions differ between them:
 
-- **release-3** - the 0.6.x line, currently 0.6.22: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
-- **master** - the 0.7.x line, currently 0.7.7: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
+- **release-3** - the 0.6.x line, currently 0.6.23: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
+- **master** - the 0.7.x line, currently 0.7.8: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
 This branch is cut from `release-3`, so the 0.6.x numbers are the ones that apply here, and a version note in
 the docs on this branch cites the 0.6.x number alone ("Since 0.6.20"); `master` writes the pair
