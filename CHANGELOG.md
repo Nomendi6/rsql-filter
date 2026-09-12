@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.8] - 2026-09-12
+
+### Added
+- **Two-phase paging for JPQL queries: `PagingStrategy.IDS_THEN_HYDRATE`.** A paged JPQL query was one
+  statement - the full select with the filter, the sort and the offset/limit - so the database joined and
+  sorted the whole filtered result before it could skip to the page. For a `select new` over many joins that
+  cost was paid on every page and grew with the page number, although only a handful of rows came back.
+
+  The new strategy fetches the identifiers of the page first, selecting nothing but the identifier and the sort
+  columns, and then runs the caller's own select for those identifiers only, unsorted and unlimited, putting
+  the rows back in page order. The count is unchanged and runs once.
+
+  ```java
+  new RsqlQueryService<>(repository, mapper, entityManager, Order.class, SELECT_JPQL, COUNT_JPQL)
+      .withPagingStrategy(PagingStrategy.IDS_THEN_HYDRATE);
+  ```
+
+  Default `SINGLE_QUERY`, the previous behaviour. Applies to `findByFilter(String, Pageable)`,
+  `findEntitiesByFilter(String, Pageable)` and `getJpqlQueryResultAsPage` in JPQL mode; the Specification path
+  and the unpaged methods are untouched. Steps aside, logged at debug, for an unpaged request, a composite
+  identifier, and a select whose `from` clause cannot be found. `withRowIdExtractor` is for a select that
+  returns a DTO rather than the entity. `SimpleQueryExecutor.getJpqlQueryResultAsPageIdsThenHydrate` is the
+  static form.
+
+  Three things about the first statement are deliberate. It reuses the select's own `from` clause, joins
+  included, because Hibernate reuses an explicit `left join a0.x` for the `a0.x.y` path the filter is written
+  with - on a bare `from Order a0` the same path is an inner join and `a0.x.y==null` stops matching. It uses
+  `distinct` with the sort columns in the select list, so a select that joins a collection still pages by
+  entity, and so that every standard-following database accepts the `order by`. And it ends the sort with
+  the identifier: a sort with tied keys had no defined order, and H2 was observed to return one row on two
+  consecutive pages and another on none. Pages under the new strategy are a partition of the result.
+
 ## [0.7.7] - 2026-08-14
 
 ### Changed

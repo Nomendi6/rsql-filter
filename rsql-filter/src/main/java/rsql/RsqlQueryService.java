@@ -23,6 +23,8 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -76,6 +78,19 @@ public class RsqlQueryService<
     private String countAlias = DEFAULT_ALIAS_FOR_STARTROOT;
 
     private boolean useJpqlSelect = false;
+
+    /**
+     * How a page of a JPQL query is fetched; see {@link PagingStrategy}. Volatile for the same reason as the
+     * foreign key settings below: a service is a shared bean, and a change made after it is published has to
+     * be seen by the threads that will run queries.
+     */
+    private volatile PagingStrategy pagingStrategy = PagingStrategy.SINGLE_QUERY;
+
+    /**
+     * Reads the identifier off a hydrated row under {@link PagingStrategy#IDS_THEN_HYDRATE}. Null means
+     * {@code PersistenceUnitUtil.getIdentifier}, which is right whenever the select returns the entity.
+     */
+    private volatile Function<ENTITY, ?> rowIdExtractor;
 
     /**
      * Foreign key id resolution, held here rather than on the shared context.
@@ -276,6 +291,55 @@ public class RsqlQueryService<
     }
 
     /**
+     * Choose how a page of a JPQL query is fetched.
+     *
+     * <p>{@link PagingStrategy#IDS_THEN_HYDRATE} fetches the identifiers of the page first and the caller's
+     * select for those identifiers second, so a wide {@code select new} over many joins is built only for the
+     * rows that come back. Applies to {@code findByFilter(String, Pageable)},
+     * {@code findEntitiesByFilter(String, Pageable)} and {@code getJpqlQueryResultAsPage} when the service
+     * runs in JPQL mode; the Specification path and the unpaged methods are unaffected. Default
+     * {@link PagingStrategy#SINGLE_QUERY}, which is the behaviour of every earlier version.</p>
+     *
+     * <pre>{@code
+     * new RsqlQueryService<>(repository, mapper, entityManager, Order.class, SELECT_JPQL, COUNT_JPQL)
+     *     .withPagingStrategy(PagingStrategy.IDS_THEN_HYDRATE);
+     * }</pre>
+     *
+     * @param pagingStrategy The strategy; not null.
+     * @return this service, for chaining
+     */
+    public RsqlQueryService<ENTITY, ENTITY_DTO, REPOS, MAPPER> withPagingStrategy(PagingStrategy pagingStrategy) {
+        setPagingStrategy(pagingStrategy);
+        return this;
+    }
+
+    /** @see #withPagingStrategy */
+    public void setPagingStrategy(PagingStrategy pagingStrategy) {
+        this.pagingStrategy = Objects.requireNonNull(pagingStrategy, "pagingStrategy");
+    }
+
+    /** @return how a page of a JPQL query is fetched; {@link PagingStrategy#SINGLE_QUERY} by default */
+    public PagingStrategy getPagingStrategy() {
+        return this.pagingStrategy;
+    }
+
+    /**
+     * How {@link PagingStrategy#IDS_THEN_HYDRATE} reads the identifier off a hydrated row, so that the rows
+     * can be put back in page order.
+     *
+     * <p>Not needed when the select returns the entity, {@code select new Entity(...)} included - the
+     * persistence unit reads the identifier then. Needed when the select returns something that is not an
+     * entity; without it such a row fails with an {@code IllegalArgumentException} that says so.</p>
+     *
+     * @param rowIdExtractor Reads the identifier off a row; null restores the default.
+     * @return this service, for chaining
+     */
+    public RsqlQueryService<ENTITY, ENTITY_DTO, REPOS, MAPPER> withRowIdExtractor(Function<ENTITY, ?> rowIdExtractor) {
+        this.rowIdExtractor = rowIdExtractor;
+        return this;
+    }
+
+    /**
      * Sets the alias to be used for selecting entities in JPQL queries.
      * This alias will be applied to each new query context created via getQueryContext().
      *
@@ -446,15 +510,7 @@ public class RsqlQueryService<
             page = PageRequest.of(0, 20);
         }
         if (useJpqlSelect) {
-             Page<ENTITY>  entityPage = SimpleQueryExecutor.getJpqlQueryResultAsPage(
-                entityClass,
-                entityClass,
-                this.jpqlSelectAllFromEntity,
-                     selectAlias, this.jpqlSelectCountFromEntity,
-                     countAlias, filter,
-                page,
-                getQueryContext(),
-                rsqlCompiler);
+             Page<ENTITY>  entityPage = jpqlPage(this.jpqlSelectAllFromEntity, this.jpqlSelectCountFromEntity, filter, page);
 
                 return entityPage.map(appObjectMapper::toDto);
 
@@ -482,15 +538,7 @@ public class RsqlQueryService<
             page = PageRequest.of(0, 20);
         }
         if (useJpqlSelect) {
-             Page<ENTITY>  entityPage = SimpleQueryExecutor.getJpqlQueryResultAsPage(
-                entityClass,
-                entityClass,
-                this.jpqlSelectAllFromEntity,
-                     selectAlias, this.jpqlSelectCountFromEntity,
-                     countAlias, filter,
-                page,
-                getQueryContext(),
-                rsqlCompiler);
+             Page<ENTITY>  entityPage = jpqlPage(this.jpqlSelectAllFromEntity, this.jpqlSelectCountFromEntity, filter, page);
 
                 return entityPage;
 
@@ -498,6 +546,43 @@ public class RsqlQueryService<
             final Specification<ENTITY> specification = createSpecification(filter);
             return appObjectRepository.findAll(specification, page);
         }
+    }
+
+    /**
+     * One page of a JPQL select, fetched the way {@link #getPagingStrategy()} says.
+     *
+     * <p>Every paged JPQL method of the service goes through here, so the strategy cannot apply to one of
+     * them and not another.</p>
+     */
+    private Page<ENTITY> jpqlPage(String jpqlSelectQuery, String jpqlCountQuery, String filter, Pageable page) {
+        if (pagingStrategy == PagingStrategy.IDS_THEN_HYDRATE) {
+            return SimpleQueryExecutor.getJpqlQueryResultAsPageIdsThenHydrate(
+                entityClass,
+                entityClass,
+                jpqlSelectQuery,
+                selectAlias,
+                jpqlCountQuery,
+                countAlias,
+                filter,
+                page,
+                getQueryContext(),
+                rsqlCompiler,
+                rowIdExtractor,
+                SimpleQueryExecutor.DEFAULT_HYDRATION_CHUNK_SIZE
+            );
+        }
+        return SimpleQueryExecutor.getJpqlQueryResultAsPage(
+            entityClass,
+            entityClass,
+            jpqlSelectQuery,
+            selectAlias,
+            jpqlCountQuery,
+            countAlias,
+            filter,
+            page,
+            getQueryContext(),
+            rsqlCompiler
+        );
     }
 
     /**
@@ -1172,17 +1257,7 @@ public class RsqlQueryService<
      */
     @Transactional(readOnly = true)
     public Page<ENTITY_DTO> getJpqlQueryResultAsPage(String jpqlSelectQuery, String jpqlCountQuery, String filter, Pageable page) {
-        Page<ENTITY>  entityPage = SimpleQueryExecutor.getJpqlQueryResultAsPage(
-            entityClass,
-            entityClass,
-            jpqlSelectQuery,
-                selectAlias, jpqlCountQuery,
-                countAlias, filter,
-            page,
-            getQueryContext(),
-            rsqlCompiler);
-
-        return entityPage.map(appObjectMapper::toDto);
+        return jpqlPage(jpqlSelectQuery, jpqlCountQuery, filter, page).map(appObjectMapper::toDto);
     }
 
     /**
