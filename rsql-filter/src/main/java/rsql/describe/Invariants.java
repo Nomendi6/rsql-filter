@@ -3,6 +3,7 @@ package rsql.describe;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Set;
 
@@ -16,7 +17,7 @@ final class Invariants {
      * kind. All of them are immutable, so a value cannot be changed after the tree is built.
      */
     private static final Set<Class<?>> ALLOWED_VALUE_TYPES = Set.of(
-        String.class, Long.class, BigDecimal.class, LocalDate.class, Instant.class, Boolean.class
+        String.class, Long.class, BigDecimal.class, LocalDate.class, Instant.class, LocalDateTime.class, Boolean.class
     );
 
     static String requireNonBlank(String value, String name) {
@@ -32,7 +33,7 @@ final class Invariants {
         if (!ALLOWED_VALUE_TYPES.contains(value.getClass())) {
             throw new IllegalArgumentException(
                 "value type not allowed: " + value.getClass().getName()
-                    + " - expected one of String, Long, BigDecimal, LocalDate, Instant, Boolean"
+                    + " - expected one of String, Long, BigDecimal, LocalDate, Instant, LocalDateTime, Boolean"
             );
         }
         return value;

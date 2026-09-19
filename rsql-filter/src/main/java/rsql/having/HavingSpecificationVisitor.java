@@ -101,7 +101,7 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     public Predicate visitHavingConditionLiteral(HavingConditionLiteralContext ctx) {
         // Comparison with literal: totalPrice > 1000
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
-        Object literalValue = extractLiteralValue(ctx.literal());
+        Object literalValue = temporalFor(expression, extractLiteralValue(ctx.literal()));
         String operator = ctx.operator().getText();
 
         return buildComparisonPredicate(expression, literalValue, operator);
@@ -146,7 +146,10 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     @Override
     public Predicate visitHavingConditionIn(HavingConditionInContext ctx) {
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
-        List<Object> values = extractLiteralList(ctx.literalList());
+        List<Object> values = new ArrayList<>();
+        for (Object value : extractLiteralList(ctx.literalList())) {
+            values.add(temporalFor(expression, value));
+        }
 
         CriteriaBuilder.In<Object> inPredicate = builder.in(expression);
         for (Object value : values) {
@@ -158,7 +161,10 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     @Override
     public Predicate visitHavingConditionNotIn(HavingConditionNotInContext ctx) {
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
-        List<Object> values = extractLiteralList(ctx.literalList());
+        List<Object> values = new ArrayList<>();
+        for (Object value : extractLiteralList(ctx.literalList())) {
+            values.add(temporalFor(expression, value));
+        }
 
         CriteriaBuilder.In<Object> inPredicate = builder.in(expression);
         for (Object value : values) {
@@ -170,8 +176,8 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     @Override
     public Predicate visitHavingConditionBetween(HavingConditionBetweenContext ctx) {
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
-        Object from = extractLiteralValue(ctx.literal(0));
-        Object to = extractLiteralValue(ctx.literal(1));
+        Object from = temporalFor(expression, extractLiteralValue(ctx.literal(0)));
+        Object to = temporalFor(expression, extractLiteralValue(ctx.literal(1)));
 
         return builder.between((Expression<Comparable>) expression, (Comparable) from, (Comparable) to);
     }
@@ -179,8 +185,8 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     @Override
     public Predicate visitHavingConditionNotBetween(HavingConditionNotBetweenContext ctx) {
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
-        Object from = extractLiteralValue(ctx.literal(0));
-        Object to = extractLiteralValue(ctx.literal(1));
+        Object from = temporalFor(expression, extractLiteralValue(ctx.literal(0)));
+        Object to = temporalFor(expression, extractLiteralValue(ctx.literal(1)));
 
         Predicate between = builder.between((Expression<Comparable>) expression, (Comparable) from, (Comparable) to);
         return builder.not(between);
@@ -342,13 +348,29 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
         } else if (ctx.DATE_LITERAL() != null) {
             return RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.DATE_LITERAL());
         } else if (ctx.DATETIME_LITERAL() != null) {
-            return RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.DATETIME_LITERAL());
+            // Unconverted: temporalFor() gives it the type of the expression it is compared with.
+            return RsqlWhereHelper.getDatetimeLiteral(ctx.DATETIME_LITERAL());
         } else if (ctx.TRUE() != null) {
             return Boolean.TRUE;
         } else if (ctx.FALSE() != null) {
             return Boolean.FALSE;
         }
         throw new SyntaxErrorException("Unknown literal type");
+    }
+
+    /**
+     * A date or datetime literal in the type of the expression it is compared with; anything else unchanged.
+     * MIN(validFrom) over a LocalDateTime attribute is a LocalDateTime, and has to be compared with one.
+     */
+    private Object temporalFor(Expression<?> expression, Object value) {
+        Class<?> type = expression == null ? null : expression.getJavaType();
+        if (value instanceof rsql.where.DatetimeLiteral literal) {
+            return literal.as(type, "the HAVING expression");
+        }
+        if (value instanceof java.time.LocalDate date) {
+            return rsql.where.DatetimeLiteral.dateAs(date, type);
+        }
+        return value;
     }
 
     private List<Object> extractLiteralList(LiteralListContext ctx) {

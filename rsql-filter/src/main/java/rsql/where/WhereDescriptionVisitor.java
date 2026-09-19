@@ -122,7 +122,7 @@ public class WhereDescriptionVisitor extends RsqlWhereBaseVisitor<FilterNode> {
     @Override
     public FilterNode visitSingleConditionDatetime(RsqlWhereParser.SingleConditionDatetimeContext ctx) {
         return condition(ctx.field(), ctx.operator(),
-            new RightSide.SingleValue(RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.DATETIME_LITERAL())));
+            new RightSide.SingleValue(RsqlWhereHelper.getDatetimeLiteral(ctx.DATETIME_LITERAL()).toNeutralValue()));
     }
 
     /**
@@ -251,7 +251,9 @@ public class WhereDescriptionVisitor extends RsqlWhereBaseVisitor<FilterNode> {
         if (ctx.field() != null) {
             return new ListItem.ItemField(RsqlWhereHelper.getFieldName(ctx.field()));
         }
-        return new ListItem.ItemValue(RsqlWhereHelper.getInListLiteral(ctx));
+        Object value = RsqlWhereHelper.getInListLiteral(ctx);
+        // A description has no attribute to take a type from, so a datetime is shown as what it names.
+        return new ListItem.ItemValue(value instanceof DatetimeLiteral literal ? literal.toNeutralValue() : value);
     }
 
     private static FilterOperator basicOperatorOf(RsqlWhereParser.OperatorBasicContext ctx) {

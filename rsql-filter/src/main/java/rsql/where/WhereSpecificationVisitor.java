@@ -192,6 +192,10 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                         element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
                     } else if (isUuid && element.getClass().equals(String.class)) {
                         element = UUID.fromString((String) element);
+                    } else if (element instanceof DatetimeLiteral literal) {
+                        element = literal.as(pathField.getJavaType(), fieldName);
+                    } else if (element instanceof LocalDate date) {
+                        element = DatetimeLiteral.dateAs(date, pathField.getJavaType());
                     }
                     in.value(element);
                 }
@@ -246,14 +250,14 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 Path<BigDecimal> path = (Path<BigDecimal>) getPropertyPath(fieldName, root);
                 return criteriaBuilder.between(path, from, to);
             } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
-                LocalDate from = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
-                LocalDate to = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
-                Path<LocalDate> path = (Path<LocalDate>) getPropertyPath(fieldName, root);
+                Path<Comparable> path = (Path<Comparable>) getPropertyPath(fieldName, root);
+                Comparable from = (Comparable) DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL()), path.getJavaType());
+                Comparable to = (Comparable) DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL()), path.getJavaType());
                 return criteriaBuilder.between(path, from, to);
             } else if (ctx.inListElement(0).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
-                Instant from = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
-                Instant to = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
-                Path<Instant> path = (Path<Instant>) getPropertyPath(fieldName, root);
+                Path<Comparable> path = (Path<Comparable>) getPropertyPath(fieldName, root);
+                Comparable from = (Comparable) RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL()).as(path.getJavaType(), fieldName);
+                Comparable to = (Comparable) RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL()).as(path.getJavaType(), fieldName);
                 return criteriaBuilder.between(path, from, to);
             } else if (ctx.inListElement(0).PARAM_LITERAL() != null && ctx.inListElement(1).PARAM_LITERAL() != null) {
                 String fromParam = getParamFromLiteral(ctx.inListElement(0).PARAM_LITERAL());
@@ -301,14 +305,14 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 Path<BigDecimal> path = (Path<BigDecimal>) getPropertyPath(fieldName, root);
                 return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
             } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
-                LocalDate from = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
-                LocalDate to = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
-                Path<LocalDate> path = (Path<LocalDate>) getPropertyPath(fieldName, root);
+                Path<Comparable> path = (Path<Comparable>) getPropertyPath(fieldName, root);
+                Comparable from = (Comparable) DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL()), path.getJavaType());
+                Comparable to = (Comparable) DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL()), path.getJavaType());
                 return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
             } else if (ctx.inListElement(0).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
-                Instant from = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
-                Instant to = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
-                Path<Instant> path = (Path<Instant>) getPropertyPath(fieldName, root);
+                Path<Comparable> path = (Path<Comparable>) getPropertyPath(fieldName, root);
+                Comparable from = (Comparable) RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL()).as(path.getJavaType(), fieldName);
+                Comparable to = (Comparable) RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL()).as(path.getJavaType(), fieldName);
                 return criteriaBuilder.not(criteriaBuilder.between(path, from, to));
             } else if (ctx.inListElement(0).PARAM_LITERAL() != null && ctx.inListElement(1).PARAM_LITERAL() != null) {
                 String fromParam = getParamFromLiteral(ctx.inListElement(0).PARAM_LITERAL());
@@ -337,56 +341,54 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
     @Override
     public Specification<T> visitSingleConditionDate(RsqlWhereParser.SingleConditionDateContext ctx) {
         String fieldName = getFieldName(ctx.field());
-        LocalDate value = RsqlWhereHelper.getLocalDateFromDateLiteral((ctx.DATE_LITERAL()));
+        LocalDate date = RsqlWhereHelper.getLocalDateFromDateLiteral((ctx.DATE_LITERAL()));
         RsqlWhereParser.OperatorContext operator = ctx.operator();
 
-        Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
-            Path<LocalDate> path = (Path<LocalDate>) getPropertyPath(fieldName, root);
-            if (operator.operatorEQ() != null) {
-                return criteriaBuilder.equal(path, value);
-            } else if (operator.operatorGT() != null) {
-                return criteriaBuilder.greaterThan(path, value);
-            } else if (operator.operatorGE() != null) {
-                return criteriaBuilder.greaterThanOrEqualTo(path, value);
-            } else if (operator.operatorLT() != null) {
-                return criteriaBuilder.lessThan(path, value);
-            } else if (operator.operatorLE() != null) {
-                return criteriaBuilder.lessThanOrEqualTo(path, value);
-            } else if (operator.operatorNEQ() != null) {
-                return criteriaBuilder.notEqual(path, value);
-            }
-
-            throw new SyntaxErrorException("Unknown operator: " + operator.getText());
+        return (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
+            Path<?> path = getPropertyPath(fieldName, root);
+            return compareTemporal(criteriaBuilder, path, DatetimeLiteral.dateAs(date, path.getJavaType()), operator);
         };
-
-        return spec;
     }
 
     @Override
     public Specification<T> visitSingleConditionDatetime(RsqlWhereParser.SingleConditionDatetimeContext ctx) {
         String fieldName = getFieldName(ctx.field());
-        Instant value = RsqlWhereHelper.getInstantFromDatetimeLiteral((ctx.DATETIME_LITERAL()));
+        DatetimeLiteral literal = RsqlWhereHelper.getDatetimeLiteral(ctx.DATETIME_LITERAL());
         RsqlWhereParser.OperatorContext operator = ctx.operator();
 
-        Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
-            Path<Instant> path = (Path<Instant>) getPropertyPath(fieldName, root);
-            if (operator.operatorEQ() != null) {
-                return criteriaBuilder.equal(path, value);
-            } else if (operator.operatorGT() != null) {
-                return criteriaBuilder.greaterThan(path, value);
-            } else if (operator.operatorGE() != null) {
-                return criteriaBuilder.greaterThanOrEqualTo(path, value);
-            } else if (operator.operatorLT() != null) {
-                return criteriaBuilder.lessThan(path, value);
-            } else if (operator.operatorLE() != null) {
-                return criteriaBuilder.lessThanOrEqualTo(path, value);
-            } else if (operator.operatorNEQ() != null) {
-                return criteriaBuilder.notEqual(path, value);
-            }
-
-            throw new SyntaxErrorException("Unknown operator: " + operator.getText());
+        return (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
+            // The literal takes the type of the attribute, never the other way round: the path keeps the
+            // mapping the entity gave it, and the value bound against it is of that same type.
+            Path<?> path = getPropertyPath(fieldName, root);
+            return compareTemporal(criteriaBuilder, path, literal.as(path.getJavaType(), fieldName), operator);
         };
-        return spec;
+    }
+
+    /**
+     * One comparison of a temporal path with a value that already has the path's type.
+     *
+     * <p>The casts are unchecked because the type is only known at run time, from the metamodel; every
+     * temporal type the literals convert to is {@code Comparable} with itself.</p>
+     */
+    @SuppressWarnings({"rawtypes"})
+    private jakarta.persistence.criteria.Predicate compareTemporal(
+            CriteriaBuilder criteriaBuilder, Path<?> path, Object value, RsqlWhereParser.OperatorContext operator) {
+        jakarta.persistence.criteria.Expression<Comparable> left = (jakarta.persistence.criteria.Expression<Comparable>) path;
+        Comparable right = (Comparable) value;
+        if (operator.operatorEQ() != null) {
+            return criteriaBuilder.equal(left, right);
+        } else if (operator.operatorGT() != null) {
+            return criteriaBuilder.greaterThan(left, right);
+        } else if (operator.operatorGE() != null) {
+            return criteriaBuilder.greaterThanOrEqualTo(left, right);
+        } else if (operator.operatorLT() != null) {
+            return criteriaBuilder.lessThan(left, right);
+        } else if (operator.operatorLE() != null) {
+            return criteriaBuilder.lessThanOrEqualTo(left, right);
+        } else if (operator.operatorNEQ() != null) {
+            return criteriaBuilder.notEqual(left, right);
+        }
+        throw new SyntaxErrorException("Unknown operator: " + operator.getText());
     }
 
     @Override
