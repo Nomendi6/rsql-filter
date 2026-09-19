@@ -66,6 +66,10 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
                 if (isEnum && element.getClass().equals(String.class)) {
                     Path<Enum> enumField = (Path<Enum>) pathField;
                     element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
+                } else if (element instanceof DatetimeLiteral literal) {
+                    element = literal.as(pathField.getJavaType(), String.valueOf(pathField));
+                } else if (element instanceof LocalDate date) {
+                    element = DatetimeLiteral.dateAs(date, pathField.getJavaType());
                 }
                 paramList.add(element);
             }
@@ -443,7 +447,8 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         RsqlQuery query = new RsqlQuery();
         String p1 = nextParam();
         String p2 = nextParam();
-        String fieldPath = getFieldFromPath(getPropertyPath(fieldName, rsqlContext.root));
+        Path<?> pathField = getPropertyPath(fieldName, rsqlContext.root);
+        String fieldPath = getFieldFromPath(pathField);
 
         if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
             query.where = fieldPath + " between :" + p1 + " and :" + p2;
@@ -468,15 +473,15 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
             return query;
         } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
             query.where = fieldPath + " between :" + p1 + " and :" + p2;
-            LocalDate from = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
-            LocalDate to = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
+            Object from = DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL()), pathField.getJavaType());
+            Object to = DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL()), pathField.getJavaType());
             query.params.add(new RsqlQueryParam(p1, from));
             query.params.add(new RsqlQueryParam(p2, to));
             return query;
         } else if (ctx.inListElement(0).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
             query.where = fieldPath + " between :" + p1 + " and :" + p2;
-            Instant from = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
-            Instant to = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
+            Object from = RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL()).as(pathField.getJavaType(), fieldName);
+            Object to = RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL()).as(pathField.getJavaType(), fieldName);
             query.params.add(new RsqlQueryParam(p1, from));
             query.params.add(new RsqlQueryParam(p2, to));
             return query;
@@ -504,7 +509,8 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         RsqlQuery query = new RsqlQuery();
         String p1 = nextParam();
         String p2 = nextParam();
-        String fieldPath = getFieldFromPath(getPropertyPath(fieldName, rsqlContext.root));
+        Path<?> pathField = getPropertyPath(fieldName, rsqlContext.root);
+        String fieldPath = getFieldFromPath(pathField);
 
         if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
             query.where = fieldPath + " not between :" + p1 + " and :" + p2;
@@ -529,15 +535,15 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
             return query;
         } else if (ctx.inListElement(0).DATE_LITERAL() != null && ctx.inListElement(1).DATE_LITERAL() != null) {
             query.where = fieldPath + " not between :" + p1 + " and :" + p2;
-            LocalDate from = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL());
-            LocalDate to = RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL());
+            Object from = DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(0).DATE_LITERAL()), pathField.getJavaType());
+            Object to = DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral(ctx.inListElement(1).DATE_LITERAL()), pathField.getJavaType());
             query.params.add(new RsqlQueryParam(p1, from));
             query.params.add(new RsqlQueryParam(p2, to));
             return query;
         } else if (ctx.inListElement(0 ).DATETIME_LITERAL() != null && ctx.inListElement(1).DATETIME_LITERAL() != null) {
             query.where = fieldPath + " not between :" + p1 + " and :" + p2;
-            Instant from = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL());
-            Instant to = RsqlWhereHelper.getInstantFromDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL());
+            Object from = RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(0).DATETIME_LITERAL()).as(pathField.getJavaType(), fieldName);
+            Object to = RsqlWhereHelper.getDatetimeLiteral(ctx.inListElement(1).DATETIME_LITERAL()).as(pathField.getJavaType(), fieldName);
             query.params.add(new RsqlQueryParam(p1, from));
             query.params.add(new RsqlQueryParam(p2, to));
             return query;
@@ -566,7 +572,7 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         Path<?> pathField = getPropertyPath(fieldName, rsqlContext.root);
         String fieldPath = getFieldFromPath(pathField);
         String p1 = nextParam();
-        LocalDate value = RsqlWhereHelper.getLocalDateFromDateLiteral((ctx.DATE_LITERAL()));
+        Object value = DatetimeLiteral.dateAs(RsqlWhereHelper.getLocalDateFromDateLiteral((ctx.DATE_LITERAL())), pathField.getJavaType());
         RsqlWhereParser.OperatorContext operator = ctx.operator();
 
         if (operator.operatorEQ() != null) {
@@ -595,7 +601,8 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         Path<?> pathField = getPropertyPath(fieldName, rsqlContext.root);
         String fieldPath = getFieldFromPath(pathField);
         String p1 = nextParam();
-        Instant value = RsqlWhereHelper.getInstantFromDatetimeLiteral((ctx.DATETIME_LITERAL()));
+        // Bound in the type of the attribute, like the Specification path - see DatetimeLiteral.
+        Object value = RsqlWhereHelper.getDatetimeLiteral(ctx.DATETIME_LITERAL()).as(pathField.getJavaType(), fieldName);
         RsqlWhereParser.OperatorContext operator = ctx.operator();
 
         if (operator.operatorEQ() != null) {

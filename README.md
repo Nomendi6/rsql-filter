@@ -31,20 +31,20 @@ For detailed API documentation, see [API.md](API.md).
 ## Installation
 
 The library is maintained in two parallel lines with the same feature set. Pick the one that matches your
-platform: **0.7.8** for Spring Boot 4, **0.6.23** for Spring Boot 3. The snippets below use `0.7.8`.
+platform: **0.7.9** for Spring Boot 4, **0.6.24** for Spring Boot 3. The snippets below use `0.7.9`.
 
 ### Maven
 ```xml
 <dependency>
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
-    <version>0.7.8</version>
+    <version>0.7.9</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter:0.7.8'
+implementation 'com.nomendi6:rsql-filter:0.7.9'
 ```
 
 ### Requirements
@@ -270,14 +270,40 @@ Supported data types:
 | Decimal number | Decimal number, for example `amount=gt=10.23`                               |
 | Enum           | Enum name, for example `status==#ACTIVE#`                                   |
 | Date           | Date in ISO format, for example `date=ge=#2019-01-01#`                      |
-| Datetime       | Datetime in ISO format **with a zone**, for example `date=ge=#2019-01-01T00:00:00Z#` |
+| Datetime       | Datetime in ISO format, for example `date=ge=#2019-01-01T00:00:00Z#`; see below for the zone |
 | Boolean        | Boolean value, for example `active==true` or `active==false`                |
 | UUID           | UUID value, for example `uuidField=='f47ac10b-58cc-4372-a567-0e02b2c3d479'` |
 
-The zone suffix on a datetime literal is mandatory — either `Z` or an offset such as `+01:00` / `-05:00`.
-`#2019-01-01T00:00:00#` is a syntax error (`token recognition error at: '#2019-01-01T00:00:00#'`). Fractional
-seconds are optional, so `#2019-01-01T00:00:00.123Z#` is also valid. A plain date `#2019-01-01#` carries no
-zone and needs none.
+Fractional seconds are optional, so `#2019-01-01T00:00:00.123Z#` is also valid. A plain date `#2019-01-01#`
+carries no zone and needs none.
+
+#### Dates, datetimes and time zones
+
+> **Changed in 0.7.9 / 0.6.24.** A datetime literal used to be bound as an `Instant` whatever it was compared
+> with, so against a `LocalDateTime` the hour compared was the literal's hour shifted by the server's zone.
+> The literal without a zone is new.
+
+A literal is bound **in the type of the attribute it is compared with**, and the temporal types fall in two
+families that read it differently:
+
+| Attribute type | What is compared | Zone on the literal |
+| --- | --- | --- |
+| `Instant`, `OffsetDateTime`, `ZonedDateTime`, `java.util.Date`, `Timestamp`, `Calendar` | The **moment**. `#2026-09-19T07:30:45Z#` and `#2026-09-19T09:30:45+02:00#` select the same rows | **Required.** A literal without one names no moment and is rejected with a `SyntaxErrorException` that names the field |
+| `LocalDateTime` | The **calendar fields exactly as written**: `#2026-09-19T09:30:45#` compares 09:30:45 | **Optional and ignored.** `#2026-09-19T09:30:45Z#` and `#2026-09-19T09:30:45+02:00#` also compare 09:30:45 |
+| `LocalDate` | The calendar date. A datetime literal contributes the date it writes | Ignored |
+
+The zone is ignored for a local type because there is no zone to convert *into* — a `LocalDateTime` has none,
+and borrowing the JVM's or the JDBC connection's is exactly what made the result depend on where the server
+runs. A client that can choose should send a local value without a zone; a client that can only send a zoned
+literal sends the local fields with `Z`. Both are read the same way.
+
+A date literal against a `LocalDateTime` is the start of that day, so `createdAt=ge=#2026-09-19#` means
+"from midnight on the 19th" in calendar fields. Against a moment type a date literal is still converted by the
+provider through the JVM's zone — use a datetime literal with a zone there.
+
+None of this depends on `hibernate.jdbc.time_zone`, on `hibernate.timezone.default_storage` or on the zone the
+JVM runs in, and it applies alike to `==`, `!=`, `=lt=`, `=le=`, `=gt=`, `=ge=`, `=bt=`, `=nbt=`, `=in=`,
+`=nin=`, to HAVING, and to the JPQL-text path.
 
 ### Example REST controller
 
@@ -980,8 +1006,11 @@ irrelevant: an ignored field resolves fine, a transient one does not. The SELECT
 `Unknown field: 'x' in path 'a.b' for entity …`.
 
 **Q: Date filtering not working?**  
-A: Use ISO format with # delimiters: `date=ge=#2024-01-01#` or `datetime=le=#2024-01-01T23:59:59Z#`. A datetime
-literal without a zone is a syntax error - see [Supported data types](#usage).
+A: Use ISO format with # delimiters: `date=ge=#2024-01-01#` or `datetime=le=#2024-01-01T23:59:59Z#`. Whether
+the literal needs a zone depends on the attribute: an `Instant` / `OffsetDateTime` / `ZonedDateTime` needs one,
+a `LocalDateTime` takes the fields as written with or without it - see
+[Dates, datetimes and time zones](#dates-datetimes-and-time-zones). If results shift by a few hours, check the
+library is 0.7.9 / 0.6.24 or later.
 
 **Q: How to filter by enum?**  
 A: Use # delimiters: `status==#ACTIVE#` or `status=in=(#ACTIVE#,#PENDING#)`
