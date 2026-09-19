@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.nomendi6</groupId>
         <artifactId>rsql-filter-parent</artifactId>
-        <version>0.7.8</version>
+        <version>0.7.9</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -121,6 +121,37 @@
                         <include>**/*Test.java</include>
                     </includes>
                 </configuration>
+                <!-- The temporal contract again, each time in a JVM that really starts in another zone. The
+                     tests switch the default zone themselves as well, but that is not the same thing: the H2
+                     session keeps the zone the JVM was started in, so only a separate JVM moves everything.
+                     UTC, a negative offset and the largest positive one; the default execution above runs in
+                     whatever zone the machine is in. -->
+                <executions>
+                    <execution>
+                        <id>temporal-in-utc</id>
+                        <goals><goal>test</goal></goals>
+                        <configuration>
+                            <argLine>-Duser.timezone=UTC</argLine>
+                            <includes><include>**/TemporalFilter*IT.java</include></includes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>temporal-in-los-angeles</id>
+                        <goals><goal>test</goal></goals>
+                        <configuration>
+                            <argLine>-Duser.timezone=America/Los_Angeles</argLine>
+                            <includes><include>**/TemporalFilter*IT.java</include></includes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>temporal-in-kiritimati</id>
+                        <goals><goal>test</goal></goals>
+                        <configuration>
+                            <argLine>-Duser.timezone=Pacific/Kiritimati</argLine>
+                            <includes><include>**/TemporalFilter*IT.java</include></includes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             
             <!-- Skip deployment for test module -->

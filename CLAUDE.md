@@ -155,8 +155,8 @@ its root `a0` (the default), or the alias must be declared with setSelectAlias()
 
 The project maintains two lines in parallel, and the platform versions differ between them:
 
-- **release-3** - the 0.6.x line, currently 0.6.23: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
-- **master** - the 0.7.x line, currently 0.7.8: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
+- **release-3** - the 0.6.x line, currently 0.6.24: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
+- **master** - the 0.7.x line, currently 0.7.9: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
 This branch is cut from `master`, so the 0.7.x numbers are the ones that apply here. A version note in the
 docs on this branch cites both lines ("Since 0.7.5 / 0.6.20"), because the same change usually ships on both;
@@ -201,8 +201,13 @@ Right-hand sides:
 - The LIKE wildcard `*` goes INSIDE the quotes - `name=*'*Type*'`, never `name=*'Type'*`. There is no bare
   `*` token in the WHERE grammar.
 - Numbers, `#2024-01-01#`, `#2024-01-01T23:59:59Z#`, `#ACTIVE#` (enum), `:name` (named parameter).
-  A datetime literal MUST carry a zone (`Z` or `+01:00`) - `#2024-01-01T23:59:59#` is a syntax error.
-  Fractional seconds are optional.
+  A datetime literal is bound in the TYPE OF THE ATTRIBUTE (`rsql.where.DatetimeLiteral.as`), never as a
+  blanket `Instant`: against `Instant` / `OffsetDateTime` / `ZonedDateTime` / `Date` it must carry a zone
+  (`Z` or `+01:00`) and is compared by moment; against `LocalDateTime` / `LocalDate` the calendar fields are
+  compared as written and the zone is optional and ignored, so `#2024-01-01T23:59:59#` is legal there and a
+  `SyntaxErrorException` against a moment. Every site that binds a literal - the single condition, BETWEEN,
+  IN, HAVING, WhereTextVisitor - goes through it; a new one must too. Fractional seconds are optional.
+  Since 0.7.9 / 0.6.24.
 - `null`, `true`, `false` - only with `==` and `!=`: `description==null`, `active==true`.
 - Another field: `price=gt=cost`, and a field is also legal as an IN element or a BETWEEN bound
   (`code=in=(status,name)`, `price=bt=(minPrice,maxPrice)`). This is why an unquoted

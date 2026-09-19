@@ -24,13 +24,17 @@ PARAM_LITERAL: ':' ID_LITERAL;
 DATE_LITERAL: '#' DEC_DIGIT+ '-' DEC_DIGIT+ '-' DEC_DIGIT+ '#'
             | '#' DEC_DIGIT+ '#'
 ;
+// The zone is optional: a literal without one names calendar fields, for LocalDateTime and LocalDate
+// attributes; compared with an attribute that holds a moment it is rejected when the filter is compiled.
 DATETIME_LITERAL:
-    '#' DEC_DIGIT+ '-' DEC_DIGIT+ '-' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ ('Z'| ('+'|'-') DEC_DIGIT+ ':' DEC_DIGIT+) '#'
-    | '#' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ ('Z'| ('+'|'-') DEC_DIGIT+ ':' DEC_DIGIT+) '#'
-    | '#' DEC_DIGIT+ '-' DEC_DIGIT+ '-' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ '.' DEC_DIGIT+ ('Z'| ('+'|'-') DEC_DIGIT+ ':' DEC_DIGIT+) '#'
-    | '#' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ '.' DEC_DIGIT+ ('Z'| ('+'|'-') DEC_DIGIT+ ':' DEC_DIGIT+) '#'
+    '#' DEC_DIGIT+ '-' DEC_DIGIT+ '-' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ ZONE_SUFFIX? '#'
+    | '#' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ ZONE_SUFFIX? '#'
+    | '#' DEC_DIGIT+ '-' DEC_DIGIT+ '-' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ '.' DEC_DIGIT+ ZONE_SUFFIX? '#'
+    | '#' DEC_DIGIT+ 'T' DEC_DIGIT+ ':' DEC_DIGIT+ ':' DEC_DIGIT+ '.' DEC_DIGIT+ ZONE_SUFFIX? '#'
 
     ;
+
+fragment ZONE_SUFFIX: 'Z' | ('+'|'-') DEC_DIGIT+ ':' DEC_DIGIT+;
 
 ENUM_LITERAL:
     '#' ID_LITERAL '#'

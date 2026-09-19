@@ -25,7 +25,8 @@ public interface RightSide {
     }
 
     /**
-     * A single value. The type is one of String, Long, BigDecimal, LocalDate, Instant or Boolean, matching
+     * A single value. The type is one of String, Long, BigDecimal, LocalDate, Instant, LocalDateTime (a datetime literal
+     * written without a zone) or Boolean, matching
      * what the execution path produces for the corresponding literal.
      */
     record SingleValue(Object value) implements RightSide {

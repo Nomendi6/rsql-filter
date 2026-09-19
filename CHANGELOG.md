@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.9] - 2026-09-19
+
+### Fixed
+- **A datetime literal compared with a `LocalDateTime` no longer shifts by the server's time zone.** The
+  literal became an `Instant` the moment it was parsed, and the attribute's path was cast to `Path<Instant>`
+  to match. Bound against a `LocalDateTime`, the provider turned the instant into local fields through the
+  JVM's zone, so in a JVM at +02:00 `local==#2026-09-19T09:30:45Z#` compared 11:30:45: `==` and `=gt=` found
+  nothing and `=lt=` found everything. The value is now bound **in the type of the attribute**, on the path as
+  the entity mapped it. `Instant`, `OffsetDateTime`, `ZonedDateTime`, `Date`, `Timestamp` and `Calendar` are
+  compared by moment, so equivalent offsets select the same rows; `LocalDateTime` and `LocalDate` are compared
+  by the calendar fields exactly as the filter writes them, and a zone on the literal is ignored - there is no
+  zone to convert into, and borrowing one is what made the result depend on where the server runs.
+
+  The same conversion was wrong in the same way in `=bt=` / `=nbt=`, in `=in=` / `=nin=`, in HAVING and on the
+  JPQL-text path; all of them now go through it. `day==#2026-09-19T23:59:59Z#` against a `LocalDate` likewise
+  no longer moves to the 20th east of Greenwich, and a date literal against a `LocalDateTime` is the start of
+  that day in calendar fields rather than a timestamp made through the JVM's zone.
+
+  Nothing depends on `hibernate.jdbc.time_zone`, `hibernate.timezone.default_storage` or the JVM's zone any
+  more. The contract is tested under two JDBC configurations in four JVM zones, each in a JVM that really
+  starts in that zone: switching the default zone inside a running JVM is not equivalent, because the H2
+  session keeps the zone the JVM was started in.
+
+### Added
+- **A datetime literal without a zone: `#2026-09-19T09:30:45#`.** It names calendar fields, which is what a
+  `LocalDateTime` holds, so a client no longer has to invent a `Z` for a value that has no zone. Compared with
+  an attribute that holds a moment it is rejected with a `SyntaxErrorException` naming the field and its type,
+  rather than being given the server's zone. The zoned forms keep working everywhere they did.
+- `rsql.where.DatetimeLiteral` and `RsqlWhereHelper.getDatetimeLiteral(...)`: the literal as written, with
+  `as(attributeType, fieldName)` giving the value to bind. `getInstantFromDatetimeLiteral` is deprecated - an
+  instant is only right for an attribute that holds a moment - and throws for a literal without a zone.
+- A filter description shows a zone-less literal as a `LocalDateTime`; `RightSide.SingleValue` accepts it.
+
+### Changed
+- A datetime literal that fits the grammar but names no real time - month 13, hour 25 - raises
+  `SyntaxErrorException` instead of escaping as a `java.time.format.DateTimeParseException`.
+
 ## [0.7.8] - 2026-09-12
 
 ### Added
