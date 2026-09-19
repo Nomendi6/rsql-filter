@@ -2066,8 +2066,19 @@ queryService.findByFilter("lastLogin=le=#2024-01-01T23:59:59+01:00#");
 queryService.findByFilter("createdDate=bt=(#2024-01-01#,#2024-12-31#)");
 ```
 
-A datetime literal must carry a zone - `Z` or an offset such as `+01:00`. `#2024-01-01T23:59:59#` is a syntax
-error, not a zone-less datetime. Fractional seconds are optional; a plain date `#2024-01-01#` needs no zone.
+A datetime literal is bound in the type of the attribute it is compared with (since 0.6.24; earlier
+versions always bound an `Instant`). Against a moment - `Instant`, `OffsetDateTime`, `ZonedDateTime`, `Date` -
+it must carry a zone, `Z` or an offset such as `+01:00`, and equivalent offsets select the same rows. Against a
+`LocalDateTime` or `LocalDate` the calendar fields are compared exactly as written: the zone is optional and
+ignored, so `#2024-01-01T23:59:59#` and `#2024-01-01T23:59:59Z#` both compare 23:59:59 whatever zone the JVM
+or the JDBC connection is in. A literal without a zone against a moment is a `SyntaxErrorException`. Fractional
+seconds are optional; a plain date `#2024-01-01#` needs no zone, and against a `LocalDateTime` it is the start
+of that day. See [Dates, datetimes and time zones](README.md#dates-datetimes-and-time-zones).
+
+```java
+queryService.findByFilter("localCreatedAt=ge=#2024-01-01T08:00:00#");        // LocalDateTime: 08:00 as written
+queryService.findByFilter("createdDate=ge=#2024-01-01T08:00:00+01:00#");     // Instant: that moment
+```
 
 ### Pattern Matching
 ```java

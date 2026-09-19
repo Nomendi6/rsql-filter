@@ -366,7 +366,8 @@ public class RsqlWhereHelper {
         } else if (ctx.DATE_LITERAL() != null) {
             return getLocalDateFromDateLiteral(ctx.DATE_LITERAL());
         } else if (ctx.DATETIME_LITERAL() != null) {
-            return getInstantFromDatetimeLiteral(ctx.DATETIME_LITERAL());
+            // Left unconverted: only the caller knows the type of the attribute it is compared with.
+            return getDatetimeLiteral(ctx.DATETIME_LITERAL());
         } else if (ctx.ENUM_LITERAL() != null) {
             return getStringFromStringLiteral(ctx.ENUM_LITERAL());
         }
@@ -424,11 +425,27 @@ public class RsqlWhereHelper {
         return null;
     }
 
+    /**
+     * The instant a datetime literal names.
+     *
+     * @deprecated An instant is only the right value for an attribute that holds a moment. Use
+     *             {@link #getDatetimeLiteral} and {@link DatetimeLiteral#as}, which give the value in the type
+     *             of the attribute it is compared with.
+     * @throws rsql.exceptions.SyntaxErrorException when the literal was written without a zone
+     */
+    @Deprecated
     public static Instant getInstantFromDatetimeLiteral(TerminalNode datetimeLiteral) {
+        DatetimeLiteral literal = getDatetimeLiteral(datetimeLiteral);
+        return literal == null ? null : literal.toInstant();
+    }
+
+    /**
+     * A datetime literal, not yet converted to any Java type - see {@link DatetimeLiteral} for why.
+     */
+    public static DatetimeLiteral getDatetimeLiteral(TerminalNode datetimeLiteral) {
         String s = datetimeLiteral.getText();
         if (s.length() > 1) {
-            s = s.substring(1, s.length() - 1);
-            return Instant.parse(s);
+            return DatetimeLiteral.parse(s.substring(1, s.length() - 1));
         }
         return null;
     }
