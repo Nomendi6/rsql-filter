@@ -57,9 +57,9 @@ ones.
 
 The project is maintained as two parallel lines, so check which one you are on before quoting a version:
 
-- **release-3** - the 0.6.x line, currently 0.6.24, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3.
+- **release-3** - the 0.6.x line, currently 0.6.25, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3.
   `rsql-filter-demo` ships only on this line.
-- **master** - the 0.7.x line, currently 0.7.9, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4.
+- **master** - the 0.7.x line, currently 0.7.10, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4.
 
 The demo application is configured in `rsql-filter-demo/pom.xml` and `src/main/resources/config/`:
 
