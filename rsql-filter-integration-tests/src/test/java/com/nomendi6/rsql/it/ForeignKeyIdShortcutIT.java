@@ -296,6 +296,30 @@ public class ForeignKeyIdShortcutIT {
         assertThat(live.ids()).containsExactly(100L);
     }
 
+    @Test
+    @Transactional
+    @DisplayName("a soft-deleted target keeps its join, so it stops matching")
+    void softDeletedTargetKeepsItsJoin() {
+        ShortcutSoftDeleteTarget live = entityManager.merge(new ShortcutSoftDeleteTarget(20L, "live"));
+        ShortcutSoftDeleteTarget deleted = entityManager.merge(new ShortcutSoftDeleteTarget(21L, "deleted"));
+        ShortcutRoot first = entityManager.find(ShortcutRoot.class, 100L);
+        ShortcutRoot second = entityManager.find(ShortcutRoot.class, 200L);
+        first.setSoftDeleteTarget(live);
+        second.setSoftDeleteTarget(deleted);
+        entityManager.flush();
+        entityManager.clear();
+        // Deleted the way @SoftDelete deletes: the row stays, marked, and the foreign key still names it.
+        entityManager.createNativeQuery("update shortcut_soft_delete_target set deleted = true where id = 21").executeUpdate();
+
+        Run on = run("softDeleteTarget.id==21", true);
+        Run off = run("softDeleteTarget.id==21", false);
+
+        // Root 200 still holds 21 in its foreign key; the target is deleted, and only the join can say so.
+        assertThat(on.sql()).isEqualTo(off.sql());
+        assertThat(on.ids()).isEqualTo(off.ids()).isEmpty();
+        assertThat(run("softDeleteTarget.id==20", true).ids()).containsExactly(100L);
+    }
+
     // ------------------------------------------------------------------
     // The order dependence the change introduces
     // ------------------------------------------------------------------

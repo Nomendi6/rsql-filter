@@ -155,7 +155,7 @@ its root `a0` (the default), or the alias must be declared with setSelectAlias()
 
 The project maintains two lines in parallel, and the platform versions differ between them:
 
-- **release-3** - the 0.6.x line, currently 0.6.25: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
+- **release-3** - the 0.6.x line, currently 0.6.25: Java 17, Spring Boot 3.4.4, Hibernate 6.6.11 (also tested on 6.5.3 and 6.6.53)
 - **master** - the 0.7.x line, currently 0.7.10: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
 This branch is cut from `master`, so the 0.7.x numbers are the ones that apply here. A version note in the
