@@ -48,8 +48,11 @@
         <maven.compiler.target>${java.version}</maven.compiler.target>
 
         <!-- Unified versions for all modules -->
+        <!-- Spring Boot 3.4.4 manages Hibernate 6.6.11, and that is the pair a 0.6.x application runs: its own Spring Boot
+             BOM decides the Hibernate version, not this pin. The profiles boot-3.3 and boot-3.5 run the same build on the
+             neighbouring lines (Hibernate 6.5.3 and 6.6.53). -->
         <spring-boot.version>3.4.4</spring-boot.version>
-        <hibernate.version>6.5.3.Final</hibernate.version>
+        <hibernate.version>6.6.11.Final</hibernate.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <antlr4.version>4.13.2</antlr4.version>
         <junit-jupiter.version>5.9.1</junit-jupiter.version>
@@ -79,16 +82,16 @@
 
     <dependencyManagement>
         <dependencies>
-             <!-- JHipster BOM - manages most dependencies for test-appl -->
+             <!-- The Spring Boot BOM manages shared versions. The JHipster BOM that used to be here imported Spring Boot
+                  3.1.5, so the library was compiled and tested against Spring Boot 3.1.5 / Spring Data JPA 3.1.5 /
+                  Spring 6.0 whatever spring-boot.version said. It is imported by the demo alone now. -->
             <dependency>
-                <groupId>tech.jhipster</groupId>
-                <artifactId>jhipster-dependencies</artifactId>
-                <version>${jhipster-dependencies.version}</version>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Spring Boot BOM (for test-appl) - JHipster BOM already imports the corresponding one -->
-            <!-- We don't import SB 3.3.5 BOM here to avoid conflicts -->
 
              <dependency>
                 <groupId>org.antlr</groupId>
@@ -109,6 +112,13 @@
              <dependency>
                 <groupId>org.hibernate.orm</groupId>
                 <artifactId>hibernate-core</artifactId>
+                <version>${hibernate.version}</version>
+             </dependency>
+             <!-- Pinned with hibernate-core: the imported Spring Boot BOM would keep it at its own Hibernate version when a
+                  profile moves hibernate.version. -->
+             <dependency>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-jcache</artifactId>
                 <version>${hibernate.version}</version>
              </dependency>
              <dependency>
@@ -405,6 +415,23 @@
                 <spring.profiles.active>prod</spring.profiles.active>
             </properties>
             <!-- Dependencies only for prod profile go in test-appl pom -->
+        </profile>
+        <!-- The neighbouring Spring Boot lines, each with the Hibernate its BOM manages. Run the library and the
+             integration tests with them - the demo is a JHipster 8.10 application on Spring Boot 3.4:
+             mvn verify -pl rsql-filter-integration-tests -am -Pboot-3.3   (and -Pboot-3.5) -->
+        <profile>
+            <id>boot-3.3</id>
+            <properties>
+                <spring-boot.version>3.3.5</spring-boot.version>
+                <hibernate.version>6.5.3.Final</hibernate.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>boot-3.5</id>
+            <properties>
+                <spring-boot.version>3.5.16</spring-boot.version>
+                <hibernate.version>6.6.53.Final</hibernate.version>
+            </properties>
         </profile>
     </profiles>
 

@@ -15,6 +15,8 @@ import com.nomendi6.rsql.it.domain.AppObject;
 import com.nomendi6.rsql.it.domain.Product;
 import com.nomendi6.rsql.it.domain.ProductType;
 import com.nomendi6.rsql.it.domain.StandardRecordStatus;
+import com.nomendi6.rsql.it.domain.compositekey.KeyedDocument;
+import com.nomendi6.rsql.it.domain.compositekey.PaymentTag;
 import com.nomendi6.rsql.it.repository.AppObjectRepository;
 import com.nomendi6.rsql.it.repository.ProductRepository;
 import com.nomendi6.rsql.it.repository.ProductTypeRepository;
@@ -537,6 +539,26 @@ public class PredicateToTextIT {
         String expected = "productType.code = productType.name";
         String actual = compileToPredicateForProduct(rsql);
         assertThat(actual).isEqualTo(expected);
+    }
+
+    private <E> String toText(Class<E> type, String rsql) {
+        RsqlContext<E> context = new RsqlContext<>(type).defineEntityManager(entityManager);
+        Predicate predicate = new RsqlCompiler<E>().compileToSpecification(rsql, context)
+            .toPredicate(context.root, context.criteriaQuery, context.criteriaBuilder);
+        return PredicateToText.convert(predicate);
+    }
+
+    /**
+     * The path is the attribute path, on every Hibernate: not cut out of Hibernate's identifier text, which carries
+     * the entity's name when it is not directly in a package called "domain", "{id}" for an identifier step, and
+     * join aliases from Hibernate 6.6 on.
+     */
+    @Test
+    void pathIsTheAttributePath() {
+        assertThat(toText(KeyedDocument.class, "title=='x'")).isEqualTo("title = 'x'");
+        assertThat(toText(KeyedDocument.class, "id.companyCode=='A'")).isEqualTo("id.companyCode = 'A'");
+        assertThat(toText(PaymentTag.class, "payment.reference=='P1'")).isEqualTo("payment.reference = 'P1'");
+        assertThat(compileToPredicateForProduct("parent.parent.code=='P1'")).isEqualTo("parent.parent.code = 'P1'");
     }
 
     @Test

@@ -48,7 +48,7 @@ implementation 'com.nomendi6:rsql-filter:0.6.25'
 ```
 
 ### Requirements
-- **0.6.x** — Java 17 or higher, Spring Boot 3.x, Hibernate 6.x
+- **0.6.x** — Java 17 or higher, Spring Boot 3.3 – 3.5, Hibernate 6.5 – 6.6 (see [Compatibility](#compatibility))
 - **0.7.x** — Java 21 or higher, Spring Boot 4.x, Hibernate 7.x
 
 **Note:** `rsql-filter-demo` ships only with the `0.6.x` line. It depends on JHipster 8 / Spring Boot 3 and is
@@ -546,7 +546,8 @@ two clauses — and by SELECT and HAVING as well — produces one join.
 
 #### Filtering on the id of a to-one association
 
-> **Since 0.6.22.** On this line the generated SQL does not change — see the note at the end of this section.
+> **Since 0.6.22.** On Hibernate 6.6 (Spring Boot 3.4 and 3.5) the shortcut removes a join from the SQL; on
+> Hibernate 6.5 (Spring Boot 3.3) the WHERE SQL does not change — see the note at the end of this section.
 
 `customer.id==5` names a value the queried table already stores, in its `customer_id` foreign key column. It is
 read from there rather than by joining `customer` to fetch it:
@@ -584,17 +585,21 @@ foreign key stays valid.
 `LEFT JOIN` it reads as `NULL`; read directly it is the stored value. That needs a schema without referential
 integrity. Turn the shortcut off there — see [Configuration](#foreign-key-id-resolution).
 
-> **What changes on the 0.6.x line.** In a WHERE clause, nothing in the SQL: Hibernate 6.5 already drops a
-> LEFT JOIN whose only use is the target's identifier, so `0.6.21` produced the statement above too. In a
+> **What changes on the 0.6.x line.** In a WHERE clause it depends on the Hibernate. From 6.6 on (Spring Boot 3.4
+> and 3.5) Hibernate keeps the explicit join, as on the 0.7.x line, and the shortcut is what removes it. Hibernate
+> 6.5 (Spring Boot 3.3) drops a LEFT JOIN whose only use is the target's identifier by itself, so there `0.6.21`
+> produced the statement above too. In a
 > **SELECT** clause it is a real change — selecting the joined table's key column counts as using the join,
 > so Hibernate kept it, and `SELECT name, productType.id` filtered by `productType.id` went from one join to
 > none. This release also makes the library ask for the resolution rather than rely on the provider to undo
 > an explicit join, and pins the mappings that must keep it.
 >
-> One difference from the 0.7.x line is worth knowing: because Hibernate 6.5 drops the join by itself, it
-> drops a **subtype restriction** with it. A selector on an association typed to one subtype of a hierarchy
-> matches on the foreign key alone here, in `0.6.21` as much as in `0.6.22`, whatever the setting is. The
-> 0.7.x line keeps the join and the restriction. `ForeignKeyIdShortcutInheritanceIT` records this.
+> One difference **on Hibernate 6.5** (Spring Boot 3.3) is worth knowing: because it drops the join by itself,
+> it drops the join's **restriction** with it. A selector on an association typed to one subtype of a hierarchy,
+> or to an entity under `@SQLRestriction` or `@SoftDelete`, matches on the foreign key alone there, whatever the
+> setting is, and finds rows the join would exclude. Hibernate 6.6 (Spring Boot 3.4 and 3.5) keeps the join and
+> the restriction, as the 0.7.x line does. `ForeignKeyIdShortcutInheritanceIT` and `ForeignKeyIdShortcutIT`
+> record both.
 
 ### List of Values (LOV) Queries
 For autocomplete/dropdown functionality. The row count comes from the `Pageable`, not from a separate limit
@@ -1110,11 +1115,21 @@ Access the application at http://localhost:8080
 | rsql-filter | Spring Boot | Hibernate | Java |
 |-------------|-------------|-----------|------|
 | 0.7.x       | 4.x         | 7.x       | 21+  |
-| 0.6.x       | 3.x         | 6.x       | 17+  |
+| 0.6.x       | 3.3 – 3.5   | 6.5 – 6.6 | 17+  |
 | 0.5.x       | 2.7.x       | 5.x       | 11+  |
 
 `0.7.x` and `0.6.x` are maintained in parallel and carry the same features; `rsql-filter-demo` ships only with
 `0.6.x`.
+
+The Hibernate an application runs is the one its Spring Boot line manages - 3.3 brings 6.5, 3.4 and 3.5 bring 6.6
+- not the one in rsql-filter's pom, which reaches only an application without a Spring Boot BOM. That holds when
+the BOM manages the versions: Maven's parent or imported BOM, Gradle's dependency-management plugin or
+`enforcedPlatform`. With Gradle's plain `platform()` the highest requested version wins, and rsql-filter's
+Spring Boot 3.4 starter lifts a 3.3 application to Hibernate 6.6 and Spring Data JPA 3.4. `0.6.x` is built
+and tested on Spring Boot 3.4.4 with Hibernate 6.6.11, and also on 3.3.5 / 6.5.3 and 3.5.16 / 6.6.53. Hibernate
+6.4 (Spring Boot 3.2) has not been tested; 6.2 (Spring Boot 3.1) does not work - the library calls an
+`EntityPersister` method 6.2 lacks. Hibernate 6.5 reads an identifier on a restricted target differently - see
+[Filtering on the id of a to-one association](#filtering-on-the-id-of-a-to-one-association).
 
 ## License
 

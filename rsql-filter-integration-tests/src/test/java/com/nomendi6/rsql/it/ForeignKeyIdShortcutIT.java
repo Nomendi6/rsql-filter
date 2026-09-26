@@ -2,6 +2,7 @@ package com.nomendi6.rsql.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.nomendi6.rsql.it.config.HibernateLine;
 import com.nomendi6.rsql.it.config.IntegrationTest;
 import com.nomendi6.rsql.it.config.SqlStatementCapture;
 import com.nomendi6.rsql.it.domain.Product;
@@ -29,16 +30,17 @@ import rsql.where.RsqlContext;
  * A selector ending in the identifier of a to-one association is resolved against the querying table's own
  * foreign key column rather than through a join.
  *
- * <p><strong>On this line the result is that nothing changes.</strong> Hibernate 6.5 already drops a LEFT JOIN
- * whose only use is the target's identifier, so {@code assoc.id==5} reached the foreign key column before this
- * change too. The tests therefore assert two things: that the generated SQL is <em>identical</em> whichever way
- * {@link RsqlContext#useForeignKeyIdShortcut} is set, and that the shape it has is the join-free one.</p>
+ * <p><strong>What the setting changes depends on the Hibernate.</strong> Hibernate 6.5 drops a LEFT JOIN whose
+ * only use is the target's identifier by itself, so there {@code assoc.id==5} reaches the foreign key column
+ * either way and the SQL is <em>identical</em> whichever way {@link RsqlContext#useForeignKeyIdShortcut} is set.
+ * From 6.6 on Hibernate honours the explicit join, as Hibernate 7 does, and the shortcut is what removes it. On
+ * both, the rows are the same either way and the shortcut never adds a join - see {@link HibernateLine}.</p>
  *
- * <p>Hibernate 7, on the 0.7.x line, honours an explicit {@code join()} literally and does emit the extra join,
- * which is where the change earns its keep. What is shared between the lines is the set of mappings the
- * shortcut must decline - a collection, the inverse side of a {@code OneToOne}, {@code @NotFound}, a composite
- * identifier - because taking it there would reach the identifier through an implicit, and therefore inner,
- * join. Those are pinned down here as well, since a guard that only works on one line is not a guard.</p>
+ * <p>What does not depend on the Hibernate is the set of mappings the shortcut must decline - a collection, the
+ * inverse side of a {@code OneToOne}, {@code @NotFound}, a composite identifier, a restricted target - because
+ * taking it there would reach the identifier through an implicit, and therefore inner, join, or lose the
+ * target's restriction. Those are pinned down here too, since a guard that only works on one line is not a
+ * guard.</p>
  */
 @IntegrationTest
 @TestPropertySource(
@@ -92,15 +94,20 @@ public class ForeignKeyIdShortcutIT {
     }
 
     /**
-     * Run a filter both ways and assert the two are indistinguishable - same SQL, same rows.
+     * Run a filter both ways and assert the rows are the same. On Hibernate 6.5, which drops an identifier-only
+     * join by itself, the SQL is identical too; from 6.6 on the shortcut may remove a join, but never adds one.
      *
-     * @return the run, so a test can go on to assert the shape of the SQL
+     * @return the run with the shortcut on, so a test can go on to assert the shape of the SQL
      */
     private Run bothWaysAgree(String filter) {
         Run on = run(filter, true);
         Run off = run(filter, false);
-        assertThat(on.sql()).as("SQL for %s", filter).isEqualTo(off.sql());
         assertThat(on.ids()).as("rows for %s", filter).isEqualTo(off.ids());
+        if (HibernateLine.dropsIdentifierOnlyJoins()) {
+            assertThat(on.sql()).as("SQL for %s", filter).isEqualTo(off.sql());
+        } else {
+            assertThat(on.joins()).as("joins for %s", filter).isLessThanOrEqualTo(off.joins());
+        }
         return on;
     }
 
@@ -225,9 +232,10 @@ public class ForeignKeyIdShortcutIT {
         Run on = runOnProduct("parent.parent.productType.id==1", true);
         Run off = runOnProduct("parent.parent.productType.id==1", false);
 
-        assertThat(on.sql()).isEqualTo(off.sql());
         assertThat(on.ids()).isEqualTo(off.ids());
         assertThat(on.joins()).isEqualTo(2);
+        // Hibernate 6.5 drops the third join by itself; 6.6 keeps it unless the shortcut removes it.
+        assertThat(off.joins()).isEqualTo(HibernateLine.dropsIdentifierOnlyJoins() ? 2 : 3);
     }
 
     // ------------------------------------------------------------------
@@ -279,6 +287,51 @@ public class ForeignKeyIdShortcutIT {
 
         assertThat(result.joins()).isOne();
         assertThat(result.sql()).containsIgnoringCase("left join");
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("a target under @SQLRestriction keeps its join, so the restriction applies from Hibernate 6.6 on")
+    void restrictedTargetKeepsItsJoin() {
+        Run on = run("restrictedTarget.id==11", true);
+        Run off = run("restrictedTarget.id==11", false);
+
+        // Root 200 points at target 11, which is archived. The library declines the shortcut either way, so the
+        // rows do not depend on the setting.
+        assertThat(on.ids()).isEqualTo(off.ids());
+        if (HibernateLine.dropsIdentifierOnlyJoins()) {
+            // Hibernate 6.5 drops the join by itself, and the restriction with it: the archived target matches.
+            assertThat(on.ids()).containsExactly(200L);
+            assertThat(on.sql()).doesNotContain("archived");
+        } else {
+            assertThat(on.sql()).contains("archived = false");
+            assertThat(on.ids()).isEmpty();
+        }
+        assertThat(run("restrictedTarget.id==10", true).ids()).containsExactly(100L);
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("a soft-deleted target keeps its join, so it stops matching from Hibernate 6.6 on")
+    void softDeletedTargetKeepsItsJoin() {
+        ShortcutSoftDeleteTarget live = entityManager.merge(new ShortcutSoftDeleteTarget(20L, "live"));
+        ShortcutSoftDeleteTarget deleted = entityManager.merge(new ShortcutSoftDeleteTarget(21L, "deleted"));
+        ShortcutRoot first = entityManager.find(ShortcutRoot.class, 100L);
+        ShortcutRoot second = entityManager.find(ShortcutRoot.class, 200L);
+        first.setSoftDeleteTarget(live);
+        second.setSoftDeleteTarget(deleted);
+        entityManager.flush();
+        entityManager.clear();
+        // Deleted the way @SoftDelete deletes: the row stays, marked, and the foreign key still names it.
+        entityManager.createNativeQuery("update shortcut_soft_delete_target set deleted = true where id = 21").executeUpdate();
+
+        Run on = run("softDeleteTarget.id==21", true);
+        Run off = run("softDeleteTarget.id==21", false);
+
+        assertThat(on.ids()).isEqualTo(off.ids());
+        // Root 200 still holds 21 in its foreign key; the target is deleted, and only the join can say so.
+        assertThat(on.ids()).isEqualTo(HibernateLine.dropsIdentifierOnlyJoins() ? List.of(200L) : List.of());
+        assertThat(run("softDeleteTarget.id==20", true).ids()).containsExactly(100L);
     }
 
     @Test

@@ -33,6 +33,14 @@ mvn clean install -pl rsql-filter-demo
 # (`npm run webapp:prod`). Check with: mvn help:active-profiles -pl rsql-filter-demo
 mvn clean install -Pdev
 mvn clean install -Pprod
+
+# The neighbouring Spring Boot lines, each with the Hibernate its BOM manages: boot-3.3 = Spring Boot 3.3.5 /
+# Hibernate 6.5.3, boot-3.5 = 3.5.16 / 6.6.53 (the default is 3.4.4 / 6.6.11). Library and integration tests only -
+# the demo is a JHipster 8.10 application on Spring Boot 3.4. Tests that need Hibernate 6.6 live in packages named
+# hibernate66, which boot-3.3 does not compile; where 6.5 and 6.6 build different SQL or rows the tests ask
+# com.nomendi6.rsql.it.config.HibernateLine, holding the 6.6 behaviour as the right one.
+mvn verify -pl rsql-filter-integration-tests -am -Pboot-3.3
+mvn verify -pl rsql-filter-integration-tests -am -Pboot-3.5
 ```
 
 ### Testing Commands
@@ -191,14 +199,16 @@ its root `a0` (the default), or the alias must be declared with setSelectAlias()
 - **MapStruct 1.6.3** - DTO mapping
 - **JHipster 8.10.0** - Demo application framework (`rsql-filter-demo/.yo-rc.json` and the demo POM's
   `jhipster-framework.version`). The root POM's `jhipster-dependencies.version` is 8.0.0, but that is the
-  BOM artifact, not the generator version
+  BOM artifact, not the generator version - and only the demo imports it. The parent imports
+  `spring-boot-dependencies` (since 0.6.25; the JHipster BOM there used to pull the library itself back to Spring
+  Boot 3.1.5)
 - **Angular 19** - Frontend framework for the demo application
 
 ### Two Release Lines
 
 The project maintains two lines in parallel, and the platform versions differ between them:
 
-- **release-3** - the 0.6.x line, currently 0.6.25: Java 17, Spring Boot 3.4.4, Hibernate 6.5.3
+- **release-3** - the 0.6.x line, currently 0.6.25: Java 17, Spring Boot 3.4.4, Hibernate 6.6.11 (also tested on 6.5.3 and 6.6.53)
 - **master** - the 0.7.x line, currently 0.7.10: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
 This branch is cut from `release-3`, so the 0.6.x numbers are the ones that apply here, and a version note in

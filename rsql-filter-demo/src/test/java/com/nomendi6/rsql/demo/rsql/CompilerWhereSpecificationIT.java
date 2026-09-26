@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import rsql.RsqlCompiler;
 import rsql.exceptions.SyntaxErrorException;
+import rsql.where.RsqlWhereHelper;
 import rsql.where.RsqlContext;
 import com.nomendi6.rsql.demo.IntegrationTest;
 import com.nomendi6.rsql.demo.domain.AppObject;
@@ -642,21 +643,9 @@ public class CompilerWhereSpecificationIT {
         assertThat(sqmOperator).isEqualTo(expectedCondition.operator);
     }
 
+    /** The attribute path the library itself reads, so the test does not parse Hibernate's identifier text. */
     private String getFullPath(NavigablePath navigablePath) {
-        String rootPath = getRootPath(navigablePath);
-        // uzmi duljinu rootPath
-        int rootPathLength = rootPath.length();
-        // NavigablePath.getIdentifierForTableGroup().toString() uzmi nakon rootPathLength
-        String fullPath = navigablePath.getIdentifierForTableGroup().toString().substring(rootPathLength+1);
-        return fullPath;
-    }
-
-    private String getRootPath(NavigablePath navigablePath) {
-        if (navigablePath.getParent() == null) {
-            return navigablePath.getIdentifierForTableGroup().toString();
-        } else {
-            return getRootPath(navigablePath.getParent());
-        }
+        return RsqlWhereHelper.attributePath(navigablePath);
     }
 
     @Test

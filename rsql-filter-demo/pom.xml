@@ -856,6 +856,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- The JHipster BOM, for what Spring Boot does not manage. It is imported after Spring Boot's so that it
+                 cannot pull Spring back to the 3.1 line it was built on, and only here: the library does not need it. -->
+            <dependency>
+                <groupId>tech.jhipster</groupId>
+                <artifactId>jhipster-dependencies</artifactId>
+                <version>${jhipster-dependencies.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

@@ -41,7 +41,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the same way as the Specification path. A path through an entity with an `@IdClass` or a derived identity,
   whose identifier step has no attribute at all, failed the same way and is now written without it.
 
+- **`PredicateToText` builds on Hibernate 6.6.** It implemented Hibernate's `SemanticQueryWalker` directly. 6.6
+  added three visit methods to that interface whose parameter types do not exist in 6.5 - `visitAsWrapperExpression`,
+  `visitFunctionPath`, `visitEmbeddableTypeLiteralExpression` - and changed the parameter of `visitDiscriminatorPath`,
+  so the class compiled against one of the two only, and on 6.6 a caller using it as a walker on a `.as()` or
+  `type()` expression got an `AbstractMethodError` (`convert(...)` never reached those methods). It extends
+  `BaseSemanticQueryWalker` now, which implements whatever its Hibernate declares, and compiles to the same bytecode
+  against 6.5.3, 6.6.11 and 6.6.53. `.as()` and `type()` still cannot be converted to text.
+- **`PredicateToText` writes the attribute path.** The path in the text was cut out of Hibernate's identifier, so
+  it carried whatever Hibernate writes there: the join alias from 6.6 on (`productType(1959).code`), and on every
+  version the entity's name for an entity not directly in a package called `domain` (`KeyedDocument.title`), `{id}`
+  for an identifier step and a garbled `treat` path. It is built from the path's steps now,
+  `RsqlWhereHelper.attributePath`, which `WhereTextVisitor` uses too: `productType.code`, `title`, `id.companyCode`.
+
 ### Changed
+- **Built and tested against Spring Boot 3.4.4 and Hibernate 6.6.11**, the pair a Spring Boot 3.4 application runs.
+  The parent imported the JHipster 8.0.0 BOM, which brought Spring Boot 3.1.5, Spring Data JPA 3.1.5 and Spring 6.0
+  for everything not pinned, so the library was compiled and tested against a combination no application uses,
+  whatever `spring-boot.version` said; and it pinned Hibernate 6.5.3, which Spring Boot 3.4 and 3.5 replace with
+  6.6. The parent imports `spring-boot-dependencies` now, and the JHipster BOM is the demo's alone. An application
+  whose Spring Boot BOM manages its versions - Maven's parent or imported BOM, Gradle's dependency-management
+  plugin or `enforcedPlatform` - gets the Hibernate of its Spring Boot line either way; the pom's
+  `hibernate.version` (now 6.6.11.Final) reaches only one without. Gradle's plain `platform()` lets the highest
+  requested version win, so there the library lifts a Spring Boot 3.3 application to Hibernate 6.6 and Spring Data
+  JPA 3.4, as 0.6.24 already did. `-Pboot-3.3` and `-Pboot-3.5` run the build on the neighbouring lines, Hibernate
+  6.5.3 and 6.6.53.
+- **Hibernate 6.5 behaves differently for an identifier on a restricted target, and 6.6 is right.** Hibernate 6.5
+  drops a LEFT JOIN whose only use is the target's identifier, even one the library asks for, and with it the
+  restriction the join carries: `x.id==` on a target that is one subtype of a hierarchy, is under
+  `@SQLRestriction`, or is soft-deleted matches on the foreign key alone and finds rows the join would exclude.
+  From 6.6 on Hibernate keeps the join, as Hibernate 7 does, and those rows go. The library's decision is the same
+  on both; an application moving from Spring Boot 3.3 to 3.4 can see those rows change. The tests hold the 6.6
+  rows as the right ones and pin the 6.5 rows as known behaviour.
 - `=gt=`, `=ge=`, `=lt=`, `=le=`, `=bt=` and `=nbt=` over an embeddable are a `SyntaxErrorException` with a
   parameter or another field on the other side as well, not only with a string. On the Specification path they
   used to run as a row-value comparison, over the columns in the alphabetical order of the attribute names -

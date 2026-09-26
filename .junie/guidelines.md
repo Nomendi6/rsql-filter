@@ -46,7 +46,7 @@ The platform versions are declared in the `<properties>` block of the root `pom.
 
 - `java.version` 17
 - `spring-boot.version` 3.4.4
-- `hibernate.version` 6.5.3.Final
+- `hibernate.version` 6.6.11.Final (the profiles `boot-3.3` and `boot-3.5` switch it, with `spring-boot.version`, to 6.5.3 and 6.6.53)
 - `mapstruct.version` 1.6.3
 - `antlr4.version` 4.13.2
 
@@ -57,7 +57,7 @@ ones.
 
 The project is maintained as two parallel lines, so check which one you are on before quoting a version:
 
-- **release-3** - the 0.6.x line, currently 0.6.25, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3.
+- **release-3** - the 0.6.x line, currently 0.6.25, Java 17, Spring Boot 3.4.4, Hibernate 6.6.11.
   `rsql-filter-demo` ships only on this line.
 - **master** - the 0.7.x line, currently 0.7.10, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4.
 
@@ -71,9 +71,9 @@ The demo application is configured in `rsql-filter-demo/pom.xml` and `src/main/r
 ### Test Structure
 
 - **rsql-filter/src/test/java/rsql/** - library unit tests, grouped as `app`, `describe`, `having`, `select`,
-  `where` (263 tests)
+  `where` (291 tests)
 - **rsql-filter-integration-tests/src/test/java/com/nomendi6/rsql/it/** - integration tests against H2
-  (563 tests). Surefire is configured to include `**/*IT.java`, so these run in the `test` phase - do not reach
+  (683 tests; 681 with `-Pboot-3.3`). Surefire is configured to include `**/*IT.java`, so these run in the `test` phase - do not reach
   for `verify`.
 - **rsql-filter-demo/src/test/java/com/nomendi6/rsql/demo/** - demo application tests, with sub-packages
   config, domain, management, repository, rsql, security, service, web
