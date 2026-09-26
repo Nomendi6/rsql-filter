@@ -31,20 +31,20 @@ For detailed API documentation, see [API.md](API.md).
 ## Installation
 
 The library is maintained in two parallel lines with the same feature set. Pick the one that matches your
-platform: **0.7.9** for Spring Boot 4, **0.6.24** for Spring Boot 3. The snippets below use `0.7.9`.
+platform: **0.7.10** for Spring Boot 4, **0.6.25** for Spring Boot 3. The snippets below use `0.7.10`.
 
 ### Maven
 ```xml
 <dependency>
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
-    <version>0.7.9</version>
+    <version>0.7.10</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter:0.7.9'
+implementation 'com.nomendi6:rsql-filter:0.7.10'
 ```
 
 ### Requirements
@@ -304,6 +304,59 @@ provider through the JVM's zone — use a datetime literal with a zone there.
 None of this depends on `hibernate.jdbc.time_zone`, on `hibernate.timezone.default_storage` or on the zone the
 JVM runs in, and it applies alike to `==`, `!=`, `=lt=`, `=le=`, `=gt=`, `=ge=`, `=bt=`, `=nbt=`, `=in=`,
 `=nin=`, to HAVING, and to the JPQL-text path.
+
+#### Composite keys and other embeddables
+
+> **Since 0.7.10 / 0.6.25.** Earlier versions failed with Hibernate's `Cannot compare left expression of type
+> 'DocumentId' with right expression of type 'java.lang.String'`.
+
+An `@EmbeddedId` - or any other embeddable attribute - can be compared with **one string literal**. The library
+turns the literal into a value through the embeddable class's own `public static T valueOf(String)` and compares
+the whole value, so the textual form of a key belongs to the key class and the library knows nothing about it:
+
+```java
+@Embeddable
+public class DocumentId implements Serializable {
+    private String companyCode;
+    private Integer docYear;
+    private Long docNo;
+
+    /** Reads "ACME~2024~17", the form the client got the key in. */
+    public static DocumentId valueOf(String key) { ... }
+}
+```
+
+```
+id=='ACME~2024~17'                      -- (company_code,doc_no,doc_year)=(?,?,?)
+id!='ACME~2024~17'
+id=in=('ACME~2024~17','BETA~2024~3')    -- (company_code,doc_no,doc_year) in ((?,?,?),(?,?,?))
+id=nin=('ACME~2024~17')
+document.id=='ACME~2024~17'             -- a to-one association to an entity with a composite key
+id.docYear==2024                        -- one part of the key: an ordinary comparison, as before
+```
+
+| | |
+| --- | --- |
+| Operators | `==`, `!=`, `=in=` and `=nin=`. A key has no order and is not text, so the LIKE family is a `SyntaxErrorException: Unknown operator for DocumentId: =like=`, and so are `=gt=`, `=ge=`, `=lt=`, `=le=`, `=bt=` and `=nbt=` whatever the other side is - a string, a parameter or another field. Hibernate would run those as a row-value comparison over the key's columns in the alphabetical order of the attribute names, which is no order of the key. The operator is checked before the literal is converted, so a wrong operator is not reported as a wrong key |
+| The class | Declares a `public static` `valueOf(String)` that returns the class or a subclass, and is itself public - in a named module, open to the library. Otherwise `SyntaxErrorException: Cannot compare com.example.DocumentId with a string: it has no public static valueOf(String)` |
+| A literal `valueOf` refuses | An exception thrown by it, or a `null` it returns, is a `SyntaxErrorException: Invalid value for DocumentId: ACME~2024 (Expected 3 key parts, got 2: ACME~2024)`, with the original exception as the cause. An `Error` is rethrown as it is |
+| Which attributes | Every attribute the JPA metamodel maps as an embeddable - by annotation or in XML: an `@EmbeddedId`, an embeddable nested in one, an ordinary `@Embedded` value, and one declared as a type variable of a generic `@MappedSuperclass` (`@EmbeddedId K id`), where the entity's concrete class is used. `valueOf` is looked up once per class |
+| Where | Both WHERE paths: the Specification path and the JPQL-text path of a service built with its own JPQL |
+| Missing values | `!=` and `=nin=` do not match a row whose value is missing - a payment without a document, a document without the embedded value - like `!=` over any missing association |
+| `=nin=` | Written as one `<>` per element joined with `and`, not as a row-value `not in`: Hibernate 6 emulates `not in` on SQL Server and DB2 in a way that excludes nothing, and H2 reads a row-value `not in` of several elements as unknown when one component is NULL. The conjunction means the same everywhere |
+
+Only a string literal is converted. A parameter, `id==:key`, is typed as the attribute, so the caller binds a
+`DocumentId` to it; another field, `id==otherId`, is compared as it is. `@IdClass` has no single attribute to
+compare and is not covered - compare its parts. `document.id` keeps its join, because the
+[foreign key shortcut](#filtering-on-the-id-of-a-to-one-association) needs a one-column identifier.
+
+On the JPQL-text path a condition on one **part** of an `@EmbeddedId` - `id.docYear==2024` - failed before
+0.7.10 / 0.6.25 as well: the path was written with Hibernate's internal name for the step, `a0.{id}.docYear`. A
+path through an entity with an `@IdClass` or a derived identity failed the same way and works too.
+
+The repository's identifier type is free: a `RsqlQueryService<Document, DocumentDTO, DocumentRepository,
+DocumentMapper>` compiles for a `DocumentRepository extends JpaRepository<Document, DocumentId>`. Before 0.7.10 /
+0.6.25 the identifier had to be a `Long`, so a service over a composite key could only be a raw type.
 
 ### Example REST controller
 
@@ -850,6 +903,9 @@ These are the message shapes you will actually see:
 | `Unknown field: 'xyz' in path 'a.b' for entity …` | an unknown field on the aggregate, expression or `compileSelectTo*` SELECT paths |
 | `Syntax error in HAVING clause at position 5: no viable alternative at input 'count='` | the HAVING parser |
 | `Arithmetic expressions with operators are not supported in this query type. …` | `+ - * /` in a `getAggregateResult` / `getAggregateResultAsPage` select |
+| `Invalid value for DocumentId: ACME~2024 (…)` | a string literal the embeddable's `valueOf(String)` refused - see [Composite keys](#composite-keys-and-other-embeddables) |
+| `Unknown operator for DocumentId: =gt=` | an operator other than `==`, `!=`, `=in=`, `=nin=` between an embeddable and a string literal |
+| `Cannot compare com.example.DocumentId with a string: it has no public static valueOf(String)` | a string literal against an embeddable that cannot read one |
 
 Three cases are **not** a `SyntaxErrorException`, and an exception handler that catches only that type will
 let them through as HTTP 500:
@@ -1014,6 +1070,11 @@ library is 0.7.9 / 0.6.24 or later.
 
 **Q: How to filter by enum?**  
 A: Use # delimiters: `status==#ACTIVE#` or `status=in=(#ACTIVE#,#PENDING#)`
+
+**Q: "Cannot compare left expression of type 'DocumentId' with right expression of type 'java.lang.String'"?**  
+A: A string compared with a composite key or another embeddable. From 0.7.10 / 0.6.25 it works when the
+embeddable declares `public static DocumentId valueOf(String)` - see
+[Composite keys and other embeddables](#composite-keys-and-other-embeddables).
 
 **Q: Getting SQL syntax errors?**  
 A: Check that field names match your entity properties exactly (case-sensitive)

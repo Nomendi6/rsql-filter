@@ -50,7 +50,7 @@ import static rsql.helper.SimpleQueryExecutor.getAggregateQueryResultAsPageWithS
 public class RsqlQueryService<
     ENTITY,
     ENTITY_DTO,
-    REPOS extends JpaRepository<ENTITY, Long> & JpaSpecificationExecutor<ENTITY>,
+    REPOS extends JpaRepository<ENTITY, ?> & JpaSpecificationExecutor<ENTITY>,
     MAPPER extends EntityMapper<ENTITY_DTO, ENTITY>
 > {
 
