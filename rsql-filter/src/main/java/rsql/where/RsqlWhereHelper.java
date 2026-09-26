@@ -18,6 +18,8 @@ import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.metamodel.mapping.internal.ToOneAttributeMapping;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.query.sqm.tree.domain.SqmPath;
+import org.hibernate.spi.EntityIdentifierNavigablePath;
+import org.hibernate.spi.NavigablePath;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
@@ -28,6 +30,9 @@ import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -235,8 +240,9 @@ public class RsqlWhereHelper {
     /**
      * Whether the entity declares a {@code @Filter} with {@code applyToLoadByKey = true}.
      *
-     * <p>Called reflectively because the method arrived after the 6.x line: there, filters are not applied to
-     * a to-one join at all, so its absence means there is no such restriction to lose.</p>
+     * <p>Called reflectively because the method arrived in Hibernate 6.6. Hibernate 6.5 has neither it nor
+     * {@code applyToLoadByKey}, and applies no filter to a to-one join at all, so its absence means there is no
+     * such restriction to lose.</p>
      */
     private static boolean hasLoadByKeyFilter(EntityPersister persister) {
         java.lang.reflect.Method method = LOAD_BY_KEY_FILTER_CHECK;
@@ -603,6 +609,53 @@ public class RsqlWhereHelper {
      */
     static SyntaxErrorException unknownOperatorForEmbeddable(Path<?> pathField, String operator) {
         return new SyntaxErrorException("Unknown operator for " + embeddableJavaType(pathField).getSimpleName() + ": " + operator);
+    }
+
+    /**
+     * The attribute path a Hibernate navigable path stands for - {@code productType.code} - without the root
+     * entity and without the aliases Hibernate writes into the path's identifier from 6.6 on
+     * ({@code Product(12).productType(13).code}).
+     *
+     * <p>It walks the path's steps instead of parsing the identifier's text, so it depends neither on how a
+     * Hibernate version renders that text nor on the package the entity lives in. An {@code @EmbeddedId} step is
+     * named by its attribute; a virtual identifier - {@code @IdClass}, a derived identity - has no attribute and
+     * is left out, so a path through it reads {@code parent.name}, not {@code {id}.parent.name}.</p>
+     *
+     * @param navigablePath Hibernate's navigable path of a criteria path.
+     * @return the dot-separated attribute path, or "" for the root itself
+     */
+    public static String attributePath(NavigablePath navigablePath) {
+        List<String> pathParts = new ArrayList<>();
+        for (NavigablePath current = navigablePath; current != null; current = current.getParent()) {
+            String simpleName = current instanceof EntityIdentifierNavigablePath identifier
+                ? identifier.getIdentifierAttributeName()
+                : simplePropertyName(current.getLocalName());
+            if (simpleName != null) {
+                pathParts.add(simpleName);
+            }
+        }
+        // property -> ... -> root: drop the root and reverse
+        if (pathParts.size() <= 1) {
+            return "";
+        }
+        List<String> attributes = new ArrayList<>(pathParts.subList(0, pathParts.size() - 1));
+        Collections.reverse(attributes);
+        return String.join(".", attributes);
+    }
+
+    /**
+     * The property name at the end of a local name that may be qualified -
+     * {@code com.example.domain.AppObject(1).validFrom} is {@code validFrom}.
+     */
+    private static String simplePropertyName(String localName) {
+        if (localName == null || localName.isEmpty()) {
+            return localName;
+        }
+        int lastDelimiter = Math.max(localName.lastIndexOf('.'), localName.lastIndexOf(')'));
+        if (lastDelimiter >= 0 && lastDelimiter < localName.length() - 1) {
+            return localName.substring(lastDelimiter + 1);
+        }
+        return localName;
     }
 
     public static <E extends Enum<E>> E getEnum(String text, Class<E> klass) {

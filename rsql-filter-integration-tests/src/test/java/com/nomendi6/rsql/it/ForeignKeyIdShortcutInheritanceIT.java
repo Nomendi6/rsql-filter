@@ -2,6 +2,7 @@ package com.nomendi6.rsql.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.nomendi6.rsql.it.config.HibernateLine;
 import com.nomendi6.rsql.it.config.IntegrationTest;
 import com.nomendi6.rsql.it.config.SqlStatementCapture;
 import com.nomendi6.rsql.it.domain.idshortcut.ShortcutCat;
@@ -28,14 +29,12 @@ import rsql.where.RsqlContext;
  * selects the subtype. The foreign key column carries no such restriction - it is constrained only to the
  * hierarchy's shared table - so reading the identifier there matches rows the join would exclude.</p>
  *
- * <p><strong>On this line Hibernate does that by itself, and has always done so.</strong> Hibernate 6.5 drops
- * a LEFT JOIN whose only use is the target's identifier even when the library asks for one explicitly, and
- * the subtype restriction goes with it. So {@code catTarget.id==<a dog>} matches here, in 0.6.21 as much as in
- * 0.6.22, whatever {@link RsqlContext#useForeignKeyIdShortcut} is set to. These tests pin that down as the
- * known difference between the lines rather than leave it to be discovered.</p>
- *
- * <p>The 0.7.x line does not behave this way: Hibernate 7 honours the explicit join, and the library declines
- * the shortcut for a subtype target, so the restriction survives there.</p>
+ * <p>The library declines the shortcut for a subtype target, so the setting never changes these rows. What
+ * Hibernate does with the join does. <strong>Hibernate 6.5 drops it by itself</strong> - a LEFT JOIN whose only
+ * use is the target's identifier, even one the library asks for explicitly - and the subtype restriction goes
+ * with it, so {@code catTarget.id==<a dog>} matches there. From 6.6 on Hibernate keeps the join, as Hibernate 7
+ * does, and the restriction survives. The tests hold the 6.6 rows as the right ones and pin the 6.5 rows as the
+ * known Hibernate 6.5 behaviour - see {@link HibernateLine}.</p>
  */
 @IntegrationTest
 @TestPropertySource(
@@ -91,69 +90,73 @@ public class ForeignKeyIdShortcutInheritanceIT {
     }
 
     /**
-     * Run a filter both ways and assert the setting changed nothing about it - which is what this release
-     * guarantees on this line.
-     *
-     * @return the SQL, so a test can go on to state the shape Hibernate chose
+     * Run a filter both ways, assert the setting changed nothing about it, and assert the rows the Hibernate at
+     * hand gives: {@code before66} on Hibernate 6.5, which drops the join and the subtype restriction with it,
+     * {@code from66} from 6.6 on, which keeps both.
      */
-    private String unchangedBySetting(String filter, Long... expected) {
+    private void unchangedBySetting(String filter, List<Long> before66, List<Long> from66) {
         List<Long> on = ids(filter, true);
         String onSql = SqlStatementCapture.firstStatement();
         List<Long> off = ids(filter, false);
         String offSql = SqlStatementCapture.firstStatement();
 
-        assertThat(on).as("rows for %s", filter).isEqualTo(off).containsExactly(expected);
+        assertThat(on).as("rows for %s", filter).isEqualTo(off);
         assertThat(onSql).as("SQL for %s", filter).isEqualTo(offSql);
-        return onSql;
+        if (HibernateLine.dropsIdentifierOnlyJoins()) {
+            assertThat(on).as("rows for %s on Hibernate 6.5", filter).isEqualTo(before66);
+        } else {
+            assertThat(on).as("rows for %s", filter).isEqualTo(from66);
+            assertThat(SqlStatementCapture.countJoins(onSql)).as("the join is kept for %s", filter).isOne();
+            assertThat(onSql).as("the subtype restriction survives for %s", filter).contains("kind=");
+        }
     }
 
     @Test
     @Transactional
-    @DisplayName("Hibernate drops the join and the subtype restriction with it, whatever the setting")
-    void hibernateDropsTheSubtypeRestrictionOnThisLine() {
-        // The row pointing at the dog matches a filter on a Cat-typed association, because no join is left to
-        // carry kind='CAT'. This is Hibernate's own optimisation, not the library's shortcut: it happens with
-        // the setting off, which is the code path 0.6.21 took.
-        String sql = unchangedBySetting("catTarget.id==" + DOG_ID, POINTS_AT_DOG);
-
-        assertThat(SqlStatementCapture.countJoins(sql)).isZero();
-        assertThat(sql).contains("sr1_0.cat_target_id=?").doesNotContain("kind=");
+    @DisplayName("a foreign key holding the identifier of another subtype does not match from Hibernate 6.6 on")
+    void wrongSubtype() {
+        // Without the join this reads cat_target_id=900 and finds the row pointing at the dog, which is what
+        // Hibernate 6.5 does whatever the setting.
+        unchangedBySetting("catTarget.id==" + DOG_ID, List.of(POINTS_AT_DOG), List.of());
     }
 
     @Test
     @Transactional
-    @DisplayName("the right subtype matches, as it always did")
+    @DisplayName("the right subtype matches on every Hibernate")
     void rightSubtypeStillMatches() {
-        unchangedBySetting("catTarget.id==" + CAT_ID, POINTS_AT_CAT);
+        unchangedBySetting("catTarget.id==" + CAT_ID, List.of(POINTS_AT_CAT), List.of(POINTS_AT_CAT));
     }
 
     @Test
     @Transactional
-    @DisplayName("a negated comparison behaves the same either way")
-    void negatedComparisonIsUnchanged() {
-        unchangedBySetting("catTarget.id!=" + CAT_ID, POINTS_AT_DOG);
+    @DisplayName("a negated comparison is not widened from Hibernate 6.6 on")
+    void negatedComparison() {
+        unchangedBySetting("catTarget.id!=" + CAT_ID, List.of(POINTS_AT_DOG), List.of());
     }
 
     @Test
     @Transactional
-    @DisplayName("an =in= list spanning two subtypes behaves the same either way")
-    void inListSpanningSubtypesIsUnchanged() {
-        unchangedBySetting("catTarget.id=in=(" + DOG_ID + "," + CAT_ID + ")", POINTS_AT_CAT, POINTS_AT_DOG);
+    @DisplayName("an =in= list spanning two subtypes selects only the right one from Hibernate 6.6 on")
+    void inListSpanningSubtypes() {
+        unchangedBySetting("catTarget.id=in=(" + DOG_ID + "," + CAT_ID + ")", List.of(POINTS_AT_CAT, POINTS_AT_DOG), List.of(POINTS_AT_CAT));
     }
 
     @Test
     @Transactional
-    @DisplayName("==null reads the foreign key column, so a wrong-subtype reference is not null")
-    void isNullReadsTheForeignKey() {
-        unchangedBySetting("catTarget.id==null");
+    @DisplayName("==null means 'no target of this subtype' from Hibernate 6.6 on, 'no foreign key' on 6.5")
+    void isNull() {
+        // The row pointing at the dog has a foreign key, but no ShortcutCat.
+        unchangedBySetting("catTarget.id==null", List.of(), List.of(POINTS_AT_DOG));
     }
 
     @Test
     @Transactional
-    @DisplayName("a non-identifier selector keeps its join, and with it the subtype restriction")
+    @DisplayName("a non-identifier selector keeps its join, and with it the subtype restriction, on every Hibernate")
     void nonIdentifierSelectorKeepsTheRestriction() {
-        String sql = unchangedBySetting("catTarget.name=='dog'");
+        List<Long> on = ids("catTarget.name=='dog'", true);
+        String sql = SqlStatementCapture.firstStatement();
 
+        assertThat(on).isEqualTo(ids("catTarget.name=='dog'", false)).isEmpty();
         assertThat(SqlStatementCapture.countJoins(sql)).isOne();
         assertThat(sql).contains("kind=");
     }

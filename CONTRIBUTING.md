@@ -113,10 +113,10 @@ the purge step exists.
 # Run all tests
 mvn test
 
-# Run the core library tests only (263 tests)
+# Run the core library tests only (291 tests)
 mvn test -pl rsql-filter
 
-# Run integration tests only (563 tests against in-memory H2)
+# Run integration tests only (683 tests against in-memory H2; 681 with -Pboot-3.3, which leaves out the hibernate66 package)
 mvn test -pl rsql-filter-integration-tests
 
 # Run tests with coverage. jacoco is declared only in <pluginManagement> of the parent
@@ -172,8 +172,8 @@ Fixes #123
 Two release lines are maintained in parallel, and neither is an ancestor of the other. They diverged at
 `1b0a02f`, the 0.6.16 release merge, and have been developed side by side since:
 
-* `master` carries the **0.7.x** line - currently 0.7.6, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4. The `rsql-filter-demo` module is commented out of the reactor there.
-* `release-3` carries the **0.6.x** line - currently 0.6.21, Java 17, Spring Boot 3.4.4, Hibernate 6.5.3. This is the line that still ships the demo application.
+* `master` carries the **0.7.x** line - currently 0.7.10, Java 21, Spring Boot 4.0.3, Hibernate 7.2.4. The `rsql-filter-demo` module is commented out of the reactor there.
+* `release-3` carries the **0.6.x** line - currently 0.6.25, Java 17, Spring Boot 3.4.4, Hibernate 6.6.11 (also tested on 6.5.3 and 6.6.53 with `-Pboot-3.3` / `-Pboot-3.5`). This is the line that still ships the demo application.
 * `develop` is legacy. Its tip is a 0.7.5-era commit that `master` already contains, it holds none of the 0.6.x work, and nothing merges into it any more. Do not branch from it.
 
 Check for yourself which line a release belongs to:
