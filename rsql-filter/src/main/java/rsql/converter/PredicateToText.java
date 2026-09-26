@@ -3,7 +3,7 @@ package rsql.converter;
 import jakarta.persistence.criteria.Predicate;
 import org.hibernate.metamodel.model.domain.internal.AnyDiscriminatorSqmPath;
 import org.hibernate.query.sqm.DiscriminatorSqmPath;
-import org.hibernate.query.sqm.SemanticQueryWalker;
+import org.hibernate.query.sqm.spi.BaseSemanticQueryWalker;
 import org.hibernate.query.sqm.function.SelfRenderingSqmFunction;
 import org.hibernate.query.sqm.tree.SqmTypedNode;
 import org.hibernate.query.sqm.tree.cte.SqmCteContainer;
@@ -21,7 +21,7 @@ import org.hibernate.query.sqm.tree.select.*;
 import org.hibernate.query.sqm.tree.update.SqmAssignment;
 import org.hibernate.query.sqm.tree.update.SqmSetClause;
 import org.hibernate.query.sqm.tree.update.SqmUpdateStatement;
-import rsql.helper.RsqlHelper;
+import rsql.where.RsqlWhereHelper;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,10 +30,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * This class implements the SemanticQueryWalker interface and provides methods to convert
- * SqmSelectStatement and Predicate objects to their string representations.
+ * Converts SqmSelectStatement and Predicate objects to their string representations.
+ *
+ * <p>It is a {@code SemanticQueryWalker}, but by extending Hibernate's {@link BaseSemanticQueryWalker} rather than
+ * implementing the interface. A Hibernate release that adds an abstract visit method to the interface - 6.6 did, on
+ * the 0.6.x line - leaves a class implementing it directly incomplete on that release, so a walk that reaches the new
+ * method throws {@code AbstractMethodError}. The base class implements whatever its version declares.</p>
  */
-public class PredicateToText implements SemanticQueryWalker<Object> {
+public class PredicateToText extends BaseSemanticQueryWalker {
 
     /**
      * Converts a SqmSelectStatement object to its string representation.
@@ -517,9 +521,6 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
         return leftHandSide + " " + operator + " " + rightHandSide;
     }
 
-    private String getFieldWithPath(String wholePath) {
-        return RsqlHelper.normalizeHibernatePathIdentifier(wholePath);
-    }
 
     private String convertOperatorName(String name) {
         // Convert operator name to SQL equivalent
@@ -603,8 +604,7 @@ public class PredicateToText implements SemanticQueryWalker<Object> {
             return convertValueToString(value);
         } else if (expression instanceof SqmBasicValuedSimplePath<?>) {
             SqmBasicValuedSimplePath<?> rightPath = (SqmBasicValuedSimplePath<?>) expression;
-            String wholePath = rightPath.getNavigablePath().getIdentifierForTableGroup();
-            return getFieldWithPath(wholePath);
+            return RsqlWhereHelper.attributePath(rightPath.getNavigablePath());
 
         } else if (expression instanceof SelfRenderingSqmFunction<?>) {
             SelfRenderingSqmFunction<?> functionDef = (SelfRenderingSqmFunction<?>) expression;

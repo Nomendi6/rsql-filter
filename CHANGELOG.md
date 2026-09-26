@@ -41,6 +41,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the same way as the Specification path. A path through an entity with an `@IdClass` or a derived identity,
   whose identifier step has no attribute at all, failed the same way and is now written without it.
 
+- **`PredicateToText` extends `BaseSemanticQueryWalker`** instead of implementing Hibernate's `SemanticQueryWalker`
+  directly. A Hibernate release that adds an abstract visit method to that interface leaves a class implementing it
+  incomplete, so a caller walking such a node gets an `AbstractMethodError`; Hibernate 6.6 did that to the 0.6.x
+  line. No 7.x release up to 7.4 has, so here it is a precaution: the base class implements whatever its Hibernate
+  declares.
+- **`PredicateToText` writes the attribute path.** The path in the text was derived from Hibernate's identifier, so
+  for an entity not directly in a package called `domain` it carried a package fragment and the entity's name
+  (`compositekey.KeyedDocument.title`), and `{id}` for an identifier step. It is built from the path's steps now,
+  `RsqlWhereHelper.attributePath`, which `WhereTextVisitor` uses too: `title`, `id.companyCode`.
+
 ### Changed
 - `=gt=`, `=ge=`, `=lt=`, `=le=`, `=bt=` and `=nbt=` over an embeddable are a `SyntaxErrorException` with a
   parameter or another field on the other side as well, not only with a string. On the Specification path they

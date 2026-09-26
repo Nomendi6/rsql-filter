@@ -48,7 +48,7 @@ implementation 'com.nomendi6:rsql-filter:0.7.10'
 ```
 
 ### Requirements
-- **0.6.x** — Java 17 or higher, Spring Boot 3.x, Hibernate 6.x
+- **0.6.x** — Java 17 or higher, Spring Boot 3.3 – 3.5, Hibernate 6.5 – 6.6 (see [Compatibility](#compatibility))
 - **0.7.x** — Java 21 or higher, Spring Boot 4.x, Hibernate 7.x
 
 **Note:** `rsql-filter-demo` ships only with the `0.6.x` line. It depends on JHipster 8 / Spring Boot 3 and is
@@ -1117,7 +1117,7 @@ Access the application at http://localhost:8080. See
 | rsql-filter | Spring Boot | Hibernate | Java |
 |-------------|-------------|-----------|------|
 | 0.7.x       | 4.x         | 7.x       | 21+  |
-| 0.6.x       | 3.x         | 6.x       | 17+  |
+| 0.6.x       | 3.3 – 3.5   | 6.5 – 6.6 | 17+  |
 | 0.5.x       | 2.7.x       | 5.x       | 11+  |
 
 `0.7.x` and `0.6.x` are maintained in parallel and carry the same features; `rsql-filter-demo` ships only with

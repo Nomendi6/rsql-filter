@@ -6,7 +6,6 @@ import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath;
 import org.hibernate.query.sqm.tree.domain.SqmEmbeddedValuedSimplePath;
 import org.hibernate.query.sqm.tree.domain.SqmPath;
 import org.hibernate.spi.DotIdentifierSequence;
-import org.hibernate.spi.EntityIdentifierNavigablePath;
 import org.hibernate.spi.NavigablePath;
 import rsql.antlr.where.RsqlWhereBaseVisitor;
 import rsql.antlr.where.RsqlWhereParser;
@@ -169,70 +168,12 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
 
     }
 
-    public String getFullPath(NavigablePath navigablePath) {
-        // Build path by traversing from current node back to root
-        List<String> pathParts = new ArrayList<>();
-        NavigablePath current = navigablePath;
-
-        // Traverse up to the root, collecting local names
-        while (current != null) {
-            // Extract just the simple property name from the navigable path
-            // getLocalName() may return fully qualified names like "nomendi6.rsql.it.domain.AppObject(1).validFrom"
-            // We need to extract just the property name after the last dot or closing parenthesis
-            // Hibernate names an identifier step "{id}" in the navigable path. JPQL needs the attribute's name for
-            // an @EmbeddedId, and no step at all for a virtual identifier (@IdClass, derived identity), which
-            // has no attribute: a0.parent.name, not a0.{id}.parent.name.
-            String simpleName = current instanceof EntityIdentifierNavigablePath identifier
-                    ? identifier.getIdentifierAttributeName()
-                    : extractSimplePropertyName(current.getLocalName());
-            if (simpleName != null) {
-                pathParts.add(simpleName);
-            }
-            current = current.getParent();
-        }
-
-        // The list is in reverse order (property -> ... -> root)
-        // We want to skip the root (last element) and reverse the rest
-        if (pathParts.size() <= 1) {
-            // Only root, no property
-            return "";
-        }
-
-        // Reverse and skip the last element (root), join with dots
-        Collections.reverse(pathParts);
-        StringBuilder result = new StringBuilder();
-        for (int i = 1; i < pathParts.size(); i++) {
-            if (result.length() > 0) {
-                result.append(".");
-            }
-            result.append(pathParts.get(i));
-        }
-
-        return result.toString();
-    }
-
     /**
-     * Extract simple property name from a potentially fully-qualified name.
-     * Examples:
-     * - "validFrom" -> "validFrom"
-     * - "nomendi6.rsql.it.domain.AppObject(1).validFrom" -> "validFrom"
-     * - "AppObject" -> "AppObject"
+     * The attribute path of a navigable path, {@code productType.code}; see
+     * {@link RsqlWhereHelper#attributePath(NavigablePath)}.
      */
-    private String extractSimplePropertyName(String fullName) {
-        if (fullName == null || fullName.isEmpty()) {
-            return fullName;
-        }
-
-        // Find the last occurrence of '.' or ')'
-        int lastDot = fullName.lastIndexOf('.');
-        int lastParen = fullName.lastIndexOf(')');
-        int lastDelimiter = Math.max(lastDot, lastParen);
-
-        if (lastDelimiter >= 0 && lastDelimiter < fullName.length() - 1) {
-            return fullName.substring(lastDelimiter + 1);
-        }
-
-        return fullName;
+    public String getFullPath(NavigablePath navigablePath) {
+        return RsqlWhereHelper.attributePath(navigablePath);
     }
 
     private String getRootPath(NavigablePath navigablePath) {
