@@ -3,7 +3,10 @@ package rsql.where;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath;
+import org.hibernate.query.sqm.tree.domain.SqmEmbeddedValuedSimplePath;
+import org.hibernate.query.sqm.tree.domain.SqmPath;
 import org.hibernate.spi.DotIdentifierSequence;
+import org.hibernate.spi.EntityIdentifierNavigablePath;
 import org.hibernate.spi.NavigablePath;
 import rsql.antlr.where.RsqlWhereBaseVisitor;
 import rsql.antlr.where.RsqlWhereParser;
@@ -59,11 +62,14 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
             RsqlQuery query
     ) {
         List<Object> paramList = new ArrayList<>();
+        boolean isEmbeddable = isFieldEmbeddableType(pathField);
 
         for (int i = 0; i < inListContext.inListElement().size(); i++) {
             Object element = getInListElement(inListContext.inListElement(i));
             if (element != null) {
-                if (isEnum && element.getClass().equals(String.class)) {
+                if (isEmbeddable && element instanceof String literal) {
+                    element = embeddableFromLiteral(pathField, literal);
+                } else if (isEnum && element.getClass().equals(String.class)) {
                     Path<Enum> enumField = (Path<Enum>) pathField;
                     element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
                 } else if (element instanceof DatetimeLiteral literal) {
@@ -82,8 +88,9 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         String fieldName;
 
         String alias = getAliasForPath(path);
-        if (path instanceof SqmBasicValuedSimplePath) {
-            NavigablePath navigablePath = ((SqmBasicValuedSimplePath<?>) path).getNavigablePath();
+        // An embeddable-valued path - a whole @EmbeddedId - is compared as one value, like a basic one.
+        if (path instanceof SqmBasicValuedSimplePath || path instanceof SqmEmbeddedValuedSimplePath) {
+            NavigablePath navigablePath = ((SqmPath<?>) path).getNavigablePath();
             fieldName = getFullPath(navigablePath);
 
         } else {
@@ -120,7 +127,7 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
     }
 
     private void addMissingJoins(Path<?> propertyPath) {
-        NavigablePath navigablePath = ((SqmBasicValuedSimplePath<?>) propertyPath).getNavigablePath();
+        NavigablePath navigablePath = ((SqmPath<?>) propertyPath).getNavigablePath();
         if (navigablePath.getParent() != null) {
             NavigablePath parent = navigablePath.getParent();
             if (parent.getParent() != null) { // if not root then add a new join if necessary
@@ -172,9 +179,15 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
             // Extract just the simple property name from the navigable path
             // getLocalName() may return fully qualified names like "nomendi6.rsql.it.domain.AppObject(1).validFrom"
             // We need to extract just the property name after the last dot or closing parenthesis
-            String localName = current.getLocalName();
-            String simpleName = extractSimplePropertyName(localName);
-            pathParts.add(simpleName);
+            // Hibernate names an identifier step "{id}" in the navigable path. JPQL needs the attribute's name for
+            // an @EmbeddedId, and no step at all for a virtual identifier (@IdClass, derived identity), which
+            // has no attribute: a0.parent.name, not a0.{id}.parent.name.
+            String simpleName = current instanceof EntityIdentifierNavigablePath identifier
+                    ? identifier.getIdentifierAttributeName()
+                    : extractSimplePropertyName(current.getLocalName());
+            if (simpleName != null) {
+                pathParts.add(simpleName);
+            }
             current = current.getParent();
         }
 
@@ -399,10 +412,35 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         String fieldPath = getFieldFromPath(pathField);
         String p1 = nextParam();
         boolean isEnum = RsqlWhereHelper.isFieldEnumType(pathField);
+        if ("not in".equals(operator) && isFieldEmbeddableType(pathField)) {
+            query.where = notInForEmbeddable(fieldPath, pathField, inListContext, query);
+            return query;
+        }
         createParamList(inListContext, pathField, p1, isEnum, query);
 
         query.where = fieldPath + " " + operator + " (:" + p1 + ")";
         return query;
+    }
+
+    /**
+     * {@code =nin=} over an embeddable, written as one {@code !=} per element joined with {@code and}, like the
+     * Specification path: Hibernate 6 emulates a row-value {@code not in} on SQL Server and DB2 by joining the
+     * per-element groups with {@code or}, and H2 reads a row-value {@code not in} of several elements as unknown
+     * when one component is NULL.
+     */
+    private String notInForEmbeddable(String fieldPath, Path<?> pathField, RsqlWhereParser.InListContext inListContext, RsqlQuery query) {
+        List<String> notEqual = new ArrayList<>();
+        for (int i = 0; i < inListContext.inListElement().size(); i++) {
+            Object element = getInListElement(inListContext.inListElement(i));
+            if (element instanceof Path<?> otherField) {
+                notEqual.add(fieldPath + "!=" + getFieldFromPath(otherField));
+            } else if (element != null) {
+                String p = nextParam();
+                notEqual.add(fieldPath + "!=:" + p);
+                query.params.add(new RsqlQueryParam(p, element instanceof String literal ? embeddableFromLiteral(pathField, literal) : element));
+            }
+        }
+        return "(" + String.join(" and ", notEqual) + ")";
     }
 
     private String nextAlias() {
@@ -449,6 +487,10 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         String p2 = nextParam();
         Path<?> pathField = getPropertyPath(fieldName, rsqlContext.root);
         String fieldPath = getFieldFromPath(pathField);
+        // An embeddable - an @EmbeddedId composite key, typically - has no order, whatever the bounds are.
+        if (isFieldEmbeddableType(pathField)) {
+            throw unknownOperatorForEmbeddable(pathField, ctx.operatorBT().getText());
+        }
 
         if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
             query.where = fieldPath + " between :" + p1 + " and :" + p2;
@@ -511,6 +553,10 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         String p2 = nextParam();
         Path<?> pathField = getPropertyPath(fieldName, rsqlContext.root);
         String fieldPath = getFieldFromPath(pathField);
+        // An embeddable - an @EmbeddedId composite key, typically - has no order, whatever the bounds are.
+        if (isFieldEmbeddableType(pathField)) {
+            throw unknownOperatorForEmbeddable(pathField, ctx.operatorNBT().getText());
+        }
 
         if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
             query.where = fieldPath + " not between :" + p1 + " and :" + p2;
@@ -741,6 +787,9 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         Path<?> pathValue = getPropertyPath(value, rsqlContext.root);
         String valuePath = getFieldFromPath(pathValue);
         RsqlWhereParser.OperatorContext operator = ctx.operator();
+        if (isFieldEmbeddableType(pathField) && operator.operatorEQ() == null && operator.operatorNEQ() == null) {
+            throw unknownOperatorForEmbeddable(pathField, operator.getText());
+        }
 
         if (operator.operatorEQ() != null) {
             query.where = fieldPath + "=" + valuePath;
@@ -768,6 +817,9 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         String fieldPath = getFieldFromPath(pathField);
         String value = getParamFromLiteral(ctx.PARAM_LITERAL());
         RsqlWhereParser.OperatorContext operator = ctx.operator();
+        if (isFieldEmbeddableType(pathField) && operator.operatorEQ() == null && operator.operatorNEQ() == null) {
+            throw unknownOperatorForEmbeddable(pathField, operator.getText());
+        }
 
         if (operator.operatorEQ() != null) {
             query.where = fieldPath + "=:" + value;
@@ -825,6 +877,20 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         String p1 = nextParam();
         String value = getStringFromStringLiteral(ctx.STRING_LITERAL());
         RsqlWhereParser.OperatorContext operator = ctx.operator();
+
+        // An embeddable - an @EmbeddedId composite key, typically - is written as one string and bound as the value
+        // its type's public static valueOf(String) makes of it, like the Specification path. Only equality applies.
+        if (isFieldEmbeddableType(pathField)) {
+            if (operator.operatorEQ() != null) {
+                query.where = fieldPath + "=:" + p1;
+            } else if (operator.operatorNEQ() != null) {
+                query.where = fieldPath + "!=:" + p1;
+            } else {
+                throw unknownOperatorForEmbeddable(pathField, operator.getText());
+            }
+            query.params.add(new RsqlQueryParam(p1, embeddableFromLiteral(pathField, value)));
+            return query;
+        }
 
         if (operator.operatorEQ() != null) {
             query.where = fieldPath + "=:" + p1;

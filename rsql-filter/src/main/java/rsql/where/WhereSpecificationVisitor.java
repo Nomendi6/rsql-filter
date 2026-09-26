@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import rsql.exceptions.SyntaxErrorException;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.ParameterExpression;
@@ -20,6 +22,8 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -178,16 +182,22 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         return pathField.getJavaType();
     }
 
-    private Specification<T> getSpecificationForInCondition(String fieldName, RsqlWhereParser.InListContext inListContext) {
+    private Specification<T> getSpecificationForInCondition(String fieldName, RsqlWhereParser.InListContext inListContext, boolean negated) {
         return (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
             Path<?> pathField = getPropertyPath(fieldName, root);
             boolean isEnum = RsqlWhereHelper.isFieldEnumType(pathField);
             boolean isUuid = RsqlWhereHelper.isFieldUuidType(pathField);
+            boolean isEmbeddable = RsqlWhereHelper.isFieldEmbeddableType(pathField);
+            if (negated && isEmbeddable) {
+                return notInForEmbeddable(pathField, inListContext, criteriaBuilder);
+            }
             CriteriaBuilder.In<Object> in = criteriaBuilder.in(getPropertyPath(fieldName, root));
             for (int i = 0; i < inListContext.inListElement().size(); i++) {
                 Object element = getInListElement(inListContext.inListElement(i));
                 if (element != null) {
-                    if (isEnum && element.getClass().equals(String.class)) {
+                    if (isEmbeddable && element instanceof String literal) {
+                        element = RsqlWhereHelper.embeddableFromLiteral(pathField, literal);
+                    } else if (isEnum && element.getClass().equals(String.class)) {
                         Path<Enum> enumField = (Path<Enum>) pathField;
                         element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
                     } else if (isUuid && element.getClass().equals(String.class)) {
@@ -201,8 +211,30 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 }
             }
 
-            return in;
+            return negated ? criteriaBuilder.not(in) : in;
         };
+    }
+
+    /**
+     * {@code =nin=} over an embeddable, written as one {@code <>} per element joined with {@code and}.
+     *
+     * <p>Not as {@code not in}: Hibernate 6 emulates a row-value {@code not in} on dialects without row-value
+     * lists - SQL Server, DB2 - by joining the per-element groups with {@code or}, which excludes nothing, and
+     * H2 evaluates a row-value {@code not in} of several elements as unknown when one component is NULL. The
+     * conjunction means the same on every database and every Hibernate version.</p>
+     */
+    private Predicate notInForEmbeddable(Path<?> pathField, RsqlWhereParser.InListContext inListContext, CriteriaBuilder criteriaBuilder) {
+        List<Predicate> notEqual = new ArrayList<>();
+        for (int i = 0; i < inListContext.inListElement().size(); i++) {
+            Object element = getInListElement(inListContext.inListElement(i));
+            if (element instanceof Expression<?> expression) {
+                notEqual.add(criteriaBuilder.notEqual(pathField, expression));
+            } else if (element != null) {
+                Object value = element instanceof String literal ? RsqlWhereHelper.embeddableFromLiteral(pathField, literal) : element;
+                notEqual.add(criteriaBuilder.notEqual(pathField, value));
+            }
+        }
+        return criteriaBuilder.and(notEqual.toArray(new Predicate[0]));
     }
 
     public void setSpecificationContext(RsqlContext<T> rsqlContext) {
@@ -233,6 +265,11 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         String fieldName = getFieldName(ctx.field());
 
         Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
+            // An embeddable - an @EmbeddedId composite key, typically - has no order, whatever the bounds are.
+            Path<?> fieldPath = getPropertyPath(fieldName, root);
+            if (isFieldEmbeddableType(fieldPath)) {
+                throw unknownOperatorForEmbeddable(fieldPath, ctx.operatorBT().getText());
+            }
             if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
                 String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
                 String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
@@ -288,6 +325,11 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         String fieldName = getFieldName(ctx.field());
 
         Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
+            // An embeddable - an @EmbeddedId composite key, typically - has no order, whatever the bounds are.
+            Path<?> fieldPath = getPropertyPath(fieldName, root);
+            if (isFieldEmbeddableType(fieldPath)) {
+                throw unknownOperatorForEmbeddable(fieldPath, ctx.operatorNBT().getText());
+            }
             if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
                 String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
                 String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
@@ -445,7 +487,7 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
     public Specification<T> visitSingleConditionIn(RsqlWhereParser.SingleConditionInContext ctx) {
         String fieldName = getFieldName(ctx.field());
 
-        Specification<T> spec = getSpecificationForInCondition(fieldName, ctx.inList());
+        Specification<T> spec = getSpecificationForInCondition(fieldName, ctx.inList(), false);
         return spec;
     }
 
@@ -453,9 +495,7 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
     public Specification<T> visitSingleConditionNotIn(RsqlWhereParser.SingleConditionNotInContext ctx) {
         String fieldName = getFieldName(ctx.field());
 
-        Specification<T> spec = getSpecificationForInCondition(fieldName, ctx.inList());
-
-        return Specification.not(spec);
+        return getSpecificationForInCondition(fieldName, ctx.inList(), true);
     }
 
     @Override
@@ -527,6 +567,9 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
             Path<String> pathField1 = (Path<String>) getPropertyPath(fieldName, root);
             Path<String> pathField2 = (Path<String>) getPropertyPath(value, root);
+            if (isFieldEmbeddableType(pathField1) && operator.operatorEQ() == null && operator.operatorNEQ() == null) {
+                throw unknownOperatorForEmbeddable(pathField1, operator.getText());
+            }
 
             if (operator.operatorEQ() != null) {
                 return criteriaBuilder.equal(pathField1, pathField2);
@@ -582,6 +625,17 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         RsqlWhereParser.OperatorContext operator = ctx.operator();
         Specification<T> spec = (Specification<T>) (root, criteriaQuery, criteriaBuilder) -> {
             Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+
+            // An embeddable - an @EmbeddedId composite key, typically - is written as one string, which the type's
+            // own public static valueOf(String) turns into a value. Only equality applies to it.
+            if (isFieldEmbeddableType(path)) {
+                if (operator.operatorEQ() != null) {
+                    return criteriaBuilder.equal(path, embeddableFromLiteral(path, value));
+                } else if (operator.operatorNEQ() != null) {
+                    return criteriaBuilder.notEqual(path, embeddableFromLiteral(path, value));
+                }
+                throw unknownOperatorForEmbeddable(path, operator.getText());
+            }
 
             boolean isUuid = isFieldUuidType(path);
 
@@ -647,6 +701,9 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
         RsqlWhereParser.OperatorContext operator = ctx.operator();
         Specification<T> spec = (root, criteriaQuery, criteriaBuilder) -> {
             Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
+            if (isFieldEmbeddableType(path) && operator.operatorEQ() == null && operator.operatorNEQ() == null) {
+                throw unknownOperatorForEmbeddable(path, operator.getText());
+            }
             final ParameterExpression<? extends String> parameter = criteriaBuilder.parameter(path.getJavaType(), parameterName);
             if (operator.operatorEQ() != null) {
                 return criteriaBuilder.equal(path, parameter);

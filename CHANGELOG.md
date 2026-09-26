@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.25] - 2026-09-26
+
+### Added
+- **A composite key written as one string: `id=='ACME~2024~17'`.** A condition whose path is an embeddable -
+  an `@EmbeddedId` typically, but any embeddable attribute - compared with a string literal converts the literal
+  through the embeddable class's own `public static T valueOf(String)` and compares the whole value, which
+  Hibernate renders as a row-value comparison, `(a,b,c)=(?,?,?)`. The library learns nothing about the format;
+  the key class owns it. `==`, `!=`, `=in=` and `=nin=` apply, directly (`id==`) and through a to-one
+  association (`document.id==`). Before, Hibernate rejected the query: `Cannot compare left expression of type
+  'DocumentId' with right expression of type 'java.lang.String'`.
+
+  Any other operator with a string literal - `=gt=`, the LIKE family, `=bt=`, `=nbt=` - is a
+  `SyntaxErrorException`, checked before the literal is converted, because a key has no order and is not text.
+  A class without such a `valueOf`, an exception thrown by it and a `null` it returns are a
+  `SyntaxErrorException` too, the exception kept as the cause; an `Error` is rethrown as it is. Whether a path
+  is an embeddable is asked of the attribute it was built from, so an XML mapping counts and the check costs no
+  lookup. `valueOf` is found once per class, cached in a `ClassValue`, and called as Java would call
+  `DocumentId.valueOf(s)`, so it may be inherited from a base class that is not public. A key declared as a type
+  variable of a generic `@MappedSuperclass` is read by the entity's concrete key class.
+
+  `=nin=` over a key is written as one `<>` per element joined with `and`. A row-value `not in` would be wrong
+  on SQL Server and DB2 under Hibernate 6, which emulates it by joining the per-element groups with `or`, and
+  on H2, which reads a row-value `not in` of several elements as unknown when one component is NULL. The
+  contract is tested on H2 and under Hibernate's SQL Server and DB2 dialects.
+- `SyntaxErrorException(String, Throwable)`.
+
+### Fixed
+- **The JPQL-text path could not filter on an `@EmbeddedId` at all.** A condition on the whole key failed with a
+  `ClassCastException`, and one on a single part of it - `id.docYear==2024`, `document.id.docYear==2024` - with a
+  JPQL syntax error, because the path was written with Hibernate's internal name for the identifier step,
+  `a0.{id}.docYear`. A service built with its own JPQL now reads both, and the composite-key comparison above,
+  the same way as the Specification path. A path through an entity with an `@IdClass` or a derived identity,
+  whose identifier step has no attribute at all, failed the same way and is now written without it.
+
+### Changed
+- `=gt=`, `=ge=`, `=lt=`, `=le=`, `=bt=` and `=nbt=` over an embeddable are a `SyntaxErrorException` with a
+  parameter or another field on the other side as well, not only with a string. On the Specification path they
+  used to run as a row-value comparison, over the columns in the alphabetical order of the attribute names -
+  `id=gt=:key` found documents of an earlier year - which is no order of the key.
+- `RsqlQueryService` and `SimpleQueryExecutor.getQueryResultAsPage` / `getQueryResultAsPageWithSelect` accept a
+  repository with any identifier type: `REPOS extends JpaRepository<ENTITY, ?>` instead of
+  `JpaRepository<ENTITY, Long>`. Nothing used the `Long`, and it meant that a service over an entity with a
+  composite key could only be declared as a raw type. Existing declarations compile and run unchanged.
+
 ## [0.6.24] - 2026-09-19
 
 ### Fixed

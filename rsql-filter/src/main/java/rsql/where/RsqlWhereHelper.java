@@ -10,17 +10,26 @@ import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.Metamodel;
 import jakarta.persistence.metamodel.PluralAttribute;
 import jakarta.persistence.metamodel.SingularAttribute;
+import jakarta.persistence.metamodel.Type;
 import rsql.antlr.where.RsqlWhereParser;
+import rsql.exceptions.SyntaxErrorException;
 
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.metamodel.mapping.internal.ToOneAttributeMapping;
 import org.hibernate.persister.entity.EntityPersister;
+import org.hibernate.query.sqm.tree.domain.SqmPath;
 
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class RsqlWhereHelper {
@@ -474,6 +483,126 @@ public class RsqlWhereHelper {
 
     static boolean isFieldUuidType(Path<?> pathField) {
         return pathField.getJavaType().equals(java.util.UUID.class);
+    }
+
+    /**
+     * Whether a path points at an embeddable - an {@code @EmbeddedId} composite key, typically.
+     *
+     * <p>The question is put to the attribute the path was built from, so the answer is the mapping's, XML
+     * included, and a class that is an embeddable in one place and a basic value in another is judged per
+     * attribute. It needs no entity manager and no lookup.</p>
+     *
+     * @param pathField The resolved path.
+     * @return true when the path's attribute is embeddable-valued
+     */
+    static boolean isFieldEmbeddableType(Path<?> pathField) {
+        return pathField.getModel() instanceof SingularAttribute<?, ?> attribute
+            && attribute.getType().getPersistenceType() == Type.PersistenceType.EMBEDDABLE;
+    }
+
+    /**
+     * The class of the embeddable a path holds.
+     *
+     * <p>Not simply {@link Path#getJavaType()}: an {@code @EmbeddedId K id} declared in a generic
+     * {@code @MappedSuperclass} reports the erased bound there - {@code Serializable} - while Hibernate has
+     * resolved the path to the concrete key class of the entity at hand, and that class is the one whose
+     * {@code valueOf} reads the literal.</p>
+     */
+    static Class<?> embeddableJavaType(Path<?> pathField) {
+        if (pathField instanceof SqmPath<?> sqmPath) {
+            Class<?> resolved = sqmPath.getResolvedModel().getBindableJavaType();
+            if (resolved != null) {
+                return resolved;
+            }
+        }
+        return pathField.getJavaType();
+    }
+
+    /** A class's {@code valueOf(String)}: the handle to call, or why it cannot be called. */
+    private record ValueOf(MethodHandle handle, IllegalAccessException inaccessible) {}
+
+    /**
+     * The public static {@code valueOf(String)} of each class, looked up once. A {@link ClassValue} keeps the
+     * entry with the class, so an undeployed application's key classes are not held by the library.
+     */
+    private static final ClassValue<Optional<ValueOf>> VALUE_OF = new ClassValue<>() {
+        @Override
+        protected Optional<ValueOf> computeValue(Class<?> type) {
+            Method valueOf;
+            try {
+                valueOf = type.getMethod("valueOf", String.class);
+            } catch (NoSuchMethodException none) {
+                return Optional.empty();
+            }
+            if (!Modifier.isStatic(valueOf.getModifiers()) || !type.isAssignableFrom(valueOf.getReturnType())) {
+                return Optional.empty();
+            }
+            try {
+                // Resolved through the class itself, as the compiler resolves type.valueOf(s), so a public key
+                // class may inherit its valueOf from a base class that is not public.
+                MethodHandle handle = MethodHandles.publicLookup()
+                    .findStatic(type, "valueOf", MethodType.methodType(valueOf.getReturnType(), String.class));
+                return Optional.of(new ValueOf(handle, null));
+            } catch (IllegalAccessException e) {
+                return Optional.of(new ValueOf(null, e));
+            } catch (NoSuchMethodException e) {
+                return Optional.empty();
+            }
+        }
+    };
+
+    /**
+     * Convert a string literal into a value of the given type through the type's own
+     * {@code public static T valueOf(String)}.
+     *
+     * <p>This is how a composite key written as one string - {@code id=='ACME~2024~17'} - is compared with an
+     * {@code @EmbeddedId}: the key class owns its textual form, so the library knows nothing about the format.
+     * A type without such a method, a type the library cannot reach, an exception thrown by the method and a
+     * null result are all a {@link SyntaxErrorException}, like any other literal that does not fit its field;
+     * the exception is kept as the cause. An {@link Error} is not a bad literal and is rethrown as it is.</p>
+     *
+     * @param type    The class of the embeddable, see {@link #embeddableJavaType(Path)}.
+     * @param literal The literal, without its delimiters.
+     * @return the converted value, never null
+     */
+    static Object valueOfLiteral(Class<?> type, String literal) {
+        ValueOf valueOf = VALUE_OF.get(type).orElseThrow(() -> new SyntaxErrorException(
+            "Cannot compare " + type.getName() + " with a string: it has no public static valueOf(String)"));
+        if (valueOf.handle() == null) {
+            throw new SyntaxErrorException(
+                "Cannot call " + type.getName() + ".valueOf(String): " + valueOf.inaccessible().getMessage(), valueOf.inaccessible());
+        }
+        Object value;
+        try {
+            value = valueOf.handle().invoke(literal);
+        } catch (Error error) {
+            throw error;
+        } catch (Throwable e) {
+            String reason = e.getMessage();
+            throw new SyntaxErrorException(
+                "Invalid value for " + type.getSimpleName() + ": " + literal + (reason == null ? "" : " (" + reason + ")"), e);
+        }
+        if (value == null) {
+            throw new SyntaxErrorException("Invalid value for " + type.getSimpleName() + ": " + literal + " (valueOf returned null)");
+        }
+        return value;
+    }
+
+    /** The value a string literal stands for when it is compared with an embeddable path. */
+    static Object embeddableFromLiteral(Path<?> pathField, String literal) {
+        return valueOfLiteral(embeddableJavaType(pathField), literal);
+    }
+
+    /**
+     * The error for an operator an embeddable does not support. A key has no order and is not text, so an
+     * embeddable is compared only by equality - {@code ==}, {@code !=}, {@code =in=}, {@code =nin=} - whatever
+     * it is compared with: a string literal, a parameter or another field. Hibernate would run {@code =gt=}
+     * or {@code =bt=} as a row-value comparison over the columns in the alphabetical order of the attribute
+     * names, which is no order of the key at all. The operator is checked before a literal is converted, so a
+     * wrong operator is reported as such rather than as a wrong key.
+     */
+    static SyntaxErrorException unknownOperatorForEmbeddable(Path<?> pathField, String operator) {
+        return new SyntaxErrorException("Unknown operator for " + embeddableJavaType(pathField).getSimpleName() + ": " + operator);
     }
 
     public static <E extends Enum<E>> E getEnum(String text, Class<E> klass) {

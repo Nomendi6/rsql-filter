@@ -41,6 +41,7 @@ This document provides detailed information about all the methods available in t
   - [Pagination and Sorting](#pagination-and-sorting)
   - [Working with Nested Properties](#working-with-nested-properties)
   - [Date and Time Filtering](#date-and-time-filtering)
+  - [Composite Keys](#composite-keys)
   - [Pattern Matching](#pattern-matching)
   - [NULL Handling](#null-handling)
   - [Collections](#collections)
@@ -63,7 +64,8 @@ public RsqlQueryService(
 Creates a new RsqlQueryService instance.
 
 **Parameters:**
-- `repository` - JPA repository that extends `JpaRepository` and `JpaSpecificationExecutor`
+- `repository` - JPA repository that extends `JpaRepository` and `JpaSpecificationExecutor`, with any
+  identifier type (before 0.6.25 it had to be `Long`)
 - `mapper` - Entity to DTO mapper
 - `entityManager` - JPA EntityManager
 - `entityClass` - Class of the entity
@@ -2079,6 +2081,30 @@ of that day. See [Dates, datetimes and time zones](README.md#dates-datetimes-and
 queryService.findByFilter("localCreatedAt=ge=#2024-01-01T08:00:00#");        // LocalDateTime: 08:00 as written
 queryService.findByFilter("createdDate=ge=#2024-01-01T08:00:00+01:00#");     // Instant: that moment
 ```
+
+### Composite Keys
+```java
+// An @EmbeddedId (or any embeddable) compared with one string: the embeddable's
+// public static valueOf(String) makes the value, and the whole key is compared
+queryService.findByFilter("id=='ACME~2024~17'");
+queryService.findByFilter("id=in=('ACME~2024~17','BETA~2024~3')");
+
+// Through a to-one association to an entity with a composite key
+paymentQueryService.findByFilter("document.id=='ACME~2024~17'");
+
+// One part of the key is an ordinary scalar comparison
+queryService.findByFilter("id.docYear==2024");
+```
+
+Since 0.6.25. Only `==`, `!=`, `=in=` and `=nin=` apply; the LIKE family, the ordering operators and
+`=bt=` / `=nbt=` over a key (with a string, a parameter or another field), a class without a
+`public static valueOf(String)`, and a literal its `valueOf` refuses are a `SyntaxErrorException`. It works on the
+Specification path and on the JPQL-text path alike. See
+[Composite keys and other embeddables](README.md#composite-keys-and-other-embeddables).
+
+The repository's identifier type is not restricted: `RsqlQueryService<ENTITY, DTO, REPOS, MAPPER>` takes
+`REPOS extends JpaRepository<ENTITY, ?> & JpaSpecificationExecutor<ENTITY>` (a `Long` identifier before 0.6.25), so a
+service over a composite key can be declared with its type arguments.
 
 ### Pattern Matching
 ```java
