@@ -340,7 +340,7 @@ public class SimpleQueryExecutor {
      * @return Page of query results
      */
     public static <
-        ENTITY, RESULT, REPOS extends JpaRepository<ENTITY, Long> & JpaSpecificationExecutor<ENTITY>
+        ENTITY, RESULT, REPOS extends JpaRepository<ENTITY, ?> & JpaSpecificationExecutor<ENTITY>
     > Page<RESULT> getQueryResultAsPageWithSelect(
         Class<ENTITY> entityClass,
         Class<RESULT> resultClass,
@@ -729,7 +729,7 @@ public class SimpleQueryExecutor {
      * @return Page of query results
      */
     public static <
-        ENTITY, RESULT, REPOS extends JpaRepository<ENTITY, Long> & JpaSpecificationExecutor<ENTITY>
+        ENTITY, RESULT, REPOS extends JpaRepository<ENTITY, ?> & JpaSpecificationExecutor<ENTITY>
     > Page<RESULT> getQueryResultAsPage(
         Class<ENTITY> entityClass,
         Class<RESULT> resultClass,
