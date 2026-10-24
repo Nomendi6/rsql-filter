@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.26] - 2026-10-24
+
+### Changed
+- **Under `PagingStrategy.IDS_THEN_HYDRATE` the identifier follows the direction of the last sort key.** The
+  statement that fetches a page's identifiers ends its sort with the identifier, so that tied keys have an
+  order. It was always `id ASC`, so `x DESC` was paged as `x DESC, id ASC` and `x ASC` as `x ASC, id ASC`, two
+  orders that no single index gives: an index serves an `ORDER BY` read forwards or backwards, and these two are
+  not each other's reverse. One direction was always sorted in full.
+
+  The identifier is now appended in the direction of the last requested key - `x DESC, id DESC`,
+  `x ASC, id ASC`, `a ASC, b DESC, id DESC` - ascending when nothing is requested, and, as before, not at all
+  when the sort names it. A sort and its reverse are one order read from opposite ends, so an index whose
+  identifier runs the way the column before it does, `(x, id)` or `(x DESC, id DESC)`, serves both, as measured
+  on Db2 12.1.5 and PostgreSQL 17.4. An index built for the old rule, `(x DESC, id)`, serves neither now;
+  rebuild it with the identifier in the direction of `x`, or put `id` in the sort explicitly to keep the old
+  order.
+
+  Visible in the data only for a sort whose last key is descending: rows tied on every requested key come
+  back with the larger identifier first. Pages remain a partition of the result. `SINGLE_QUERY`, the default,
+  is unchanged.
+
 ## [0.6.25] - 2026-09-26
 
 ### Added

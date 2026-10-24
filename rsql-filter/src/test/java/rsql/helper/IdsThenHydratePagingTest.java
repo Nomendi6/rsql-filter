@@ -81,6 +81,32 @@ class IdsThenHydratePagingTest {
     }
 
     @Test
+    @DisplayName("the identifier follows the direction of the last sort key")
+    void identifierFollowsTheLastSortKey() {
+        assertThat(IdsThenHydratePaging.idPageQuery("from Order a0", "a0", "id", Sort.by(Sort.Order.asc("number")), null))
+            .endsWith("order by a0.number ASC, a0.id ASC");
+        assertThat(IdsThenHydratePaging.idPageQuery("from Order a0", "a0", "id", Sort.by(Sort.Order.desc("number")), null))
+            .endsWith("order by a0.number DESC, a0.id DESC");
+        assertThat(IdsThenHydratePaging.idPageQuery("from Order a0", "a0", "id",
+                Sort.by(Sort.Order.asc("customer.name"), Sort.Order.desc("number")), null))
+            .endsWith("order by a0.customer.name ASC, a0.number DESC, a0.id DESC");
+        assertThat(IdsThenHydratePaging.idPageQuery("from Order a0", "a0", "id",
+                Sort.by(Sort.Order.desc("customer.name"), Sort.Order.asc("number")), null))
+            .endsWith("order by a0.customer.name DESC, a0.number ASC, a0.id ASC");
+    }
+
+    @Test
+    @DisplayName("a sort that names the identifier keeps it where and how it is named")
+    void identifierNamedInTheSortIsLeftAlone() {
+        assertThat(IdsThenHydratePaging.idPageQuery("from Order a0", "a0", "id",
+                Sort.by(Sort.Order.desc("number"), Sort.Order.asc("id")), null))
+            .endsWith("order by a0.number DESC, a0.id ASC");
+        assertThat(IdsThenHydratePaging.idPageQuery("from Order a0", "a0", "id",
+                Sort.by(Sort.Order.desc("id"), Sort.Order.asc("number")), null))
+            .endsWith("order by a0.id DESC, a0.number ASC");
+    }
+
+    @Test
     @DisplayName("the identifier attribute need not be called id")
     void identifierNameIsWhateverTheEntityCallsIt() {
         assertThat(IdsThenHydratePaging.idPageQuery("from Thing t", "t", "objectId", Sort.by("name"), null))
