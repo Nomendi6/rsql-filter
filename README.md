@@ -31,20 +31,20 @@ For detailed API documentation, see [API.md](API.md).
 ## Installation
 
 The library is maintained in two parallel lines with the same feature set. Pick the one that matches your
-platform: **0.6.25** for Spring Boot 3, **0.7.10** for Spring Boot 4. The snippets below use `0.6.25`.
+platform: **0.6.26** for Spring Boot 3, **0.7.11** for Spring Boot 4. The snippets below use `0.6.26`.
 
 ### Maven
 ```xml
 <dependency>
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
-    <version>0.6.25</version>
+    <version>0.6.26</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter:0.6.25'
+implementation 'com.nomendi6:rsql-filter:0.6.26'
 ```
 
 ### Requirements
@@ -849,7 +849,7 @@ number, although only a handful of rows come back.
 ```sql
 -- 1. the identifiers of the page: narrow rows, and only the joins the filter and the sort need
 select distinct a0.id, a0.orderDate from Order a0 left join a0.customer …
-where … order by a0.orderDate desc, a0.id asc
+where … order by a0.orderDate desc, a0.id desc
 offset ? rows fetch first ? rows only
 
 -- 2. the caller's own select, for those identifiers only: no sort, no limit
@@ -871,6 +871,13 @@ The default is `SINGLE_QUERY`, the behaviour of every earlier version. What to k
 - **Ties are now stable.** The first statement ends its sort with the identifier, so equal sort keys have a
   defined order. The single statement has none: ordered by a column with duplicates, H2 was observed to put
   one row on two consecutive pages and another on none, because each execution orders the tied rows afresh.
+- **The identifier follows the last sort key.** It is appended in the direction of the last requested key,
+  ascending when nothing is requested, so a sort and its reverse are one order read from opposite ends. An
+  index whose identifier runs the way the column before it does — `(order_date, id)` or
+  `(order_date desc, id desc)` — serves both directions without a sort, read forwards for one and backwards for
+  the other; `(order_date desc, id)` serves neither. A sort that already names `id` is used as it is, and
+  nothing is appended — so a client that adds `id,asc` to every sort decides the order itself. Before
+  0.6.26 the identifier was always ascending.
 - **Your `from` clause is reused, joins included.** Hibernate reuses an explicit `left join a0.x` for the
   `a0.x.y` path the filter and the sort are written with; built on a bare `from Order a0`, that path would be
   an inner join and `a0.x.y==null` would stop matching the rows that have no `x`. A `join fetch` is demoted to

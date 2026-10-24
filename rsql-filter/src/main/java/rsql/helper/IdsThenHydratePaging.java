@@ -94,7 +94,7 @@ final class IdsThenHydratePaging {
      * The first statement: the identifiers of one page, in page order.
      *
      * <pre>{@code
-     * select distinct a0.id, a0.name from Order a0 left join a0.customer where ... order by a0.name DESC, a0.id ASC
+     * select distinct a0.id, a0.name from Order a0 left join a0.customer where ... order by a0.name DESC, a0.id DESC
      * }</pre>
      *
      * <p>Three things about its shape are deliberate.</p>
@@ -107,7 +107,12 @@ final class IdsThenHydratePaging {
      *       Selecting the identifier alone and ordering by something else is the form that fails.</li>
      *   <li>The identifier is the last sort key. Two rows with equal sort values otherwise have no defined
      *       order, and the page boundary between them would move from one execution to the next. The single
-     *       statement has always had that flaw; this statement does not.</li>
+     *       statement has always had that flaw; this statement does not. It takes the direction of the last
+     *       requested key, ascending when nothing is requested, so that a sort and its reverse are one order
+     *       read from either end: an index whose identifier column runs the way the column before it does -
+     *       {@code (name, id)}, {@code (name DESC, id DESC)} - serves both, forwards and backwards, where
+     *       {@code name DESC, id ASC} would need an index of its own. A sort that names the identifier is left
+     *       as it is.</li>
      * </ul>
      *
      * @param fromClause Output of {@link #fromClause}.
@@ -124,6 +129,7 @@ final class IdsThenHydratePaging {
 
         StringBuilder orderBy = new StringBuilder();
         boolean sortedById = false;
+        Sort.Direction idDirection = Sort.Direction.ASC;
         if (sort != null && sort.isSorted()) {
             for (Sort.Order order : sort) {
                 String path = alias + "." + order.getProperty();
@@ -133,12 +139,13 @@ final class IdsThenHydratePaging {
                     selected.add(path);
                 }
                 orderBy.append(path).append(' ').append(order.getDirection().name()).append(", ");
+                idDirection = order.getDirection();
             }
         }
         if (sortedById) {
             orderBy.setLength(orderBy.length() - 2);
         } else {
-            orderBy.append(idPath).append(" ASC");
+            orderBy.append(idPath).append(' ').append(idDirection.name());
         }
 
         StringBuilder jpql = new StringBuilder("select distinct ")

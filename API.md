@@ -1237,8 +1237,10 @@ public static <ENTITY, RESULT> Page<RESULT> getJpqlQueryResultAsPageIdsThenHydra
 **Since 0.6.23.** The same page as `getJpqlQueryResultAsPage`, fetched in two statements: the identifiers of the
 page first — `select distinct <alias>.<id>, <sort columns> <the select's own from clause> where … order by …,
 <alias>.<id>` with the offset and the limit — then `jpqlQueryString where <alias>.<id> in (:rsqlPageIds)`,
-unsorted and unlimited, with the rows put back in the order of the first statement. The count is unchanged and
-runs once. This is what `RsqlQueryService` calls under `PagingStrategy.IDS_THEN_HYDRATE`.
+unsorted and unlimited, with the rows put back in the order of the first statement. The identifier takes the
+direction of the last sort key, ascending when there is none, and is not appended when the sort already names it;
+before 0.6.26 it was always ascending. The count is unchanged and runs once. This is what `RsqlQueryService`
+calls under `PagingStrategy.IDS_THEN_HYDRATE`.
 
 - `rowIdExtractor` — reads the identifier off a hydrated row; `null` means `PersistenceUnitUtil.getIdentifier`,
   which is right for an entity row and throws, with a message that says what to pass, for a DTO.
