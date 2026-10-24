@@ -90,12 +90,14 @@ public class IdsThenHydratePagingIT {
         productTypeRepository.saveAndFlush(typeTwo);
 
         // Names sort in the same order as identifiers, so "name desc" is the reverse of what an unordered
-        // hydration returns; seq sorts the other way; products 5-7 have no type at all.
+        // hydration returns; seq sorts the other way; products 5-7 have no type at all; price alternates, so
+        // that type and price together still leave a tie (products 5 and 7).
         for (int i = 1; i <= PRODUCTS; i++) {
             Product product = new Product();
             product.setCode("C" + i);
             product.setName("name" + i);
             product.setSeq((long) (PRODUCTS - i));
+            product.setPrice(java.math.BigDecimal.valueOf(i % 2));
             product.setProductType(i <= 2 ? typeOne : i <= 4 ? typeTwo : null);
             productRepository.saveAndFlush(product);
         }
@@ -225,6 +227,32 @@ public class IdsThenHydratePagingIT {
                 String because = "sort=" + sortCase.sort() + " filter=[" + filter + "]";
                 assertThat(seen).as("no row twice, %s", because).doesNotHaveDuplicates();
                 assertThat(Set.copyOf(seen)).as("every row once, %s", because).isEqualTo(all);
+            }
+        }
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("with ties in the sort, the descending pages are the ascending ones read backwards")
+    void reversedSortReversesTheWholeResult() {
+        // The identifier takes the direction of the last key, so a sort and its reverse are one order read from
+        // either end - which is what lets a single index serve both. Under a fixed `id ASC` the tied rows came
+        // back in ascending identifier order both ways.
+        List<Sort> tied = List.of(
+            Sort.by(Sort.Order.asc("productType.name")),
+            Sort.by(Sort.Order.asc("productType.name"), Sort.Order.desc("price"))
+        );
+        for (Sort sort : tied) {
+            Sort reversed = Sort.by(sort.stream().map(order -> order.with(order.getDirection().isAscending() ? Sort.Direction.DESC : Sort.Direction.ASC)).toList());
+            for (String filter : FILTERS) {
+                List<Long> forward = new java.util.ArrayList<>();
+                List<Long> backward = new java.util.ArrayList<>();
+                for (int page = 0; page * 2 < PRODUCTS; page++) {
+                    forward.addAll(ids(twoPhase(filter, PageRequest.of(page, 2, sort))));
+                    backward.addAll(ids(twoPhase(filter, PageRequest.of(page, 2, reversed))));
+                }
+                java.util.Collections.reverse(backward);
+                assertThat(forward).as("sort=%s filter=[%s]", sort, filter).isEqualTo(backward);
             }
         }
     }

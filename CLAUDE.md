@@ -89,6 +89,8 @@ mvn -pl rsql-filter generate-sources
      the caller's select second, so a wide `select new` is built only for the rows that come back. JPQL mode
      and the paged methods only; default `SINGLE_QUERY`. `SimpleQueryExecutor.getJpqlQueryResultAsPageIdsThenHydrate`
      is the static form, `rsql.helper.IdsThenHydratePaging` builds the statements. Since 0.7.8 / 0.6.23.
+     The identifier is the last sort key of the id page, in the direction of the last requested key (ascending
+     when unsorted, left alone when the sort names it), so one index serves a sort and its reverse. Since 0.7.11 / 0.6.26.
 
 3. **RsqlFilterDescription** - Turns a WHERE filter into report text and JasperReports rows
    - Purely textual: no EntityManager, no RsqlContext - it works on the parse tree alone
@@ -155,8 +157,8 @@ its root `a0` (the default), or the alias must be declared with setSelectAlias()
 
 The project maintains two lines in parallel, and the platform versions differ between them:
 
-- **release-3** - the 0.6.x line, currently 0.6.25: Java 17, Spring Boot 3.4.4, Hibernate 6.6.11 (also tested on 6.5.3 and 6.6.53)
-- **master** - the 0.7.x line, currently 0.7.10: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
+- **release-3** - the 0.6.x line, currently 0.6.26: Java 17, Spring Boot 3.4.4, Hibernate 6.6.11 (also tested on 6.5.3 and 6.6.53)
+- **master** - the 0.7.x line, currently 0.7.11: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
 This branch is cut from `master`, so the 0.7.x numbers are the ones that apply here. A version note in the
 docs on this branch cites both lines ("Since 0.7.5 / 0.6.20"), because the same change usually ships on both;
