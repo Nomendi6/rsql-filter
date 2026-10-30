@@ -101,8 +101,11 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     public Predicate visitHavingConditionLiteral(HavingConditionLiteralContext ctx) {
         // Comparison with literal: totalPrice > 1000
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
-        Object literalValue = temporalFor(expression, extractLiteralValue(ctx.literal()));
         String operator = ctx.operator().getText();
+        if (isUuid(expression) && !"==".equals(operator) && !"!=".equals(operator) && !"=!".equals(operator)) {
+            throw RsqlWhereHelper.unknownOperatorForUuid(operator);
+        }
+        Object literalValue = temporalFor(expression, extractLiteralValue(ctx.literal()));
 
         return buildComparisonPredicate(expression, literalValue, operator);
     }
@@ -176,6 +179,9 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     @Override
     public Predicate visitHavingConditionBetween(HavingConditionBetweenContext ctx) {
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
+        if (isUuid(expression)) {
+            throw RsqlWhereHelper.unknownOperatorForUuid(ctx.operatorBT().getText());
+        }
         Object from = temporalFor(expression, extractLiteralValue(ctx.literal(0)));
         Object to = temporalFor(expression, extractLiteralValue(ctx.literal(1)));
 
@@ -185,6 +191,9 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
     @Override
     public Predicate visitHavingConditionNotBetween(HavingConditionNotBetweenContext ctx) {
         Expression<?> expression = (Expression<?>) visit(ctx.havingExpression());
+        if (isUuid(expression)) {
+            throw RsqlWhereHelper.unknownOperatorForUuid(ctx.operatorNBT().getText());
+        }
         Object from = temporalFor(expression, extractLiteralValue(ctx.literal(0)));
         Object to = temporalFor(expression, extractLiteralValue(ctx.literal(1)));
 
@@ -370,7 +379,14 @@ public class HavingSpecificationVisitor<ENTITY> extends RsqlHavingBaseVisitor<Ob
         if (value instanceof java.time.LocalDate date) {
             return rsql.where.DatetimeLiteral.dateAs(date, type);
         }
+        if (value instanceof String literal && type == java.util.UUID.class) {
+            return RsqlWhereHelper.uuidFromLiteral(literal);
+        }
         return value;
+    }
+
+    private static boolean isUuid(Expression<?> expression) {
+        return expression != null && expression.getJavaType() == java.util.UUID.class;
     }
 
     private List<Object> extractLiteralList(LiteralListContext ctx) {
