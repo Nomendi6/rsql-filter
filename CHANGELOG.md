@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.27] - 2026-10-30
+
+### Fixed
+- **A UUID string on the JPQL path is bound as a `java.util.UUID`.** `uuid=='…'` and `uuid!='…'` failed in
+  every JPQL-mode call - `findByFilter`, `findEntitiesByFilter`, `findByFilterAndSort`,
+  `findEntitiesByFilterAndSort` and `countByFilter` with `useJpqlSelect`, and `getJpqlQuery*` - with
+  `QueryArgumentException: Argument [...] of type [java.lang.String] did not match parameter type
+  [java.util.UUID (n/a)]`. `WhereTextVisitor` bound the literal as a `String`, and Hibernate checks a single
+  value against the attribute's type, which stays `UUID` when an `AttributeConverter<UUID, String>` stores it
+  as text. `=in=` and `=nin=` worked only because Hibernate 6 does not check the elements of a list and converts
+  them itself when the query runs. Every site that binds a string to a UUID - both WHERE paths, single values
+  and lists, and HAVING - now goes through one conversion, so both paths return the same rows and the converter
+  always writes the stored form.
+- **HAVING compares a string with a grouped UUID as a UUID.** Behind an `AttributeConverter` it compared the
+  text of the column with the text of the literal, so a UUID in upper case never equalled the stored one -
+  `==` and `=in=` found no group, `!=` and `=nin=` kept the one they should have excluded - and an invalid UUID
+  silently matched nothing.
+  Against a native UUID every such condition failed with `SyntaxErrorException: Unexpected error while
+  compiling HAVING clause`.
+
+### Changed
+- **A string against a UUID attribute is accepted only with `==`, `!=`, `=in=` and `=nin=`**, on both paths and
+  in HAVING; any other operator is `SyntaxErrorException: Unknown operator for UUID: <operator>`, checked before
+  the literal is converted. Three forms that used to compare the text of a converted column are rejected now:
+  `=like=` / `=nlike=` on the JPQL path, `=bt=` / `=nbt=` on the Specification path, and `=gt=`, `=bt=`,
+  `=like=` and the other ordering and pattern operators in HAVING. In HAVING the rule covers any literal against
+  a grouped UUID, and `=bt=` / `=nbt=` is rejected whatever its bounds.
+- **An invalid UUID is a `SyntaxErrorException: Invalid UUID format` everywhere.** In `=in=` / `=nin=` it used
+  to be an `IllegalArgumentException` - from the library on the Specification path, wrapped by Spring Data in
+  `InvalidDataAccessApiUsageException`, and from Hibernate, when the query ran, on the JPQL path - and in HAVING
+  it matched no group. `SyntaxErrorException` is not an `IllegalArgumentException`, so a handler that maps the
+  latter to HTTP 400 does not catch it.
+- **With the LIKE family and a UUID string, the Specification path reports the operator**
+  (`Unknown operator for UUID: =like=`), not the pattern (`Invalid UUID format: *x*`).
+- **For a UUID attribute `RsqlCompiler.compileToRsqlQuery` puts a `UUID`, not a `String`, into
+  `RsqlQueryParam.value` and `RsqlQueryParamList.list`**, and an invalid UUID or an unsupported operator fails
+  while compiling.
+
 ## [0.6.26] - 2026-10-24
 
 ### Changed

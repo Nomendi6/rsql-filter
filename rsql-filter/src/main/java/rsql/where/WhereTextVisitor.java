@@ -62,12 +62,15 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
     ) {
         List<Object> paramList = new ArrayList<>();
         boolean isEmbeddable = isFieldEmbeddableType(pathField);
+        boolean isUuid = isFieldUuidType(pathField);
 
         for (int i = 0; i < inListContext.inListElement().size(); i++) {
             Object element = getInListElement(inListContext.inListElement(i));
             if (element != null) {
                 if (isEmbeddable && element instanceof String literal) {
                     element = embeddableFromLiteral(pathField, literal);
+                } else if (isUuid && element instanceof String literal) {
+                    element = uuidFromLiteral(literal);
                 } else if (isEnum && element.getClass().equals(String.class)) {
                     Path<Enum> enumField = (Path<Enum>) pathField;
                     element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
@@ -434,6 +437,9 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         }
 
         if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
+            if (isFieldUuidType(pathField)) {
+                throw unknownOperatorForUuid(ctx.operatorBT().getText());
+            }
             query.where = fieldPath + " between :" + p1 + " and :" + p2;
             String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
             String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
@@ -500,6 +506,9 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
         }
 
         if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
+            if (isFieldUuidType(pathField)) {
+                throw unknownOperatorForUuid(ctx.operatorNBT().getText());
+            }
             query.where = fieldPath + " not between :" + p1 + " and :" + p2;
             String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
             String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
@@ -830,6 +839,19 @@ public class WhereTextVisitor<T> extends RsqlWhereBaseVisitor<RsqlQuery> {
                 throw unknownOperatorForEmbeddable(pathField, operator.getText());
             }
             query.params.add(new RsqlQueryParam(p1, embeddableFromLiteral(pathField, value)));
+            return query;
+        }
+
+        // A UUID is bound as one: Hibernate refuses a String for a UUID parameter. Only equality applies to it.
+        if (isFieldUuidType(pathField)) {
+            if (operator.operatorEQ() != null) {
+                query.where = fieldPath + "=:" + p1;
+            } else if (operator.operatorNEQ() != null) {
+                query.where = fieldPath + "!=:" + p1;
+            } else {
+                throw unknownOperatorForUuid(operator.getText());
+            }
+            query.params.add(new RsqlQueryParam(p1, uuidFromLiteral(value)));
             return query;
         }
 

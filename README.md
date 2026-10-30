@@ -31,20 +31,20 @@ For detailed API documentation, see [API.md](API.md).
 ## Installation
 
 The library is maintained in two parallel lines with the same feature set. Pick the one that matches your
-platform: **0.6.26** for Spring Boot 3, **0.7.11** for Spring Boot 4. The snippets below use `0.6.26`.
+platform: **0.6.27** for Spring Boot 3, **0.7.12** for Spring Boot 4. The snippets below use `0.6.27`.
 
 ### Maven
 ```xml
 <dependency>
     <groupId>com.nomendi6</groupId>
     <artifactId>rsql-filter</artifactId>
-    <version>0.6.26</version>
+    <version>0.6.27</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'com.nomendi6:rsql-filter:0.6.26'
+implementation 'com.nomendi6:rsql-filter:0.6.27'
 ```
 
 ### Requirements
@@ -276,6 +276,13 @@ Supported data types:
 
 Fractional seconds are optional, so `#2019-01-01T00:00:00.123Z#` is also valid. A plain date `#2019-01-01#`
 carries no zone and needs none.
+
+A UUID is written as a string, in upper or lower case: `uuidField=='F47AC10B-58CC-4372-A567-0E02B2C3D479'`. The
+string is bound as a `java.util.UUID` on the Specification path, on the JPQL path (`setUseJpqlSelect`, the
+six-argument constructor, `getJpqlQuery*`) and in HAVING, so an attribute behind an
+`AttributeConverter<UUID, String>` is compared as a UUID and the converter writes the stored form. A value put
+into the column in another form, bypassing the converter, is therefore not found. Only `==`, `!=`, `=in=` and
+`=nin=` accept a UUID string; any other operator, and an invalid UUID, is a `SyntaxErrorException`. Since 0.6.27.
 
 #### Dates, datetimes and time zones
 

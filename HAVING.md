@@ -107,6 +107,11 @@ MAX(code)=="C:\dir\"        -> value: C:\dir\
 > (`:param`) are **not** accepted in HAVING; both raise `SyntaxErrorException`. Compare a grouped enum
 > field with a quoted string instead (`status=='ACTIVE'`).
 
+A string compared with a grouped UUID is bound as a `java.util.UUID`, so its case does not matter and a field
+behind an `AttributeConverter<UUID, String>` is compared as a UUID, not as text. Against a grouped UUID only
+`==`, `!=`, `=in=` and `=nin=` are accepted, with any literal, not only a string; any other operator, `=bt=` /
+`=nbt=` whatever the bounds, and an invalid UUID are a `SyntaxErrorException`. Since 0.6.27.
+
 **Examples:**
 ```java
 // Products by category with at least 5 items

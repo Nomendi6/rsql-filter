@@ -25,7 +25,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 import static rsql.where.RsqlWhereHelper.*;
 
@@ -200,8 +199,8 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                     } else if (isEnum && element.getClass().equals(String.class)) {
                         Path<Enum> enumField = (Path<Enum>) pathField;
                         element = RsqlWhereHelper.getEnum((String) element, enumField.getJavaType());
-                    } else if (isUuid && element.getClass().equals(String.class)) {
-                        element = UUID.fromString((String) element);
+                    } else if (isUuid && element instanceof String literal) {
+                        element = RsqlWhereHelper.uuidFromLiteral(literal);
                     } else if (element instanceof DatetimeLiteral literal) {
                         element = literal.as(pathField.getJavaType(), fieldName);
                     } else if (element instanceof LocalDate date) {
@@ -271,6 +270,9 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 throw unknownOperatorForEmbeddable(fieldPath, ctx.operatorBT().getText());
             }
             if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
+                if (isFieldUuidType(fieldPath)) {
+                    throw unknownOperatorForUuid(ctx.operatorBT().getText());
+                }
                 String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
                 String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
                 Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
@@ -331,6 +333,9 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 throw unknownOperatorForEmbeddable(fieldPath, ctx.operatorNBT().getText());
             }
             if (ctx.inListElement(0).STRING_LITERAL() != null && ctx.inListElement(1).STRING_LITERAL() != null) {
+                if (isFieldUuidType(fieldPath)) {
+                    throw unknownOperatorForUuid(ctx.operatorNBT().getText());
+                }
                 String from = getStringFromStringLiteral(ctx.inListElement(0).STRING_LITERAL());
                 String to = getStringFromStringLiteral(ctx.inListElement(1).STRING_LITERAL());
                 Path<String> path = (Path<String>) getPropertyPath(fieldName, root);
@@ -637,24 +642,14 @@ public class WhereSpecificationVisitor<T> extends RsqlWhereBaseVisitor<Specifica
                 throw unknownOperatorForEmbeddable(path, operator.getText());
             }
 
-            boolean isUuid = isFieldUuidType(path);
-
-            // If fieldType is UUID, convert the value to UUID
-            if (isUuid) {
-                UUID uuidValue;
-                try {
-                    uuidValue = UUID.fromString(value);
-                } catch (IllegalArgumentException e) {
-                    throw new SyntaxErrorException("Invalid UUID format: " + value);
-                }
-
+            // A UUID is bound as one, like on the JPQL path. Only equality applies to it.
+            if (isFieldUuidType(path)) {
                 if (operator.operatorEQ() != null) {
-                    return criteriaBuilder.equal(path, uuidValue);
+                    return criteriaBuilder.equal(path, uuidFromLiteral(value));
                 } else if (operator.operatorNEQ() != null) {
-                    return criteriaBuilder.notEqual(path, uuidValue);
+                    return criteriaBuilder.notEqual(path, uuidFromLiteral(value));
                 }
-                // Add other UUID-compatible operators here if needed
-                throw new SyntaxErrorException("Unknown operator for UUID: " + operator.getText());
+                throw unknownOperatorForUuid(operator.getText());
             }
 
             if (operator.operatorEQ() != null) {

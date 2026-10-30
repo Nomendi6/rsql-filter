@@ -492,6 +492,32 @@ public class RsqlWhereHelper {
     }
 
     /**
+     * A string literal compared with a {@code UUID} attribute, as the {@code UUID} it names, case ignored.
+     *
+     * <p>Every site that binds a string to a {@code UUID} goes through here - WhereSpecificationVisitor and
+     * WhereTextVisitor, single values and lists, and HAVING - so the value is bound in the attribute's type
+     * and an {@code AttributeConverter} writes the stored form. Hibernate refuses a {@code String} for a
+     * {@code UUID} parameter of a JPQL query (6.x for a single value, 7.x for list elements too).</p>
+     */
+    public static java.util.UUID uuidFromLiteral(String literal) {
+        try {
+            return java.util.UUID.fromString(literal);
+        } catch (IllegalArgumentException e) {
+            throw new SyntaxErrorException("Invalid UUID format: " + literal);
+        }
+    }
+
+    /**
+     * The error for an operator a {@code UUID} does not support with a string literal. A UUID is compared only
+     * by equality - {@code ==}, {@code !=}, {@code =in=}, {@code =nin=}: it is no text a pattern could match,
+     * and its order is the database's, not one a filter could mean. The operator is checked before the literal
+     * is converted, so a wrong operator is reported as such rather than as a wrong UUID.
+     */
+    public static SyntaxErrorException unknownOperatorForUuid(String operator) {
+        return new SyntaxErrorException("Unknown operator for UUID: " + operator);
+    }
+
+    /**
      * Whether a path points at an embeddable - an {@code @EmbeddedId} composite key, typically.
      *
      * <p>The question is put to the attribute the path was built from, so the answer is the mapping's, XML
