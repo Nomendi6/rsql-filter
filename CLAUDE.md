@@ -210,8 +210,8 @@ its root `a0` (the default), or the alias must be declared with setSelectAlias()
 
 The project maintains two lines in parallel, and the platform versions differ between them:
 
-- **release-3** - the 0.6.x line, currently 0.6.26: Java 17, Spring Boot 3.4.4, Hibernate 6.6.11 (also tested on 6.5.3 and 6.6.53)
-- **master** - the 0.7.x line, currently 0.7.11: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
+- **release-3** - the 0.6.x line, currently 0.6.27: Java 17, Spring Boot 3.4.4, Hibernate 6.6.11 (also tested on 6.5.3 and 6.6.53)
+- **master** - the 0.7.x line, currently 0.7.12: Java 21, Spring Boot 4.0.3, Hibernate 7.2.4
 
 This branch is cut from `release-3`, so the 0.6.x numbers are the ones that apply here, and a version note in
 the docs on this branch cites the 0.6.x number alone ("Since 0.6.20"); `master` writes the pair
@@ -274,6 +274,14 @@ Right-hand sides:
   tuple NOT IN wrongly on SQL Server/DB2 and H2 mishandles NULL components in it. WhereSpecificationVisitor and
   WhereTextVisitor both go through these, and a new site that compares an embeddable must too. The
   `EmbeddableKey*IT` contract runs on H2 and under the SQL Server and DB2 dialects. Since 0.6.25.
+- A string against a UUID attribute is converted by `RsqlWhereHelper.uuidFromLiteral` and bound as a
+  `java.util.UUID`: Hibernate refuses a `String` for a UUID parameter (6.x for a single value, 7.x for list
+  elements too), and an `AttributeConverter<UUID, String>` changes only the column. `==`, `!=`, `=in=`, `=nin=`
+  only; the operator is checked before the conversion, and any other throws the `SyntaxErrorException` built by
+  `RsqlWhereHelper.unknownOperatorForUuid`. HAVING applies the same rule to any literal against a grouped UUID
+  and rejects `=bt=` / `=nbt=` whatever the bounds. WhereSpecificationVisitor, WhereTextVisitor and
+  HavingSpecificationVisitor all go through these, and a new site that binds a literal must too. `UuidFilterIT`
+  holds both paths to the same rows. Since 0.6.27.
 - `null`, `true`, `false` - only with `==` and `!=`: `description==null`, `active==true`.
 - Another field: `price=gt=cost`, and a field is also legal as an IN element or a BETWEEN bound
   (`code=in=(status,name)`, `price=bt=(minPrice,maxPrice)`). This is why an unquoted
